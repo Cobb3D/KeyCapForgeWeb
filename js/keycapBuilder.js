@@ -19,7 +19,7 @@ const FLUSH_EPSILON = 0.02;
 // flat sides, its thinnest points, at exactly the requested wall.
 const STEM_BOSS_SIDES = 24;
 function stemBossRadius(settings) {
-  const wall = settings.stemBossWallMM ?? 1.0;
+  const wall = settings.stemBossWallMM ?? 0.65;
   return (settings.stemCavityWidthMM / 2 + wall) / Math.cos(Math.PI / STEM_BOSS_SIDES);
 }
 
@@ -52,7 +52,14 @@ export function buildKeycap(cap, settings) {
 
   const innerBottom = bottomProfile.insetApprox(settings.wallThicknessMM);
   const innerTop = topProfile.insetApprox(settings.wallThicknessMM);
-  const ceilingZ = height - settings.legendDepthMM * 0.5;
+  // Solid top ("crown") above the hollow interior: topThicknessMM, default
+  // 1.5mm. It used to be half the legend depth, 0.3mm at defaults, one or
+  // two printed layers. It's never allowed thinner than the legend needs
+  // (an engraved legend sinks legendDepth into it, a shine-through one
+  // twice that) plus 0.4mm of body material underneath.
+  const legendNeeds = (cap.legendStyle === 'shineThrough' ? 2 : cap.legendStyle === 'embossed' ? 0 : 1) * settings.legendDepthMM;
+  const topThickness = Math.max(settings.topThicknessMM ?? 1.5, legendNeeds + 0.4);
+  const ceilingZ = Math.max(1.0, height - topThickness);
   body.append(loftShell(innerBottom, innerTop, 0, ceilingZ, true));
   body.append(ringFaceBottomRim(bottomRim, innerBottom));
 
@@ -252,23 +259,12 @@ function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
   const ceilingBoundary = filletActive ? bossOuterFlared : bossOuter;
 
   const mesh = new Mesh();
-  // The boss's own outer wall is built in three possible segments now,
-  // split exactly at the socket's own depth and, when the fillet is
-  // active, again where the taper itself begins — not as one continuous
-  // loft from 0 to the ceiling — because the dead-end ring below needs
-  // an explicit vertex ring to connect to right at the depth boundary,
-  // and the taper needs one of its own at ceilingZ - filletHeight.
-  // Confirmed directly (before the fillet existed): a single continuous
-  // loftShell(bossOuter, bossOuter, 0, ceilingZ) has no vertices at all
-  // at any intermediate Z — its own edges run straight from Z=0 to
-  // Z=ceilingZ — so the dead-end ring's outer boundary (a horizontal
-  // ring tracing bossOuter's own shape at Z=depth) had nothing to match,
-  // leaving it open at exactly bossOuter's radius. The lower segment (0
-  // to depth) sits directly beside the actual socket cavity; the
-  // straight-upper one (depth to the start of the taper) only exists
-  // when the fillet doesn't already consume the entire remaining height
-  // on its own; the taper itself (its own start to ceiling) only exists
-  // when active at all.
+  // The boss's outer wall, in up to three segments: 0 to the socket depth,
+  // then straight up to where the reinforcing taper starts, then the taper
+  // to the ceiling. Nothing attaches to the wall at the socket depth any
+  // more (the post is solid above the socket), so the split there is just
+  // a row of shared vertices between two wall segments; it's kept because
+  // it's harmless and the taper still needs its own boundary.
   mesh.append(loftShell(bossOuter, bossOuter, 0, depth));
   if (depth < ceilingZ - 0.01) {
     // taperStartZ is computed once and used as the exact boundary for
@@ -294,83 +290,27 @@ function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
   // housing would sit against once the stem is seated — now at Z=0.
   mesh.append(ringFace(bossOuter, crossOuter, 0, true));
   mesh.append(loftShell(crossOuter, crossOuter, 0, depth, true));
-  // The socket's dead end — where the stem's cross-shaped post presses
-  // against once fully inserted — at its own actual depth above the
-  // opening, not at the ceiling. facingDown=false here (not true, unlike
-  // the opening ring right above this): this ring's own real-world
-  // surface faces UP (solid boss-wall material is below it, the hollow
-  // void the fillet section creates is above it), verified directly by
-  // computing actual triangle normals rather than reasoning about index
-  // order alone — facingDown=true's own normal averaged -0.33 in Z (it
-  // was actually facing DOWN, backwards), facingDown=false's averaged
-  // +0.33 (correctly up). facingDown=true only ever looked "consistent"
-  // with the wall above it by coincidence: this ring's outer edge sits
-  // at a genuine 3-way T-junction (the boss's outer wall is already one
-  // continuous, correctly-outward-facing tube on its own below AND above
-  // this point — confirmed directly, 0 conflicts between those two
-  // segments alone — and this ring's outer edge is a third face bolted
-  // onto that same edge), which will always show as a same-direction
-  // "conflict" against ONE of the two existing directions no matter
-  // which of the two valid ring orientations is picked, simply because
-  // only two directions exist for three occurrences — that's an
-  // inherent, unavoidable property of this kind of internal-shelf
-  // junction, not a defect, and is not what "facingDown" should be
-  // chosen to satisfy. The INNER edge is a genuine (non-T-junction) 2-way
-  // boundary against the socket's own inner wall, where getting the
-  // direction wrong is a real, avoidable bug — confirmed directly: with
-  // facingDown=true, exactly 72 same-direction winding conflicts (not
-  // just an edge-count anomaly) at this Z level, matching a separately
-  // reported "reversed faces detected" warning from a real slicer, and
-  // 0 with facingDown=false.
+  // The socket's roof: a flat cap over the cross-shaped hole at its full
+  // depth, with the post solid above it all the way up to the crown. This
+  // is what actually stops a switch stem. The post used to be hollow above
+  // the socket: a ring closed off only the solid wall around the cross, so
+  // the cross-shaped hole opened straight into an empty space inside the
+  // post that ran up to the crown, which was just 0.3mm thick. Pushed in
+  // hard, a stem went up through the socket and out the top of the cap.
   //
-  // A custom, hand-built quad order was tried first, specifically to
-  // make BOTH the inner and outer edges simultaneously conflict-free —
-  // reverted: it wasn't one of the two geometrically valid cyclic corner
-  // orderings for a ring segment, and while its individual triangles
-  // weren't degenerate (non-zero area), the ring's own segments didn't
-  // correctly chain together edge-to-edge around the loop — confirmed
-  // directly: it introduced 72 genuine OPEN edges that hadn't existed
-  // before, a real regression, not the fix it appeared to be from a
-  // narrower pairwise check alone.
-  mesh.append(ringFace(bossOuter, crossOuter, depth, false));
-  // When the socket's own usable depth doesn't reach all the way up to
-  // the ceiling — the common case, since stemCavityDepthMM is usually
-  // much smaller than the cap's own hollow interior — the boss's outer
-  // wall still continues on up to the ceiling regardless (built above),
-  // leaving a second, separate enclosed void directly above the
-  // socket's own dead end. That void needs its own cap at the top —
-  // ceilingBoundary's own full disk (bossOuter's when there's no fillet,
-  // the wider flared shape when there is), not an annulus, since nothing
-  // else spans across it — or its top would be left completely open, the
-  // same kind of defect the ceiling ring elsewhere in this function
-  // exists to avoid. Skipped only when the socket's own depth already
-  // reaches the ceiling (clamped equal to it) — the dead-end cap right
-  // above already closes that case off fully on its own.
+  // With the post solid, the boss's outer wall now meets only the crown's
+  // ceiling ring at the top and nothing at the socket depth, so the two
+  // three-way junctions that used to be there (72 non-manifold edges per
+  // keycap) are gone too.
   //
-  // addTriangle(a, b, c) here, not addTriangle(a, c, b) — reported
-  // directly (a real slicer's own diagnostics) that this object still
-  // showed "reversed faces" after the dead-end ring's own winding was
-  // already fixed elsewhere in this function, and unlike that ring's
-  // outer edge, this junction genuinely only has two surfaces meeting —
-  // the wall's own top segment ends here, full stop, with nothing else
-  // splitting it the way the dead-end ring's location does — so a
-  // mismatch here is a real, fully fixable bug, not that same kind of
-  // unavoidable three-way meeting. A previous version used addTriangle(a,
-  // c, b) on the reasoning that this cap "faces downward, into the void
-  // below" — checked directly rather than trusted a second time, given
-  // this exact function already had one confirmed-backwards facingDown
-  // assumption: computed the wall's own top segment in isolation and
-  // checked which of the two triangle orders actually agrees with it
-  // (the correct, winding-consistency condition), not which one matches
-  // an assumption about which physical direction should face which way.
-  // The un-swapped order (a, b, c) is the one that agrees — confirmed
-  // directly: 0 conflicts against the wall's own top segment checked
-  // alone, versus 36 (a genuine full mismatch around the entire
-  // boundary, not a partial one) for the swapped order this replaces.
-  if (depth < ceilingZ - 0.01) {
-    const { points, triangles } = earClip(ceilingBoundary);
-    for (const [a, b, c] of triangles) {
-      mesh.addTriangle([points[a][0], points[a][1], ceilingZ], [points[b][0], points[b][1], ceilingZ], [points[c][0], points[c][1], ceilingZ]);
+  // Triangles are (a, c, b), the reverse of the cross outline's own
+  // counter-clockwise order, so the roof faces down into the socket, the
+  // empty side; checked with a winding-consistency test against the
+  // socket walls rather than assumed.
+  {
+    const { points, triangles } = earClip(crossOuter);
+    for (const [ia, ib, ic] of triangles) {
+      mesh.addTriangle([points[ia][0], points[ia][1], depth], [points[ic][0], points[ic][1], depth], [points[ib][0], points[ib][1], depth]);
     }
   }
   return { mesh, ceilingBoundary };

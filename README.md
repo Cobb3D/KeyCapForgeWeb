@@ -1051,6 +1051,37 @@ worked out:
   large lugs, a thin base, and horizontal layout: the lug is a closed,
   outward-facing solid (0 open, 0 non-manifold, 0 winding conflicts), and
   the base with it has 0 open edges.
+- **Push-through fixes: solid stem post, thicker keycap top, thicker base
+  floor; stem wall default 0.65mm.** Two parts could be pushed through by
+  hand on a real print.
+
+  Keycap: the solid top above the hollow interior was half the legend
+  depth, 0.3mm, one or two printed layers. Worse, the stem socket wasn't
+  closed at its top: a ring capped only the solid wall around the cross,
+  so the cross-shaped hole opened into an empty space inside the stem post
+  that ran right up to that 0.3mm top. A vertical ray straight up the
+  socket confirmed it: empty all the way to 9.7mm on a 10mm cap. Now the
+  post is solid above the socket, with a flat roof over the cross at the
+  socket depth (3.5mm), and the top is `topThicknessMM` thick ("Top
+  thickness" slider, default 1.5mm, never thinner than the legend plus
+  0.4mm). The same ray now finds solid material from 3.5mm to the top.
+  Removing the open ring and the hollow post's own ceiling cap also
+  removed both three-way junctions that caused the 72 non-manifold edges
+  per keycap: the keycap body is now 0 open, 0 non-manifold, and 0
+  winding conflicts across every shape, height, and thickness tested.
+  (The one exception is the known thinnest-wall case, 0.8mm cap wall with
+  a 0.8mm bottom bevel, documented above.)
+
+  Base: the floor under the switch was a fixed 0.6mm. It's now
+  `floorThicknessMM` ("Base floor" slider, default 2mm, via
+  `floorThicknessFor()` in baseBuilder.js). The extra 1.4mm is added
+  underneath: base thickness default 16 -> 17.4mm, so the switch shaft
+  (5.9mm), plate, and 8mm recess sit exactly where they did relative to
+  the top of the base. The recess still isn't capped (8.4mm is the safe
+  maximum at these settings), and all bases come out clean.
+
+  Stem wall default is now 0.65mm, a 5.5mm-wide stem, about the size of
+  commercial keycaps'.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

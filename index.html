@@ -123,12 +123,13 @@
         <div class="slider-row"><label>Top width</label><input type="range" id="capTopWidth" min="8" max="20" step="0.1" value="13.5"><output>13.5mm</output></div>
         <div class="slider-row"><label>Height</label><input type="range" id="capHeight" min="6" max="16" step="0.1" value="10"><output>10.0mm</output></div>
         <div class="slider-row"><label>Wall thickness</label><input type="range" id="wallThickness" min="0.8" max="2.5" step="0.05" value="1.4"><output>1.4mm</output></div>
+        <div class="slider-row"><label>Top thickness</label><input type="range" id="topThickness" min="0.8" max="3" step="0.1" value="1.5"><output>1.5mm</output></div>
         <div class="slider-row"><label>Corner radius</label><input type="range" id="cornerRadius" min="0" max="6" step="0.1" value="1.6"><output>1.6mm</output></div>
         <p class="hint" id="cornerRadiusHint">Only affects square-shaped caps — other shapes (round, hexagon, star, etc.) don't have independently-roundable corners in this model, so this has no visible effect on them.</p>
         <div class="slider-row"><label>Top bevel</label><input type="range" id="topBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
         <div class="slider-row"><label>Bottom bevel</label><input type="range" id="bottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
-        <div class="slider-row"><label>Stem wall</label><input type="range" id="stemBossWall" min="0.6" max="1.6" step="0.05" value="1"><output>1.00mm</output></div>
-        <p class="hint">Wall around the cross-shaped socket on the underside. It has to slide inside the round or square ring around the stem on box-style switches: 1mm makes a 6.2mm-wide stem. If it won't fit your switch, lower this; if it cracks, raise it.</p>
+        <div class="slider-row"><label>Stem wall</label><input type="range" id="stemBossWall" min="0.5" max="1.6" step="0.05" value="0.65"><output>0.65mm</output></div>
+        <p class="hint">Wall around the cross-shaped socket on the underside. It has to slide inside the round or square ring around the stem on box-style switches: 0.65mm makes a 5.5mm-wide stem, about the size of store-bought keycaps. If it won't fit your switch, lower this; if it cracks, raise it.</p>
       </section>
 
       <section class="panel">
@@ -142,15 +143,16 @@
         <h2>Base &amp; Fit</h2>
         <div class="row"><label>Base color</label><input type="color" id="baseColor" value="#c92a2a"></div>
         <div class="slider-row"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
-        <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="20" step="0.1" value="16"><output>16.0mm</output></div>
+        <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="24" step="0.1" value="17.4"><output>17.4mm</output></div>
         <div class="slider-row"><label>Plate hole (MX clip)</label><input type="range" id="plateHole" min="13.6" max="14.4" step="0.01" value="14"><output>14.00mm</output></div>
+        <div class="slider-row"><label>Base floor</label><input type="range" id="floorThickness" min="0.6" max="4" step="0.1" value="2"><output>2.0mm</output></div>
         <div class="slider-row"><label>Switch clearance</label><input type="range" id="clearanceHeight" min="3" max="8" step="0.1" value="5.5"><output>5.5mm</output></div>
         <div class="slider-row"><label>Plate thickness</label><input type="range" id="plateThickness" min="1.0" max="2.2" step="0.05" value="1.5"><output>1.5mm</output></div>
         <div class="slider-row"><label>Lower clearance</label><input type="range" id="clearance" min="15" max="18" step="0.05" value="15.8"><output>15.8mm</output></div>
         <div class="slider-row"><label>Recess depth</label><input type="range" id="recessDepth" min="0.3" max="10" step="0.1" value="8.0"><output>8.0mm</output></div>
         <div class="slider-row"><label>Base top bevel</label><input type="range" id="baseTopBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
         <div class="slider-row"><label>Base bottom bevel</label><input type="range" id="baseBottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
-        <p class="hint" id="recessDepthHint">Switch clearance is the empty void below the plate a real switch's lower housing travels into before its retention clips can engage — too shallow and the switch bottoms out before it snaps in. Recess depth (how deep each cap nests into the base) is purely cosmetic and always kept a safe distance from this mechanism regardless of how deep you go — it may get capped below what you set if there isn't enough room left over after switch clearance and plate thickness are reserved.</p>
+        <p class="hint" id="recessDepthHint">Switch clearance is the empty void below the plate a real switch's lower housing travels into before its retention clips can engage — too shallow and the switch bottoms out before it snaps in. Recess depth (how deep each cap nests into the base) is purely cosmetic and always kept a safe distance from this mechanism regardless of how deep you go — it may get capped below what you set if there isn't enough room left over after the floor, switch clearance, and plate thickness are reserved. Base floor is the solid layer under the switch that its bottom rests on.</p>
         <p class="hint">Real Cherry MX plate-mount spec: a 14mm clip hole in a ~1.5mm plate, closed on the bottom with a thin floor so there's no line of sight through to the switch.</p>
         <label class="checkbox"><input type="checkbox" id="joinedBase" checked> Fuse adjacent bases into one solid block</label>
         <label class="checkbox"><input type="checkbox" id="verticalLayout" checked> Vertical layout (hangs top-to-bottom)</label>

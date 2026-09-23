@@ -13,8 +13,11 @@ const settings = {
   legendDepthMM: 0.6, legendSizeFraction: 0.62,
   stemCavityWidthMM: 4.2, stemCavityThicknessMM: 1.35, stemCavityDepthMM: 3.5,
   // Wall thickness of the stem boss, measured straight out from the end of
-  // each cross arm. 1mm gives a 6.2mm-diameter boss (4.2mm cross + 2 x 1mm).
-  stemBossWallMM: 1.0,
+  // each cross arm. 0.65mm gives a 5.5mm-diameter boss (4.2mm cross +
+  // 2 x 0.65mm), about the size of commercial keycaps' stems.
+  stemBossWallMM: 0.65,
+  // Solid top of the keycap above its hollow interior.
+  topThicknessMM: 1.5,
   // baseThicknessMM (16, up from 9), clearanceHeightMM (5.5, new — see
   // maxSafeRecessDepth in baseBuilder.js), and recessDepthMM (8.0, = 50%
   // of baseThicknessMM) are chosen together, not independently: reported
@@ -29,7 +32,10 @@ const settings = {
   // settings is 8.4mm) — that margin is deliberate, not just unused
   // slack, so recessDepthMM can be nudged up a bit from the slider
   // without silently hitting the clamp at all.
-  baseFootprintMM: 21, baseThicknessMM: 16, plateHoleMM: 14, plateThicknessMM: 1.5,
+  // Base thickness went 16 -> 17.4 when the floor went 0.6 -> 2.0mm: the extra
+  // 1.4mm is added underneath, so the recess, plate, and switch sit exactly
+  // where they did relative to the top of the base.
+  baseFootprintMM: 21, baseThicknessMM: 17.4, floorThicknessMM: 2.0, plateHoleMM: 14, plateThicknessMM: 1.5,
   clearanceMM: 15.8, clearanceHeightMM: 5.5, joinGapMM: 1.0, joinedBase: true, recessDepthMM: 8.0,
   baseTopBevelMM: 0.8, baseBottomBevelMM: 0.8,
   keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
@@ -139,7 +145,7 @@ async function main() {
   function updateRecessDepthHint() {
     const maxSafe = maxSafeRecessDepth(settings);
     if (settings.recessDepthMM > maxSafe + 0.01) {
-      recessDepthHintEl.textContent = `Capped to ${maxSafe.toFixed(1)}mm right now, not the ${settings.recessDepthMM.toFixed(1)}mm the slider shows — switch clearance and plate thickness need the rest of the base's own thickness. Increase base thickness or reduce switch clearance to get the full amount you've set.`;
+      recessDepthHintEl.textContent = `Capped to ${maxSafe.toFixed(1)}mm right now, not the ${settings.recessDepthMM.toFixed(1)}mm the slider shows — the floor, switch clearance, and plate need the rest of the base's own thickness. Increase base thickness or reduce switch clearance to get the full amount you've set.`;
       recessDepthHintEl.classList.add('warning');
     } else {
       recessDepthHintEl.textContent = RECESS_DEPTH_DEFAULT_HINT;
@@ -338,6 +344,7 @@ async function main() {
   bindSlider('baseThickness', 'baseThicknessMM', 'mm');
   bindSlider('plateHole', 'plateHoleMM', 'mm', 2);
   bindSlider('clearanceHeight', 'clearanceHeightMM', 'mm');
+  bindSlider('floorThickness', 'floorThicknessMM', 'mm');
   bindSlider('plateThickness', 'plateThicknessMM', 'mm');
   bindSlider('clearance', 'clearanceMM', 'mm', 2);
   bindSlider('recessDepth', 'recessDepthMM', 'mm');
@@ -346,6 +353,7 @@ async function main() {
   bindSlider('keyringOuter', 'keyringOuterMM', 'mm');
   bindSlider('keyringHole', 'keyringHoleMM', 'mm');
   bindSlider('stemBossWall', 'stemBossWallMM', 'mm', 2);
+  bindSlider('topThickness', 'topThicknessMM', 'mm');
 
   document.getElementById('baseColor').addEventListener('input', (e) => { settings.baseColorHex = e.target.value; rebuild(); });
   document.getElementById('joinedBase').addEventListener('change', (e) => { settings.joinedBase = e.target.checked; rebuild(); });

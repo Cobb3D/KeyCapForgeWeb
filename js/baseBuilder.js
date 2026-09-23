@@ -16,9 +16,15 @@ const RESAMPLE_N = 64;
 // pick a sensible starting value for recessDepthMM, rather than a
 // hand-picked number that could drift out of sync with this reservation
 // as settings change.
-export const MIN_FLOOR_MM = 0.6;
+// Solid floor under the switch clearance shaft: what the bottom of a
+// pressed-in switch rests on. It was a fixed 0.6mm (three printed layers),
+// and a switch could be pushed straight through it; it's now a setting,
+// floorThicknessMM, defaulting to 2mm.
+export function floorThicknessFor(settings) {
+  return settings.floorThicknessMM ?? 2.0;
+}
 export function maxSafeRecessDepth(settings) {
-  const reservedBelowRecess = MIN_FLOOR_MM + settings.clearanceHeightMM + settings.plateThicknessMM;
+  const reservedBelowRecess = floorThicknessFor(settings) + settings.clearanceHeightMM + settings.plateThicknessMM;
   return Math.max(0.2, settings.baseThicknessMM - reservedBelowRecess);
 }
 
@@ -337,7 +343,7 @@ function buildBlock(outer, cells, thickness, settings) {
     ).translated(cx, cy);
     const recessFloorZ = thickness - recessDepth;
 
-    const plateThickness = Math.min(settings.plateThicknessMM, recessFloorZ - MIN_FLOOR_MM - 0.5);
+    const plateThickness = Math.min(settings.plateThicknessMM, recessFloorZ - floorThicknessFor(settings) - 0.5);
     const plateZ = recessFloorZ - plateThickness;
 
     // Flat top outside the recess, the recess's own inward-facing wall, and
@@ -357,7 +363,7 @@ function buildBlock(outer, cells, thickness, settings) {
     // switches don't need a floor for retention (the plate clips do
     // that), but an open-through design lets you see straight to the
     // switch, which isn't wanted here.
-    const floorZ = MIN_FLOOR_MM;
+    const floorZ = floorThicknessFor(settings);
     mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, plateZ, true));
     const { points, triangles } = earClip(clearanceHole);
     for (const [a, b, c] of triangles) {
