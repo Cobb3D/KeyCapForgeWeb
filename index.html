@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyCapForge — by Cobb3D</title>
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Anton&family=Bebas+Neue&family=Russo+One&family=Oswald:wght@400;700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&family=Fjalla+One&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script>
+  // Diagnostics were essential while debugging why the 3D view wouldn't
+  // load (CDN import failures, font-loading issues, etc.). By default they
+  // just log to the real browser console — but Ctrl+Shift+D (Cmd+Shift+D
+  // on Mac) brings back the visible on-page banner on demand, without
+  // needing to edit code again if something needs debugging later. Nothing
+  // upstream (scene.js's loading progress, textVoxel.js's font
+  // diagnostics) needs to change for this — they all just call showDiag(),
+  // so it's all routed through the one function here.
+  let debugBannerVisible = false;
+
+  window.addEventListener('error', (e) => showDiag('Error: ' + (e.message || e.error) + (e.filename ? ' (' + e.filename + ':' + e.lineno + ')' : '')));
+  window.addEventListener('unhandledrejection', (e) => showDiag('Unhandled rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)));
+
+  function showDiag(text) {
+    console.log('[KeyCapForge]', text);
+    if (debugBannerVisible) appendToBanner(text);
+  }
+
+  function appendToBanner(text) {
+    let el = document.getElementById('diagBanner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'diagBanner';
+      el.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9999;background:#3a1414;color:#ffb4b4;border:1px solid #a33;border-radius:8px;padding:14px 18px;font:13px/1.5 monospace;max-width:80vw;max-height:65vh;overflow-y:auto;white-space:pre-wrap;';
+      document.body.appendChild(el);
+    }
+    el.textContent += (el.textContent ? '\n' : '') + text;
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!(e.ctrlKey || e.metaKey) || !e.shiftKey || e.key.toLowerCase() !== 'd') return;
+    e.preventDefault();
+    debugBannerVisible = !debugBannerVisible;
+    if (debugBannerVisible) {
+      appendToBanner('Debug banner enabled — Ctrl/Cmd+Shift+D to hide again.');
+    } else {
+      document.getElementById('diagBanner')?.remove();
+    }
+  });
+
+  // Some module-loading failures (e.g. the Three.js CDN import failing)
+  // don't reliably trigger a normal `error` event in every browser. This
+  // is a backup: if the app hasn't set its "loaded" flag after a few
+  // seconds, something's wrong even if no error event fired.
+  setTimeout(() => {
+    if (!window.__kcfLoaded) {
+      showDiag('KeyCapForge never finished loading (no error event fired). Most likely cause: the Three.js CDN import failed silently — check your network connection, or whether jsdelivr.net is reachable/blocked.');
+    }
+  }, 4000);
+</script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">⬡</span>
+      <span class="brand-name">KeyCapForge</span>
+      <span class="brand-sub">by Cobb3D</span>
+    </div>
+    <div class="topbar-actions">
+      <div class="format-toggle" id="formatToggle">
+        <button class="fmt active" data-fmt="stl">STL</button>
+        <button class="fmt" data-fmt="3mf">3MF</button>
+        <button class="fmt" data-fmt="both">Both</button>
+      </div>
+      <button class="btn primary" id="exportBtn">Export</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar" id="sidebar">
+
+      <section class="panel">
+        <h2>Text</h2>
+        <input type="text" id="wordInput" placeholder="Type a word…" maxlength="12" value="Cobb3D">
+        <p class="hint">One letter per cap, updates as you type.</p>
+        <div class="quick-insert" id="quickInsert"></div>
+        <p class="hint">Click a symbol or emoji to add it as its own cap at the end of the set.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Caps in this set</h2>
+          <span class="count" id="capCount">4</span>
+        </div>
+        <div id="capList" class="cap-list"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Shape &amp; Size</h2>
+        <div class="row">
+          <label>Shape (all caps)</label>
+          <select id="shapeSelect">
+            <option value="square">Square / Rect</option>
+            <option value="round">Round</option>
+            <option value="hexagon">Hexagon</option>
+            <option value="pentagon">Pentagon</option>
+            <option value="octagon">Octagon</option>
+            <option value="heart">Heart</option>
+            <option value="flower">Flower</option>
+            <option value="star">Star</option>
+          </select>
+        </div>
+        <div class="slider-row"><label>Base width</label><input type="range" id="capWidth" min="14" max="22" step="0.1" value="18"><output>18.0mm</output></div>
+        <div class="slider-row"><label>Top width</label><input type="range" id="capTopWidth" min="8" max="20" step="0.1" value="13.5"><output>13.5mm</output></div>
+        <div class="slider-row"><label>Height</label><input type="range" id="capHeight" min="6" max="16" step="0.1" value="10"><output>10.0mm</output></div>
+        <div class="slider-row"><label>Wall thickness</label><input type="range" id="wallThickness" min="0.8" max="2.5" step="0.05" value="1.4"><output>1.4mm</output></div>
+        <div class="slider-row"><label>Corner radius</label><input type="range" id="cornerRadius" min="0" max="6" step="0.1" value="1.6"><output>1.6mm</output></div>
+        <p class="hint" id="cornerRadiusHint">Only affects square-shaped caps — other shapes (round, hexagon, star, etc.) don't have independently-roundable corners in this model, so this has no visible effect on them.</p>
+        <div class="slider-row"><label>Top bevel</label><input type="range" id="topBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row"><label>Bottom bevel</label><input type="range" id="bottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+      </section>
+
+      <section class="panel">
+        <h2>Legend</h2>
+        <div class="slider-row"><label>Legend depth</label><input type="range" id="legendDepth" min="0.2" max="1.5" step="0.05" value="0.6"><output>0.6mm</output></div>
+        <div class="slider-row"><label>Legend size</label><input type="range" id="legendSize" min="0.3" max="0.9" step="0.01" value="0.62"><output>0.62×</output></div>
+        <p class="hint">How much of the cap's top face the text can fill — text is scaled to fit both width and height, so a longer word shrinks automatically instead of overflowing.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Base &amp; Fit</h2>
+        <div class="row"><label>Base color</label><input type="color" id="baseColor" value="#c92a2a"></div>
+        <div class="slider-row"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
+        <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="20" step="0.1" value="16"><output>16.0mm</output></div>
+        <div class="slider-row"><label>Plate hole (MX clip)</label><input type="range" id="plateHole" min="13.6" max="14.4" step="0.01" value="14"><output>14.00mm</output></div>
+        <div class="slider-row"><label>Switch clearance</label><input type="range" id="clearanceHeight" min="3" max="8" step="0.1" value="5.5"><output>5.5mm</output></div>
+        <div class="slider-row"><label>Plate thickness</label><input type="range" id="plateThickness" min="1.0" max="2.2" step="0.05" value="1.5"><output>1.5mm</output></div>
+        <div class="slider-row"><label>Lower clearance</label><input type="range" id="clearance" min="15" max="18" step="0.05" value="15.8"><output>15.8mm</output></div>
+        <div class="slider-row"><label>Recess depth</label><input type="range" id="recessDepth" min="0.3" max="10" step="0.1" value="8.0"><output>8.0mm</output></div>
+        <div class="slider-row"><label>Base top bevel</label><input type="range" id="baseTopBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row"><label>Base bottom bevel</label><input type="range" id="baseBottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <p class="hint" id="recessDepthHint">Switch clearance is the empty void below the plate a real switch's lower housing travels into before its retention clips can engage — too shallow and the switch bottoms out before it snaps in. Recess depth (how deep each cap nests into the base) is purely cosmetic and always kept a safe distance from this mechanism regardless of how deep you go — it may get capped below what you set if there isn't enough room left over after switch clearance and plate thickness are reserved.</p>
+        <p class="hint">Real Cherry MX plate-mount spec: a 14mm clip hole in a ~1.5mm plate, closed on the bottom with a thin floor so there's no line of sight through to the switch.</p>
+        <label class="checkbox"><input type="checkbox" id="joinedBase" checked> Fuse adjacent bases into one solid block</label>
+        <label class="checkbox"><input type="checkbox" id="verticalLayout" checked> Vertical layout (hangs top-to-bottom)</label>
+      </section>
+
+      <section class="panel">
+        <h2>Keyring</h2>
+        <div class="row">
+          <label>Style</label>
+          <select id="keyringStyle">
+            <option value="lug">Lug (loop)</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Side</label>
+          <select id="keyringSide">
+            <option value="top" selected>Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+        <div class="slider-row"><label>Lug size</label><input type="range" id="keyringOuter" min="10" max="20" step="0.1" value="14"><output>14.0mm</output></div>
+        <div class="slider-row"><label>Hole diameter</label><input type="range" id="keyringHole" min="4" max="10" step="0.1" value="6"><output>6.0mm</output></div>
+        <p class="hint">The ring loop takes every bit of pulling and impact force on the whole keychain — kept thick and overlapped into the base on purpose.</p>
+      </section>
+
+      <footer class="sidebar-footer">KeyCapForge · Cobb3D</footer>
+    </aside>
+
+    <section class="viewport">
+      <div class="viewport-toolbar">
+        <label class="checkbox"><input type="checkbox" id="explodedToggle"> Exploded View</label>
+        <input type="range" id="explodeSlider" min="2" max="50" value="20" disabled>
+        <button class="btn ghost" id="resetViewBtn">Reset View</button>
+      </div>
+      <div id="canvasHost"></div>
+      <p class="viewport-hint">Right-click drag to orbit · middle-click drag to pan · scroll to zoom</p>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js" onerror="window.showDiag && window.showDiag('The main app.js module script itself failed to load — likely a 404, or your local server is serving .js files with the wrong MIME type (a known issue with some Python http.server setups). Try VS Code\'s Live Server extension instead, or check the Network tab for the actual status/content-type of js/app.js.')"></script>
+</body>
+</html>
