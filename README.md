@@ -1082,6 +1082,18 @@ worked out:
 
   Stem wall default is now 0.65mm, a 5.5mm-wide stem, about the size of
   commercial keycaps'.
+- **Heart shape was upside down.** `heart()` in shapeProfiles.js negated
+  y, as you would for a y-down canvas, but this app is y-up (+Y is up on
+  screen in the 3D view), so the lobes pointed down. It now keeps y as-is
+  and reverses the point order to stay counter-clockwise like every other
+  outline. The base recess is cut from the same outline, so it flipped
+  with the cap and they still fit. Verified: heart keycaps (all legend
+  styles) and joined, single, and mixed heart/square bases are all 0 open,
+  0 non-manifold, 0 winding conflicts. The legend fit factor for hearts
+  (0.80) is unaffected: the outline is centred on its own middle, and a
+  centred legend box covers the same area of a heart either way up.
+  Engraved caps are still flipped face-down for printing, so in a slicer
+  a heart looks upside down when viewed from above; that's correct.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

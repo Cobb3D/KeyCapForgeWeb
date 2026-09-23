@@ -7,6 +7,14 @@ import { roundedRect, roundedRectPerCorner, regularPolygon, profileFor } from '.
 // together — see resamplePolygon() in mesh.js for why that's necessary.
 const RESAMPLE_N = 64;
 
+// Solid floor under the switch clearance shaft: what the bottom of a
+// pressed-in switch rests on. It was a fixed 0.6mm (three printed layers),
+// and a switch could be pushed straight through it; it's now a setting,
+// floorThicknessMM, defaulting to 2mm.
+export function floorThicknessFor(settings) {
+  return settings.floorThicknessMM ?? 2.0;
+}
+
 // Real MX switches need genuine vertical room below the plate for the
 // lower housing to travel into before the clips can engage — this is a
 // hard, non-negotiable minimum, not a nice-to-have, and it's reserved
@@ -16,13 +24,6 @@ const RESAMPLE_N = 64;
 // pick a sensible starting value for recessDepthMM, rather than a
 // hand-picked number that could drift out of sync with this reservation
 // as settings change.
-// Solid floor under the switch clearance shaft: what the bottom of a
-// pressed-in switch rests on. It was a fixed 0.6mm (three printed layers),
-// and a switch could be pushed straight through it; it's now a setting,
-// floorThicknessMM, defaulting to 2mm.
-export function floorThicknessFor(settings) {
-  return settings.floorThicknessMM ?? 2.0;
-}
 export function maxSafeRecessDepth(settings) {
   const reservedBelowRecess = floorThicknessFor(settings) + settings.clearanceHeightMM + settings.plateThicknessMM;
   return Math.max(0.2, settings.baseThicknessMM - reservedBelowRecess);

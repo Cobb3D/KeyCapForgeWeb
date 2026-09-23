@@ -143,7 +143,14 @@ export function heart(width) {
   }
   const maxX = Math.max(...raw.map(([x]) => Math.abs(x)));
   const scale = (width / 2) / maxX;
-  const scaled = raw.map(([x, y]) => [x * scale, -y * scale]);
+  // Lobes up, point down. The classic heart curve is already that way up
+  // in a y-up coordinate system, which is what this app uses (+Y is up on
+  // screen in the 3D view). This used to negate y, as you would for a
+  // y-down canvas, which turned the heart upside down. Keeping y as-is
+  // makes the curve run clockwise, so the points are reversed to keep the
+  // counter-clockwise order every other shape uses, which the lofting and
+  // ring-face code depend on.
+  const scaled = raw.map(([x, y]) => [x * scale, y * scale]).reverse();
   let cx = 0, cy = 0;
   for (const [x, y] of scaled) { cx += x; cy += y; }
   cx /= scaled.length; cy /= scaled.length;
