@@ -7,6 +7,22 @@ import { rasterizeLegend } from './textVoxel.js';
 // near large enough to matter for print quality or visual appearance.
 const FLUSH_EPSILON = 0.02;
 
+// The stem boss: the round post on the underside that holds the cross-
+// shaped socket. Its wall is stemBossWallMM thick, measured straight out
+// from the end of each cross arm, so its width across is
+// stemCavityWidthMM + 2 x stemBossWallMM (6.2mm at the 4.2mm / 1mm
+// defaults). That width is what has to slide inside the round or square
+// ring surrounding the stem on box-style switches. It used to be a fixed
+// 90% of the cross width as a radius (7.6mm across, about a 1.7mm wall),
+// too wide to fit inside those rings. The boss is a 24-sided polygon, so
+// the returned corner radius is scaled up by 1/cos(180/24 deg) to put its
+// flat sides, its thinnest points, at exactly the requested wall.
+const STEM_BOSS_SIDES = 24;
+function stemBossRadius(settings) {
+  const wall = settings.stemBossWallMM ?? 1.0;
+  return (settings.stemCavityWidthMM / 2 + wall) / Math.cos(Math.PI / STEM_BOSS_SIDES);
+}
+
 export function buildKeycap(cap, settings) {
   const bottomProfile = profileFor(cap.shape, settings.capWidthMM, settings.cornerRadiusMM);
   const topProfile = profileFor(cap.shape, settings.capTopWidthMM, settings.cornerRadiusMM * (settings.capTopWidthMM / settings.capWidthMM));
@@ -40,7 +56,7 @@ export function buildKeycap(cap, settings) {
   body.append(loftShell(innerBottom, innerTop, 0, ceilingZ, true));
   body.append(ringFaceBottomRim(bottomRim, innerBottom));
 
-  const bossOuter = regularPolygon(24, settings.stemCavityWidthMM * 0.9);
+  const bossOuter = regularPolygon(STEM_BOSS_SIDES, stemBossRadius(settings));
   // Resampled to innerTop's own point count (not the reverse) — innerTop
   // is already used, unresampled, by the cavity wall loft above, and
   // resampling it here would generate a slightly different set of points
@@ -193,14 +209,14 @@ function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
   // depth — the boss's actual bore and the stem it grips are completely
   // unaffected by this; only the (usually hollow) segment between the
   // socket's dead end and the ceiling gets wider. bossRadius comes from
-  // the same formula bossOuter itself was built from
-  // (stemCavityWidthMM * 0.9) rather than re-measured from bossOuter's
+  // stemBossRadius(), the same formula bossOuter itself was built from,
+  // rather than re-measured from bossOuter's
   // own (already-resampled) points, which for a regular polygon
   // resampled by arc length can drift very slightly off the true
   // circumradius — this project's own settings are the authoritative
   // source for boss size, not a re-derivation from already-approximated
   // geometry.
-  const bossRadius = settings.stemCavityWidthMM * 0.9;
+  const bossRadius = stemBossRadius(settings);
   // Roughly matches the boss's own nominal wall thickness scale by
   // default, capped so it can never flare past the boss's own radius
   // (which would invert the shape at its center).

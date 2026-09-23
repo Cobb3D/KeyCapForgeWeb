@@ -90,7 +90,7 @@
 
       <section class="panel">
         <h2>Text</h2>
-        <input type="text" id="wordInput" placeholder="Type a word…" maxlength="12" value="Cobb3D">
+        <input type="text" id="wordInput" placeholder="Type a word…" maxlength="12" value="Cobb" autocomplete="off">
         <p class="hint">One letter per cap, updates as you type.</p>
         <div class="quick-insert" id="quickInsert"></div>
         <p class="hint">Click a symbol or emoji to add it as its own cap at the end of the set.</p>
@@ -127,6 +127,8 @@
         <p class="hint" id="cornerRadiusHint">Only affects square-shaped caps — other shapes (round, hexagon, star, etc.) don't have independently-roundable corners in this model, so this has no visible effect on them.</p>
         <div class="slider-row"><label>Top bevel</label><input type="range" id="topBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
         <div class="slider-row"><label>Bottom bevel</label><input type="range" id="bottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row"><label>Stem wall</label><input type="range" id="stemBossWall" min="0.6" max="1.6" step="0.05" value="1"><output>1.00mm</output></div>
+        <p class="hint">Wall around the cross-shaped socket on the underside. It has to slide inside the round or square ring around the stem on box-style switches: 1mm makes a 6.2mm-wide stem. If it won't fit your switch, lower this; if it cracks, raise it.</p>
       </section>
 
       <section class="panel">
@@ -172,8 +174,8 @@
             <option value="right">Right</option>
           </select>
         </div>
-        <div class="slider-row"><label>Lug size</label><input type="range" id="keyringOuter" min="10" max="20" step="0.1" value="14"><output>14.0mm</output></div>
-        <div class="slider-row"><label>Hole diameter</label><input type="range" id="keyringHole" min="4" max="10" step="0.1" value="6"><output>6.0mm</output></div>
+        <div class="slider-row"><label>Lug size</label><input type="range" id="keyringOuter" min="10" max="20" step="0.1" value="10.7"><output>10.7mm</output></div>
+        <div class="slider-row"><label>Hole diameter</label><input type="range" id="keyringHole" min="4" max="10" step="0.1" value="6.6"><output>6.6mm</output></div>
         <p class="hint">The ring loop takes every bit of pulling and impact force on the whole keychain — kept thick and overlapped into the base on purpose.</p>
       </section>
 

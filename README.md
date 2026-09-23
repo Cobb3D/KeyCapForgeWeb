@@ -1003,6 +1003,33 @@ worked out:
   double-checking which label a given slicer is actually showing, since
   the two carry a very different risk profile and this investigation
   found zero instances of the more serious one.
+- **Stem boss sized for box-style switches, plus new keyring defaults.**
+  The stem boss (the post holding the cross-shaped socket) used to be a
+  fixed 90% of the cross width as a radius: 7.6mm across, about a 1.7mm
+  wall. That's too wide to slide into the round or square ring around the
+  stem on box-style switches. It's now built from a wall thickness,
+  `stemBossWallMM` (default 1.0mm, "Stem wall" slider, 0.6-1.6mm),
+  measured straight out from the end of each cross arm, so the boss is
+  `stemCavityWidthMM + 2 x stemBossWallMM` across: 6.2mm by default.
+  `stemBossRadius()` in keycapBuilder.js is the one place that formula
+  lives; both the boss itself and its reinforcing fillet use it. The boss
+  is a 24-sided polygon, sized so its flat sides (the thinnest points) sit
+  at exactly the requested wall. Verified by measuring the built geometry:
+  6.21-6.25mm across at 1mm, 5.41mm at 0.6mm, 7.41mm at 1.6mm, with 0 open
+  edges at every setting. For reference, typical commercial keycaps use a
+  boss around 5.5mm across (about a 0.65mm wall on this cross), so if 6.2mm
+  won't fit a particular switch's ring, that's the direction to go.
+
+  Keyring lug defaults changed to 10.7mm lug size and a 6.6mm hole (was
+  14mm / 6mm). Both bases (joined and single) still come out with 0 open
+  and 0 non-manifold edges at the new size.
+
+  Known, pre-existing edge case found while checking this: at the
+  minimum 0.8mm cap wall thickness, the default 0.8mm bottom bevel is as
+  deep as the wall, and the skirt's bottom edge folds onto the inner wall,
+  adding 36 non-manifold edges at Z=0 (108 instead of the usual 72). Same
+  count with the old boss size, so it predates this change. Keeping the
+  bottom bevel smaller than the wall thickness avoids it.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

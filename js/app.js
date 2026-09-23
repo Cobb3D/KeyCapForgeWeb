@@ -12,6 +12,9 @@ const settings = {
   cornerRadiusMM: 1.6, topBevelMM: 0.8, bottomBevelMM: 0.8,
   legendDepthMM: 0.6, legendSizeFraction: 0.62,
   stemCavityWidthMM: 4.2, stemCavityThicknessMM: 1.35, stemCavityDepthMM: 3.5,
+  // Wall thickness of the stem boss, measured straight out from the end of
+  // each cross arm. 1mm gives a 6.2mm-diameter boss (4.2mm cross + 2 x 1mm).
+  stemBossWallMM: 1.0,
   // baseThicknessMM (16, up from 9), clearanceHeightMM (5.5, new — see
   // maxSafeRecessDepth in baseBuilder.js), and recessDepthMM (8.0, = 50%
   // of baseThicknessMM) are chosen together, not independently: reported
@@ -29,15 +32,14 @@ const settings = {
   baseFootprintMM: 21, baseThicknessMM: 16, plateHoleMM: 14, plateThicknessMM: 1.5,
   clearanceMM: 15.8, clearanceHeightMM: 5.5, joinGapMM: 1.0, joinedBase: true, recessDepthMM: 8.0,
   baseTopBevelMM: 0.8, baseBottomBevelMM: 0.8,
-  keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 14, keyringHoleMM: 6,
+  keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
   baseColorHex: '#c92a2a', verticalLayout: true,
 };
 
 let shape = 'square';
-// Default starting set, matching the app's own "by Cobb3D" branding —
-// shown both here and in wordInput's own default value in index.html
-// (kept in sync manually, since nothing re-derives one from the other at
-// load time).
+// Default starting set ("Cobb"). The word box is filled from this on
+// load (see syncWordFromCaps below), so this is the source of truth;
+// index.html's value="Cobb" only shows for the moment before the app loads.
 let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
 let explodeDistance = 20;
@@ -147,6 +149,13 @@ async function main() {
 
   // ---------- Word field ----------
   const wordInput = document.getElementById('wordInput');
+  // Browsers (Safari and Firefox especially) refill text boxes with
+  // whatever was last typed when a page is reloaded, which could leave this
+  // box showing an old word while the model is built from the default set.
+  // Setting it from the actual caps on load keeps the two in agreement.
+  // syncWordFromCaps is a function declaration further down, so it's
+  // already available here.
+  syncWordFromCaps();
   function setWord(word) {
     const letters = Array.from(word);
     if (letters.length === 0) { caps = []; renderCapList(); rebuild(); return; }
@@ -336,6 +345,7 @@ async function main() {
   bindSlider('baseBottomBevel', 'baseBottomBevelMM', 'mm');
   bindSlider('keyringOuter', 'keyringOuterMM', 'mm');
   bindSlider('keyringHole', 'keyringHoleMM', 'mm');
+  bindSlider('stemBossWall', 'stemBossWallMM', 'mm', 2);
 
   document.getElementById('baseColor').addEventListener('input', (e) => { settings.baseColorHex = e.target.value; rebuild(); });
   document.getElementById('joinedBase').addEventListener('change', (e) => { settings.joinedBase = e.target.checked; rebuild(); });
