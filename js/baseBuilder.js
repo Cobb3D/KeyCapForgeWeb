@@ -1,4 +1,4 @@
-import { Mesh, loftShell, ringFace, earClip, resamplePolygon, insetCellSides } from './mesh.js';
+import { Mesh, Polygon2D, loftShell, ringFace, earClip, resamplePolygon, insetCellSides } from './mesh.js';
 import { roundedRect, roundedRectPerCorner, regularPolygon, profileFor } from './shapeProfiles.js';
 
 // Every profile that gets connected to another one (via ringFace/loftShell)
@@ -110,34 +110,39 @@ export function buildBase(caps, settings) {
     const minY = Math.min(...ys) - footprint / 2, maxY = Math.max(...ys) + footprint / 2;
     const midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
     const outerR = settings.keyringOuterMM / 2;
-    // How much solid wall actually exists between the base's outer edge and
-    // the nearest cutout, on whichever side the ring attaches — checked
-    // against whichever is larger, the clearance hole or the shape-matching
-    // recess. The recess (added after this clamp was first written) is
-    // sized from capWidthMM and can be — and at default settings, is —
-    // bigger than the clearance hole, so checking clearance alone let the
-    // lug reach past the recess's actual edge without anything catching it.
-    // A fixed overlap distance can reach past whichever wall is thinnest
-    // entirely depending on settings — the lug's material would then
-    // genuinely intersect that cutout instead of just fusing into solid
-    // material outside it. Clamping to what's actually available (with a
-    // small safety margin) fixes that regardless of footprint/clearance/
-    // recess/side.
-    const limitingHoleSize = Math.max(settings.clearanceMM, settings.capWidthMM + RECESS_CLEARANCE_MM);
+    // How far the lug's neck can reach into the base wall without breaking
+    // into a cutout. It's checked against the cutouts that exist at the
+    // lug's own height: the lug is only the bottom 25% of the base, where
+    // the only cutout is the switch clearance shaft (2.6mm of wall at
+    // defaults). The cap recess only counts if the lug is tall enough to
+    // reach its floor. This used to always check against the recess, left
+    // over from when the loop was full height; since the recess is almost
+    // as wide as the base, that capped the overlap at 0.9mm, which the
+    // base's own 0.8mm bottom bevel cut down to about 0.1mm on the first
+    // printed layers. That's why the printed lug barely held on.
+    const loopHeight = keyringLoopHeight(settings);
+    const recessDepth = Math.min(settings.recessDepthMM, maxSafeRecessDepth(settings), thickness * 0.5);
+    const lugReachesRecess = loopHeight > thickness - recessDepth - 0.01;
+    const limitingHoleSize = lugReachesRecess
+      ? Math.max(settings.clearanceMM, settings.capWidthMM + RECESS_CLEARANCE_MM)
+      : settings.clearanceMM;
     const wallThickness = (footprint - limitingHoleSize) / 2;
     const safetyMargin = 0.3;
-    const maxSafeOverlap = Math.max(0.5, wallThickness - safetyMargin);
-    const overlap = Math.min(3.0, maxSafeOverlap);
-    const reach = outerR - overlap;
+    const overlap = Math.min(3.0, Math.max(0.5, wallThickness - safetyMargin));
+    // The ring sits one full outer radius beyond the base edge (just
+    // touching it), so the hole keeps a full ring-wall of material between
+    // it and the base; the neck bridges that gap at full width and
+    // continues `overlap` into the base.
+    const reach = outerR;
 
-    let anchorX = midX, anchorY = midY;
+    let anchorX = midX, anchorY = midY, rotation = 0;
     switch (settings.keyringSide) {
-      case 'right': anchorX = maxX + reach; break;
-      case 'left': anchorX = minX - reach; break;
-      case 'top': anchorY = maxY + reach; break;
-      case 'bottom': anchorY = minY - reach; break;
+      case 'right': anchorX = maxX + reach; rotation = -90; break;
+      case 'left': anchorX = minX - reach; rotation = 90; break;
+      case 'top': anchorY = maxY + reach; rotation = 0; break;
+      case 'bottom': anchorY = minY - reach; rotation = 180; break;
     }
-    mesh.append(keyringFeature(settings).translated(anchorX, anchorY, 0));
+    mesh.append(keyringFeature(settings, reach + overlap).rotatedZ(rotation).translated(anchorX, anchorY, 0));
   }
 
   return mesh;
@@ -371,28 +376,55 @@ function buildBlock(outer, cells, thickness, settings) {
   return mesh;
 }
 
-function keyringFeature(settings) {
+// The keyring loop is the bottom 25% of the base's thickness, flush with
+// its bottom (the side on the print bed), so it prints without support.
+function keyringLoopHeight(settings) {
+  return settings.baseThicknessMM * 0.25;
+}
+
+// The keyring lug: a flat loop plus a straight neck joining it to the base,
+// built in a local frame with the loop centred on the origin and the base
+// toward -Y (buildBase rotates it to face the right side). neckLength is
+// the distance from the loop's centre to the neck's inner end, inside the
+// base wall.
+//
+// The outline is a "D": a half-circle on the outer side, and a rectangle as
+// wide as the loop running back into the base. Before this the loop was a
+// plain ring whose circle just clipped the base's edge, so the joint was a
+// thin lens-shaped sliver, and it broke there on a real print. The joint
+// is now a straight line the full width of the loop.
+//
+// Outline and hole are sampled at the same angles from the centre, with
+// the two rectangle corners included exactly, so ringFace() and
+// loftShell() can pair their points one-to-one. That works because the
+// "D" is star-shaped around the centre: every ray from the centre crosses
+// its boundary exactly once.
+function keyringFeature(settings, neckLength) {
   const outerR = settings.keyringOuterMM / 2;
   const holeR = settings.keyringHoleMM / 2;
-  const outer = regularPolygon(32, outerR);
-  const hole = regularPolygon(outer.points.length, holeR);
-  // The functional loop only needs to be a fraction of the base's own
-  // thickness — reported directly: a real keyring clipped through it
-  // doesn't need the full base height of material to grip, and using the
-  // full thickness was excess material for no functional benefit.
-  //
-  // Flush with the base's own Z=0 (the "back" — the flat, featureless
-  // side that sits directly on the print bed; the recess/plate-mount
-  // side at Z=thickness is the "front"), not centered. Reported directly:
-  // a centered loop leaves its own bottom face floating in mid-air over
-  // the reach area beyond the base's own footprint — there's no material
-  // underneath it there at all, since the base block itself doesn't
-  // extend into that region — which is a horizontal overhang a slicer
-  // can't print without support. Flush with Z=0 puts that same bottom
-  // face on the exact plane the rest of the base already starts printing
-  // from, eliminating the overhang outright rather than just shrinking
-  // it.
-  const loopHeight = settings.baseThicknessMM * 0.25;
+  const loopHeight = keyringLoopHeight(settings);
+  const L = Math.max(neckLength, outerR * 0.5);
+
+  const N = 64;
+  const angles = [];
+  for (let i = 0; i < N; i++) angles.push((i / N) * Math.PI * 2);
+  const cornerA = Math.atan2(-L, -outerR) + Math.PI * 2; // lower-left corner
+  const cornerB = Math.atan2(-L, outerR) + Math.PI * 2;  // lower-right corner
+  for (const a of [cornerA, cornerB]) {
+    if (!angles.some((x) => Math.abs(x - a) < 1e-6)) angles.push(a);
+  }
+  angles.sort((a, b) => a - b);
+
+  const radiusAt = (a) => {
+    const c = Math.cos(a), sn = Math.sin(a);
+    if (sn >= 0) return outerR; // outer half: the round end of the loop
+    // Base-facing half: the rectangle x in [-outerR, outerR], y in [-L, 0].
+    const toSide = Math.abs(c) > 1e-9 ? outerR / Math.abs(c) : Infinity;
+    const toEnd = L / Math.abs(sn);
+    return Math.min(toSide, toEnd);
+  };
+  const outer = new Polygon2D(angles.map((a) => { const r = radiusAt(a); return [Math.cos(a) * r, Math.sin(a) * r]; }));
+  const hole = new Polygon2D(angles.map((a) => [Math.cos(a) * holeR, Math.sin(a) * holeR]));
 
   const mesh = new Mesh();
   mesh.append(loftShell(outer, outer, 0, loopHeight));

@@ -1030,6 +1030,27 @@ worked out:
   adding 36 non-manifold edges at Z=0 (108 instead of the usual 72). Same
   count with the old boss size, so it predates this change. Keeping the
   bottom bevel smaller than the wall thickness avoids it.
+- **Stronger keyring lug joint.** A real print snapped at the lug. The
+  loop only overlapped the base by 0.9mm, and the base's 0.8mm bottom
+  bevel cut that to about 0.1mm on the first layers; the loop is round, so
+  the contact was a thin lens-shaped sliver. The 0.9mm cap came from an
+  overlap limit written when the loop was full height, which always kept
+  it clear of the cap recess near the top of the base. The loop is now
+  only the bottom 25%, well below the recess, where the wall around the
+  switch shaft is 2.6mm thick.
+
+  `keyringFeature()` now builds a "D" shape: the loop's round outer end
+  plus a straight neck as wide as the loop, running back into the base.
+  The overlap limit checks the wall at the loop's own height (the recess
+  only counts if the loop is tall enough to reach it), giving 2.3mm of
+  overlap at defaults, 0.3mm short of the switch shaft. The loop sits one
+  full outer radius beyond the base edge, so the hole keeps a full
+  ring-wall of material (about 2mm) between it and the base. It's still
+  flat, 25% of the base height, and flush with the bottom, so it prints
+  without support. Verified on all four sides, joined and single bases,
+  large lugs, a thin base, and horizontal layout: the lug is a closed,
+  outward-facing solid (0 open, 0 non-manifold, 0 winding conflicts), and
+  the base with it has 0 open edges.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window
