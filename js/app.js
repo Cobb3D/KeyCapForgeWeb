@@ -38,7 +38,7 @@ let shape = 'square';
 // shown both here and in wordInput's own default value in index.html
 // (kept in sync manually, since nothing re-derives one from the other at
 // load time).
-let caps = ['C', 'o', 'b', 'b', '3'].map((ch) => makeCap(ch));
+let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
 let explodeDistance = 20;
 
