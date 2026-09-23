@@ -48,6 +48,23 @@ Windows, Noto Color Emoji on most Linux/Android), so the same emoji can
 come out with slightly different shapes and colors depending on who
 exports it.
 
+### Phones and tablets
+
+Below 820px wide (phones, and tablets held upright) the layout stacks: the
+3D view on top, taking about half the screen, with the controls scrolling
+underneath. Drag with one finger to orbit, pinch to zoom, and drag with two
+fingers to pan. Before this, the sidebar and 3D view were always side by
+side, which on a ~390px-wide iPhone made the page wider than the screen,
+pushed the 3D view off the right edge, and cut off the Export button. The
+3D canvas also now resizes whenever its own container changes size
+(`ResizeObserver` in scene.js), not only on browser-window resizes, since
+on phones the available space often changes without a window resize
+firing. Text inputs and dropdowns use 16px text on small screens, the
+smallest size iPhone Safari will focus without zooming the page.
+
+The app needs iOS 16.4 or newer on iPhone and iPad, the first Safari
+version that supports the import map used to load Three.js.
+
 ## What this is a port of, and how
 
 This is **translated logic, not translated code** — nothing about Swift,

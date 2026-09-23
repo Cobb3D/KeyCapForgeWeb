@@ -82,6 +82,16 @@ export class Viewport {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    // Also resize whenever the canvas's own container changes size, not
+    // just when the browser window does. On phones the viewport's space
+    // changes for reasons that never fire a window resize (the stacked
+    // mobile layout settling, the address bar collapsing, fonts loading
+    // and reflowing the sidebar), and a canvas that missed one of those
+    // stays at a stale — or zero — size, which is how the model could
+    // fail to show on an iPhone at all.
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => this.resize()).observe(host);
+    }
     this._animate();
   }
 
