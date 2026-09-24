@@ -1,4 +1,4 @@
-import { Mesh, Polygon2D, loftShell, ringFace, earClip, resamplePolygon } from './mesh.js';
+import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon } from './mesh.js';
 import { profileFor, regularPolygon, legendFitFactor } from './shapeProfiles.js';
 import { rasterizeLegend } from './textVoxel.js';
 
@@ -64,13 +64,14 @@ export function buildKeycap(cap, settings) {
   body.append(ringFaceBottomRim(bottomRim, innerBottom));
 
   const bossOuter = regularPolygon(STEM_BOSS_SIDES, stemBossRadius(settings));
-  // Resampled to innerTop's own point count (not the reverse) — innerTop
-  // is already used, unresampled, by the cavity wall loft above, and
-  // resampling it here would generate a slightly different set of points
-  // that no longer exactly matches that wall's own boundary, breaking
-  // that seam instead of keeping this one closed (tried and confirmed
-  // wrong: it produced MORE open edges, not fewer).
-  const bossOuterR = resamplePolygon(bossOuter, innerTop.points.length);
+  // Used as-is, with all 24 sides. It used to be resampled to the cavity
+  // outline's point count so the ceiling ring could pair them point for
+  // point, but polygon-shaped caps keep only their corners (a pentagon
+  // cap's cavity has 5 points), which made the stem boss a pentagon too:
+  // its flat sides fell inside the cross's arm tips, so the socket broke
+  // through the boss wall. The ceiling ring is now built with
+  // ringFaceBetween(), which doesn't need matching point counts.
+  const bossOuterR = bossOuter;
   const { mesh: bossMesh, ceilingBoundary } = stemBoss(settings, ceilingZ, bossOuterR, innerTop);
 
   // Ceiling face closing the gap between the hollow cavity's own wall
@@ -91,7 +92,12 @@ export function buildKeycap(cap, settings) {
   // radius mismatch instead. facingDown matches ringFaceBottomRim below:
   // both represent a solid surface whose normal points toward the
   // adjacent empty/hollow space.
-  body.append(ringFace(innerTop, ceilingBoundary, ceilingZ, true));
+  // Built with ringFaceBetween(), not point-for-point ringFace(): for most
+  // cap shapes the cavity outline and the round boss don't have their
+  // points at matching angles, and point-for-point pairing folded this face
+  // over itself (and reversed some of its triangles) for hexagon, octagon,
+  // pentagon, star, and heart caps.
+  body.append(ringFaceBetween(innerTop, ceilingBoundary, ceilingZ, true));
 
   // Solid top cap — topRim, not topProfile, since the actual outer edge at
   // full height is the beveled (smaller) rim, not the un-beveled taper
@@ -189,13 +195,15 @@ function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
   // larger than the available room (a short cap, or a deliberately
   // large depth value).
   const depth = Math.min(settings.stemCavityDepthMM, ceilingZ);
-  // Resampled to bossOuter's own point count (now 36, to match innerTop,
-  // rather than its original 24) — otherwise this ring face pairs a
-  // 36-point bossOuter against a 12-point crossOuter, and the resulting
-  // min(36,12)=12-point connection leaves 24 of bossOuter's own points
-  // disconnected at this boundary, which is exactly what happened when
-  // this was tried without the resample first.
-  const crossOuter = resamplePolygon(crossProfile(w, t), bossOuter.points.length);
+  // The socket's cross, with its 12 corners exactly and no extra points.
+  // It used to be resampled to the boss outline's point count so the ring
+  // at the socket opening could pair them point for point; with the
+  // cross's points bunched along its long arm edges, those pairings
+  // crossed each other and the ring folded over itself, which showed in
+  // Bambu Studio as a ragged patch around the socket. That ring is now
+  // built with ringFaceBetween(), which doesn't need matching point
+  // counts.
+  const crossOuter = crossProfile(w, t);
 
   // Reinforcing fillet where the boss meets the ceiling — the actual
   // load path for every keypress: force travels from the switch's stem,
@@ -288,7 +296,7 @@ function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
   }
   // The socket's own opening — the annular lip a real switch's plastic
   // housing would sit against once the stem is seated — now at Z=0.
-  mesh.append(ringFace(bossOuter, crossOuter, 0, true));
+  mesh.append(ringFaceBetween(bossOuter, crossOuter, 0, true));
   mesh.append(loftShell(crossOuter, crossOuter, 0, depth, true));
   // The socket's roof: a flat cap over the cross-shaped hole at its full
   // depth, with the post solid above it all the way up to the crown. This

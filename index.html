@@ -186,7 +186,10 @@
 
     <section class="viewport">
       <div class="viewport-toolbar">
-        <label class="checkbox"><input type="checkbox" id="explodedToggle"> Exploded View</label>
+        <div class="toggle-stack">
+          <label class="checkbox"><input type="checkbox" id="explodedToggle"> Exploded View</label>
+          <label class="checkbox"><input type="checkbox" id="switchToggle" disabled> Show KeySwitch</label>
+        </div>
         <input type="range" id="explodeSlider" min="2" max="50" value="20" disabled>
         <button class="btn ghost" id="resetViewBtn">Reset View</button>
       </div>

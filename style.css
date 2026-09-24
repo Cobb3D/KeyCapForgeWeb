@@ -234,6 +234,9 @@ input[type="color"] {
   border-bottom: 1px solid var(--line);
 }
 .viewport-toolbar #explodeSlider { width: 140px; }
+/* Exploded View with Show KeySwitch directly underneath it. */
+.toggle-stack { display: flex; flex-direction: column; gap: 4px; }
+.checkbox:has(input:disabled) { opacity: 0.45; }
 #canvasHost { flex: 1; min-height: 0; position: relative; }
 #canvasHost canvas { display: block; width: 100%; height: 100%; }
 .viewport-hint {

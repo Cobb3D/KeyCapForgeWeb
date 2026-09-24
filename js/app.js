@@ -2,6 +2,7 @@ import { ensureThreeLoaded, Viewport, meshToObject3D } from './scene.js';
 import { buildKeycap } from './keycapBuilder.js';
 import { buildBase, capCenters, maxSafeRecessDepth } from './baseBuilder.js';
 import { Mesh } from './mesh.js';
+import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
 import { buildThreeMF, limitDistinctColors } from './threeMFExport.js';
 
@@ -49,6 +50,7 @@ let shape = 'square';
 let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
 let explodeDistance = 20;
+let showSwitches = false; // "Show KeySwitch": only takes effect in exploded view
 
 function makeCap(text, { colorfulEmoji = false } = {}) {
   return {
@@ -88,10 +90,30 @@ async function main() {
 
     const explodeZ = explodedView ? explodeDistance : 0;
 
+    // Exploded with switches shown, the parts stack with equal gaps of
+    // explodeZ: the base, then each switch (its lowest point one gap above the
+    // base's top), then each cap (its bottom one gap above the stem's top).
+    // Without switches, caps sit one gap above the base, as before. The
+    // switch is preview-only; nothing here touches the exported meshes.
+    const switchesShown = explodedView && showSwitches;
+    let capZ = settings.baseThicknessMM + explodeZ;
+    let switchPlateZ = 0;
+    let switchTemplate = null;
+    if (switchesShown) {
+      switchPlateZ = settings.baseThicknessMM + explodeZ + MX_SWITCH.lowestBelowPlate;
+      capZ = switchPlateZ + MX_SWITCH.stemTopAbovePlate + explodeZ;
+      switchTemplate = buildSwitchObject(THREE);
+    }
+
     caps.forEach((cap, i) => {
       const { body, legendParts } = buildKeycap(cap, settings);
-      const z = settings.baseThicknessMM + explodeZ;
+      const z = capZ;
       const { x, y } = centers[i];
+      if (switchTemplate) {
+        const sw = switchTemplate.clone(); // shares geometry and materials
+        sw.position.set(x, y, switchPlateZ);
+        group.add(sw);
+      }
       const bodyObj = meshToObject3D(THREE, body, cap.bodyColorHex);
       bodyObj.position.set(x, y, z);
       group.add(bodyObj);
@@ -364,10 +386,19 @@ async function main() {
   // ---------- Exploded view ----------
   const explodedToggle = document.getElementById('explodedToggle');
   const explodeSlider = document.getElementById('explodeSlider');
+  const switchToggle = document.getElementById('switchToggle');
   explodedToggle.addEventListener('change', () => {
     explodedView = explodedToggle.checked;
     explodeSlider.disabled = !explodedView;
+    switchToggle.disabled = !explodedView;
     rebuild();
+  });
+  // Adding or removing the switches changes the stack's height a lot, so
+  // re-fit the camera to it (the same as pressing Reset View).
+  switchToggle.addEventListener('change', () => {
+    showSwitches = switchToggle.checked;
+    rebuild();
+    viewport.frameToModel(true);
   });
   explodeSlider.addEventListener('input', () => { explodeDistance = parseFloat(explodeSlider.value); rebuild(); });
 

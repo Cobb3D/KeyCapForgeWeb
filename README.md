@@ -1094,6 +1094,98 @@ worked out:
   centred legend box covers the same area of a heart either way up.
   Engraved caps are still flipped face-down for printing, so in a slicer
   a heart looks upside down when viewed from above; that's correct.
+- **"Show KeySwitch" in exploded view.** A checkbox under Exploded View
+  (disabled until exploded view is on) adds a simplified Cherry MX switch
+  under every cap in the 3D preview: `js/switchModel.js`, built from
+  Three.js primitives to nominal MX dimensions (15.6mm clear top housing,
+  blue stem with the cross topping out 11.6mm above the plate, bottom
+  housing 5.0mm below the plate's top, 3mm centre post; no metal pins,
+  since they're cut off before assembly). It's preview-only and never exported. Exploded, the parts stack with equal
+  gaps set by the slider: base, then switches (centre-post tip one gap
+  above the base), then caps (one gap above the stem tops). Turning it on re-fits
+  the camera, since the stack gets much taller. The base's vertical stack
+  (floor, clearance shaft, plate, recess) is now computed in one place,
+  `baseStackFor()` in baseBuilder.js, instead of the recess depth being
+  worked out separately for the base and the keyring; verified the base
+  geometry is byte-for-byte identical before and after.
+
+  Fit note: the metal pins are cut off before assembly, so the lowest
+  part of the switch is its centre post, 6.5mm below the plate's bottom on
+  Cherry's nominal figures, against 5.9mm of room at default settings.
+  Test prints at the current defaults work well with real switches, so
+  the defaults stay as they are: real switches vary, and nominal figures
+  are an upper-end estimate. If a particular switch does bottom out before
+  clipping in, raise Switch clearance (and base thickness, to keep the
+  recess depth) to suit it.
+- **Ragged patch around the socket in Bambu Studio: folded flat faces.**
+  The flat ring at the socket opening (between the round stem boss and the
+  cross) was built by `ringFace()`, which pairs point i of one outline with
+  point i of the other. The cross had been resampled to the boss's point
+  count, which bunched its points along the long arm edges, so the
+  pairings crossed and the face folded over itself: its triangles faced
+  both ways and covered 34mm2 of a 14mm2 ring. Folds don't show up as open
+  or non-manifold edges (the edges still pair up), so none of the earlier
+  checks caught it. A new check (every flat face's triangles must face one
+  way and cover exactly the area between its outlines) found the same
+  fold in three more places: the keycap's ceiling around the boss
+  (hexagon, octagon, pentagon, star, heart), the base's top surface around
+  each recess (every shape), and the recess floor (every non-square shape).
+
+  `ringFaceBetween()` (mesh.js) replaces point-for-point pairing for all
+  four: it bridges the inner outline to the outer one and ear-clips the
+  result, which handles different point counts, corners, and notches. Two
+  simpler step-by-step methods were tried first and each still left folds
+  at the base's corners. The result is self-checked against the ring's
+  exact area. The socket's cross now keeps its exact 12 corners.
+
+  Found along the way: for hexagon, octagon, and pentagon caps the stem
+  boss had only 6, 8, or 5 points (it was resampled to the cavity
+  outline's point count for the old pairing), so on a pentagon cap its
+  flat sides fell inside the cross's arm tips and the socket broke through
+  the boss wall. The boss now always has its full 24 sides.
+
+  Verified across all 8 shapes, keycaps and joined bases: 0 open, 0
+  non-manifold, 0 winding conflicts, and every ring that can be exact is
+  exact. Square (keycap and base) has no fallbacks at all.
+
+  Where two parts genuinely collide, no flat face between them can be
+  valid, and those spots fall back to a closed triangulation that overlaps
+  itself where the shapes meet, as they did before: on star and heart caps
+  the stem boss overlaps the cavity wall (0.33mm and 1.21mm), where the
+  material simply fuses, and the heart's recess reaches past the base's
+  top edge (see below).
+
+- **Switches now fit every cap shape's recess.** The recess followed the
+  cap's outline, but the switch's top housing is a 15.6mm square that has
+  to pass down through the recess to clip into the plate: for every shape
+  except square, its corners reached past the recess (24 of 64 points
+  around the housing outside a round recess, 60 of 64 for a star), and the
+  14mm square plate hole reached past the recess floor too. A square
+  pocket under a cap-shaped opening wouldn't work, because the switch goes
+  in from the top, so the opening itself must admit it. `recessOutlineFor()`
+  in baseBuilder.js now makes the recess the cap's shape combined with a
+  16.2mm square (the housing plus 0.3mm each side): a round recess with
+  four square corners, a star with a square behind it, and so on. The
+  combination is built exactly (both outlines are star-shaped around the
+  centre, so it samples whichever reaches farther at every corner of both
+  plus each crossing point). Square caps' recesses already contain the
+  square, so they're returned unchanged; verified square bases are
+  byte-for-byte identical to the print-tested version. Verified from the
+  built geometry for all 8 shapes: 0 of 64 housing points and 0 of 64 plate
+  hole points outside the recess, 0 open / non-manifold / winding errors,
+  no folded faces (the recess floor no longer needs the fallback), and the
+  thinnest wall around any recess is still 1.2mm, the same as the square
+  base's.
+
+  Still open, a trade-off for the owner: the heart is centred on the
+  average of its outline points, which bunch up at the lobes, so its point
+  hangs low and its recess reaches 0.18mm past the base's top edge (-9.88mm
+  against the edge at -9.70mm), a small notch at the tip. Centring it on
+  its height fixes that but shifts where the legend sits within the heart,
+  toward the narrow point: keeping the current legend fit (98.7% of the
+  legend box inside the heart) would need its legend size factor cut from
+  0.80 to 0.72, about 10% smaller legends. Centring on its area centre
+  makes it worse (the point would reach -10.35mm).
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

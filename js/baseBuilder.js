@@ -1,4 +1,4 @@
-import { Mesh, Polygon2D, loftShell, ringFace, earClip, resamplePolygon, insetCellSides } from './mesh.js';
+import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon, insetCellSides } from './mesh.js';
 import { roundedRect, roundedRectPerCorner, regularPolygon, profileFor } from './shapeProfiles.js';
 
 // Every profile that gets connected to another one (via ringFace/loftShell)
@@ -29,6 +29,22 @@ export function maxSafeRecessDepth(settings) {
   return Math.max(0.2, settings.baseThicknessMM - reservedBelowRecess);
 }
 
+// The base's vertical stack under each cap, bottom-up: the solid floor,
+// the switch clearance shaft, the plate the switch clips into, then the
+// recess the cap nests in. Shared by buildBlock() (which cuts it) and the
+// keyring (which checks whether the lug reaches the recess), so they
+// always agree. recessFloorZ is the plate's top surface, where a switch's
+// housing rests once clipped in.
+export function baseStackFor(settings) {
+  const thickness = settings.baseThicknessMM;
+  const recessDepth = Math.min(settings.recessDepthMM, maxSafeRecessDepth(settings), thickness * 0.5);
+  const recessFloorZ = thickness - recessDepth; // top of the plate
+  const floorZ = floorThicknessFor(settings);   // top of the solid floor
+  const plateThickness = Math.min(settings.plateThicknessMM, recessFloorZ - floorZ - 0.5);
+  const plateZ = recessFloorZ - plateThickness; // bottom of the plate
+  return { recessDepth, recessFloorZ, plateZ, floorZ };
+}
+
 
 // How much bigger than a cap's own bottom footprint its recess is cut —
 // shared between buildBlock() (which cuts the recess) and the keyring
@@ -37,6 +53,70 @@ export function maxSafeRecessDepth(settings) {
 // ended up able to intersect the recess after the recess feature was
 // added later without this clamp being updated to match.
 const RECESS_CLEARANCE_MM = 0.6;
+
+// The switch's top housing is 15.6mm square where it sits on the plate.
+// The recess has to let the whole switch pass down through it to clip into
+// the plate, so it's never narrower than this square plus clearance.
+const SWITCH_HOUSING_MM = 15.6;
+const SWITCH_POCKET_CLEARANCE_MM = 0.3;
+
+// The recess outline for one cap, centred on the origin: the cap's own
+// shape (plus RECESS_CLEARANCE_MM), combined with a square the switch
+// housing fits through. For a square cap the square already fits inside
+// the cap's shape, so the cap outline is returned exactly as before. For
+// every other shape it didn't: a round cap's recess is 18.6mm across, but
+// the switch's square is 22mm corner to corner, so a real switch couldn't
+// go in (from 24 of 64 points around the housing outside a round recess,
+// to 60 of 64 for a star). Those recesses now get the square's corners
+// added: a round recess with four square corners, and so on.
+//
+// Both outlines are star-shaped around the centre, so the combined edge in
+// any direction is whichever outline reaches farther. It's built exactly
+// by sampling that at every corner of both outlines plus each point where
+// they cross: between two neighbouring samples one outline is outermost
+// the whole way, along one of its own straight edges.
+function recessOutlineFor(shape, settings) {
+  const capOutline = resamplePolygon(profileFor(shape, settings.capWidthMM + RECESS_CLEARANCE_MM, settings.cornerRadiusMM), RESAMPLE_N);
+  const pocketSize = SWITCH_HOUSING_MM + 2 * SWITCH_POCKET_CLEARANCE_MM;
+  const pocket = resamplePolygon(roundedRect(pocketSize, pocketSize, 0.5), RESAMPLE_N);
+
+  // Distance from the centre to an outline along direction a.
+  const reach = (poly, a) => {
+    const dx = Math.cos(a), dy = Math.sin(a), P = poly.points;
+    let best = 0;
+    for (let k = 0; k < P.length; k++) {
+      const [x1, y1] = P[k], [x2, y2] = P[(k + 1) % P.length];
+      const ex = x2 - x1, ey = y2 - y1, den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-15) continue;
+      const t = (x1 * ey - y1 * ex) / den, u = (x1 * dy - y1 * dx) / den;
+      if (t > 0 && u >= -1e-12 && u <= 1 + 1e-12) best = Math.max(best, t);
+    }
+    return best;
+  };
+  const inside = (P, [x, y]) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; } return c; };
+  if (pocket.points.every((p) => inside(capOutline.points, p))) return capOutline;
+
+  const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  let angles = [...capOutline.points, ...pocket.points].map(([x, y]) => norm(Math.atan2(y, x))).sort((a, b) => a - b);
+  angles = angles.filter((a, k) => k === 0 || a - angles[k - 1] > 1e-9);
+  const diff = (a) => reach(capOutline, a) - reach(pocket, a);
+  const withCrossings = [];
+  for (let k = 0; k < angles.length; k++) {
+    const a0 = angles[k], a1 = k + 1 < angles.length ? angles[k + 1] : angles[0] + 2 * Math.PI;
+    withCrossings.push(a0);
+    const d0 = diff(a0), d1 = diff(a1);
+    if ((d0 > 0 && d1 < 0) || (d0 < 0 && d1 > 0)) { // the outlines cross between these two
+      let lo = a0, hi = a1;
+      for (let it = 0; it < 60; it++) { const mid = (lo + hi) / 2; if ((diff(mid) > 0) === (d0 > 0)) lo = mid; else hi = mid; }
+      withCrossings.push(norm((lo + hi) / 2));
+    }
+  }
+  withCrossings.sort((a, b) => a - b);
+  const pts = withCrossings
+    .filter((a, k) => k === 0 || a - withCrossings[k - 1] > 1e-9)
+    .map((a) => { const r = Math.max(reach(capOutline, a), reach(pocket, a)); return [Math.cos(a) * r, Math.sin(a) * r]; });
+  return new Polygon2D(pts);
+}
 
 // How far the base's own top/bottom bevel eats into its overall
 // thickness. Works correctly for both a single-cell base and a joined
@@ -128,7 +208,7 @@ export function buildBase(caps, settings) {
     // base's own 0.8mm bottom bevel cut down to about 0.1mm on the first
     // printed layers. That's why the printed lug barely held on.
     const loopHeight = keyringLoopHeight(settings);
-    const recessDepth = Math.min(settings.recessDepthMM, maxSafeRecessDepth(settings), thickness * 0.5);
+    const { recessDepth } = baseStackFor(settings);
     const lugReachesRecess = loopHeight > thickness - recessDepth - 0.01;
     const limitingHoleSize = lugReachesRecess
       ? Math.max(settings.clearanceMM, settings.capWidthMM + RECESS_CLEARANCE_MM)
@@ -329,7 +409,6 @@ function buildBlock(outer, cells, thickness, settings) {
     // needing another code change for the next switch that also doesn't
     // fit — this project has no way to know every switch's exact
     // below-plate housing depth in advance.
-    const maxSafeRecess = maxSafeRecessDepth(settings);
 
     // The recess a cap physically nests into — shaped to match that cap's
     // own outline (not always a plain square), a little larger than its
@@ -337,15 +416,9 @@ function buildBlock(outer, cells, thickness, settings) {
     // than needing to be forced. User-adjustable (recessDepthMM), but
     // clamped to whatever's safely available above the reserved functional
     // stack below it.
-    const recessDepth = Math.min(settings.recessDepthMM, maxSafeRecess, thickness * 0.5);
-    const recessOutline = resamplePolygon(
-      profileFor(shape, settings.capWidthMM + RECESS_CLEARANCE_MM, settings.cornerRadiusMM),
-      RESAMPLE_N
-    ).translated(cx, cy);
-    const recessFloorZ = thickness - recessDepth;
+    const { recessFloorZ, plateZ, floorZ } = baseStackFor(settings);
+    const recessOutline = recessOutlineFor(shape, settings).translated(cx, cy);
 
-    const plateThickness = Math.min(settings.plateThicknessMM, recessFloorZ - floorThicknessFor(settings) - 0.5);
-    const plateZ = recessFloorZ - plateThickness;
 
     // Flat top outside the recess, the recess's own inward-facing wall, and
     // its floor (recess outline minus the plate hole) — all at/relative to
@@ -353,9 +426,14 @@ function buildBlock(outer, cells, thickness, settings) {
     // occupies the top recessDepth of material. The ring's OUTER boundary
     // is localTopRim — the same polygon object the wall above ends at, so
     // there's no gap or overhang between them by construction.
-    mesh.append(ringFace(localTopRim, recessOutline, thickness, false));
+    // The two rings between differently shaped outlines (the cell's square
+    // top and the cap-shaped recess; the recess and the square plate hole)
+    // are built with ringFaceBetween(). Point-for-point pairing folded them
+    // over themselves for every cap shape, since the outlines' points don't
+    // sit at matching angles.
+    mesh.append(ringFaceBetween(localTopRim, recessOutline, thickness, false, [cx, cy]));
     mesh.append(loftShell(recessOutline, recessOutline, recessFloorZ, thickness, true));
-    mesh.append(ringFace(recessOutline, plateHole, recessFloorZ, false));
+    mesh.append(ringFaceBetween(recessOutline, plateHole, recessFloorZ, false, [cx, cy]));
 
     mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
     mesh.append(ringFace(clearanceHole, plateHole, plateZ, true));
@@ -364,7 +442,6 @@ function buildBlock(outer, cells, thickness, settings) {
     // switches don't need a floor for retention (the plate clips do
     // that), but an open-through design lets you see straight to the
     // switch, which isn't wanted here.
-    const floorZ = floorThicknessFor(settings);
     mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, plateZ, true));
     const { points, triangles } = earClip(clearanceHole);
     for (const [a, b, c] of triangles) {

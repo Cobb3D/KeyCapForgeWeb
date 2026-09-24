@@ -444,6 +444,143 @@ export function ringFace(outer, inner, z, facingDown) {
   return mesh;
 }
 
+// A flat ring between two outlines at height z (outer surrounding inner),
+// for when their points don't line up one-to-one. ringFace() above pairs
+// point i with point i, which only works when the two outlines' points sit
+// at matching angles; when they don't (a round stem boss against a cross,
+// or a round recess against a square base cell), the pairings cross each
+// other and the ring folds over itself, which slicers render as a ragged,
+// flickering patch.
+//
+// This uses the standard method for a polygon with a hole: cut a "bridge"
+// from the inner outline's rightmost point to the nearest outer point it
+// can see, which turns the ring into one outline (outer counter-clockwise,
+// across the bridge, inner clockwise, back across the bridge), then
+// ear-clip that outline. It handles any two nested outlines, with
+// different point counts, concave notches, and corners, which two
+// step-by-step pairing methods tried first did not: both still left a few
+// folded triangles at the base's corners. Only points strictly inside a
+// candidate triangle block it, because the bridge's two ends appear twice
+// in the joined outline, sitting exactly on the corners of triangles next
+// to the bridge. Both outlines must run counter-clockwise.
+//
+// The result is checked: its triangles must cover exactly the area between
+// the two outlines. That fails only when inner doesn't lie inside outer,
+// which happens where two shapes genuinely collide (a star cap's stem boss
+// overlapping its cavity wall, or a switch's square plate hole reaching
+// past a round recess): no flat ring can be valid there. Then this falls
+// back to ringFaceZipper(), which always produces a closed surface (no
+// open edges), matching what these spots looked like before, overlapping
+// itself where the shapes collide. `center` is only used by that fallback.
+export function ringFaceBetween(outer, inner, z, facingDown, center = [0, 0]) {
+  const O = outer.points, I = inner.points, n = O.length, m = I.length;
+  const area2 = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+  const same = (a, b) => Math.abs(a[0] - b[0]) < 1e-12 && Math.abs(a[1] - b[1]) < 1e-12;
+  const crosses = (p, q, a, b) => {
+    if (same(p, a) || same(p, b) || same(q, a) || same(q, b)) return false;
+    const d1 = area2(p, q, a), d2 = area2(p, q, b), d3 = area2(a, b, p), d4 = area2(a, b, q);
+    return d1 * d2 < 0 && d3 * d4 < 0;
+  };
+  const clear = (p, q) => {
+    for (let k = 0; k < n; k++) if (crosses(p, q, O[k], O[(k + 1) % n])) return false;
+    for (let k = 0; k < m; k++) if (crosses(p, q, I[k], I[(k + 1) % m])) return false;
+    return true;
+  };
+  // Bridge: the inner outline's rightmost point, to the nearest outer point
+  // whose connecting segment crosses neither outline.
+  let bi = 0;
+  for (let k = 1; k < m; k++) if (I[k][0] > I[bi][0]) bi = k;
+  const order = O.map((p, k) => k).sort((a, b) =>
+    ((O[a][0] - I[bi][0]) ** 2 + (O[a][1] - I[bi][1]) ** 2) - ((O[b][0] - I[bi][0]) ** 2 + (O[b][1] - I[bi][1]) ** 2));
+  const bo = order.find((k) => clear(I[bi], O[k])) ?? order[0];
+
+  // Joined outline: outer from the bridge point all the way round and back
+  // to it, then inner clockwise from its bridge point back to it.
+  const pts = [];
+  for (let k = 0; k <= n; k++) pts.push(O[(bo + k) % n]);
+  for (let k = 0; k <= m; k++) pts.push(I[((bi - k) % m + m) % m]);
+
+  const tris = [];
+  const idx = pts.map((_, k) => k);
+  const EPS = 1e-10;
+  const strictlyInside = (p, a, b, c) =>
+    !same(p, a) && !same(p, b) && !same(p, c) && area2(a, b, p) > EPS && area2(b, c, p) > EPS && area2(c, a, p) > EPS;
+  // Ear-clips the joined outline. Normally only proper ears (convex
+  // corners) are clipped. Straight edges have runs of points in a line,
+  // though, and those can be left over at the end as a flat sliver with no
+  // proper ear; leaving it would leave its edges open, so then a flat
+  // corner is clipped instead, closing it with a zero-area triangle.
+  const tryClip = (allowFlat) => {
+    for (let k = 0; k < idx.length; k++) {
+      const ia = idx[(k - 1 + idx.length) % idx.length], ib = idx[k], ic = idx[(k + 1) % idx.length];
+      const a = pts[ia], b = pts[ib], c = pts[ic];
+      const ar = area2(a, b, c);
+      if (allowFlat ? ar < -EPS : ar <= EPS) continue; // reflex (or flat, unless allowed)
+      let blocked = false;
+      for (const q of idx) {
+        if (q === ia || q === ib || q === ic) continue;
+        if (strictlyInside(pts[q], a, b, c)) { blocked = true; break; }
+      }
+      if (blocked) continue;
+      tris.push([a, b, c]);
+      idx.splice(k, 1);
+      return true;
+    }
+    return false;
+  };
+  let guard = idx.length * idx.length;
+  while (idx.length > 3 && guard-- > 0) {
+    if (!tryClip(false) && !tryClip(true)) break;
+  }
+  if (idx.length === 3 && area2(pts[idx[0]], pts[idx[1]], pts[idx[2]]) >= -EPS) tris.push(idx.map((k) => pts[k]));
+
+  const polyArea2 = (P) => { let a = 0; for (let k = 0; k < P.length; k++) { const p = P[k], q = P[(k + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; } return a; };
+  const ringArea2 = polyArea2(O) - polyArea2(I);
+  const covered2 = tris.reduce((t, [a, b, c]) => t + area2(a, b, c), 0);
+  if (tris.length !== n + m || Math.abs(covered2 - ringArea2) > 1e-6 * Math.max(1, Math.abs(ringArea2))) {
+    return ringFaceZipper(outer, inner, z, facingDown, center);
+  }
+
+  const mesh = new Mesh();
+  for (const [a, b, c] of tris) { // each runs counter-clockwise (facing up)
+    const pa = [a[0], a[1], z], pb = [b[0], b[1], z], pc = [c[0], c[1], z];
+    if (facingDown) mesh.addTriangle(pa, pc, pb); else mesh.addTriangle(pa, pb, pc);
+  }
+  return mesh;
+}
+
+// Fallback for ringFaceBetween(): walks both outlines counter-clockwise
+// around `center`, each step adding a triangle that advances whichever
+// outline's next point comes first by angle. Every edge of both outlines
+// is used exactly once, so the surface is always closed, but it can
+// overlap itself where the outlines aren't nested.
+function ringFaceZipper(outer, inner, z, facingDown, center) {
+  const angleOf = ([x, y]) => { const a = Math.atan2(y - center[1], x - center[0]); return a < 0 ? a + 2 * Math.PI : a; };
+  const prepare = (P) => {
+    let s = 0;
+    for (let k = 1; k < P.length; k++) if (angleOf(P[k]) < angleOf(P[s])) s = k;
+    const pts = [];
+    for (let k = 0; k <= P.length; k++) pts.push(P[(s + k) % P.length]);
+    const angles = pts.map(angleOf);
+    for (let k = 1; k < angles.length; k++) while (angles[k] < angles[k - 1]) angles[k] += 2 * Math.PI;
+    return { pts, angles };
+  };
+  const A = prepare(outer.points), B = prepare(inner.points);
+  const n = outer.points.length, m = inner.points.length;
+  const mesh = new Mesh();
+  const emit = (a, b, c) => { // a, b, c as they'd run counter-clockwise on a valid ring
+    const pa = [a[0], a[1], z], pb = [b[0], b[1], z], pc = [c[0], c[1], z];
+    if (facingDown) mesh.addTriangle(pa, pc, pb); else mesh.addTriangle(pa, pb, pc);
+  };
+  let i = 0, j = 0;
+  while (i < n || j < m) {
+    const nextA = i < n ? A.angles[i + 1] : Infinity, nextB = j < m ? B.angles[j + 1] : Infinity;
+    if (nextA <= nextB) { emit(A.pts[i], A.pts[i + 1], B.pts[j]); i++; }
+    else { emit(B.pts[j + 1], B.pts[j], A.pts[i]); j++; }
+  }
+  return mesh;
+}
+
 function lerp(a, b, t) { return a + (b - a) * t; }
 
 export function lerpProfile(a, b, t) {
