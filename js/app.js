@@ -5,7 +5,7 @@ import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
 import { buildThreeMF, limitDistinctColors } from './threeMFExport.js';
-import { initBugReport } from './bugReport.js';
+import { initBugReport, APP_NAME } from './bugReport.js';
 
 const FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];
 
@@ -549,7 +549,7 @@ async function main() {
       // project's own extensive position-based manifoldness checks always
       // passing — those checks were correct about the geometry, and
       // blind to this, since it isn't a geometry defect at all.
-      downloadBlob(meshToSTL(combined.welded(), 'KeyCapForge by Cobb3D'), `${fileBase}.stl`);
+      downloadBlob(meshToSTL(combined.welded(), `${APP_NAME} by Cobb3D`), `${fileBase}.stl`);
     }
     if (exportFormat === '3mf' || exportFormat === 'both') {
       // Capped at 4 total distinct colors across the whole file — a set
@@ -565,7 +565,7 @@ async function main() {
       // <components> revert). See the STL branch above and
       // Mesh.welded() (mesh.js) for why this step is needed at all.
       const weldedObjects = limitedObjects.map((o) => ({ ...o, mesh: o.mesh.welded() }));
-      downloadBlob(buildThreeMF(weldedObjects), `${fileBase}.3mf`);
+      downloadBlob(buildThreeMF(weldedObjects, `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
     }
   });
 

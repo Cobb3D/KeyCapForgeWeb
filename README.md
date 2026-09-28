@@ -1,4 +1,4 @@
-# KeyCapForge — Web
+# KeyCapForge Beta Pre Release — Web
 
 *by Cobb3D*
 
@@ -1252,6 +1252,24 @@ worked out:
   app opens. Open on GitHub still works on github.io. Verified in a real
   browser: correct address and subject, design inside the email for a
   normal report, the oversized fallback, and the GitHub link.
+- **Renamed "KeyCapForge Beta Pre Release".** `APP_NAME` in bugReport.js
+  holds the name; it's used for the exported files' metadata (the STL
+  header, well within its 80 bytes, and the 3MF "Application" field) and
+  the bug report's subject and version lines. The page title, the top bar
+  (with "Beta Pre Release" as a small tag after "KeyCapForge"), and the
+  sidebar footer carry it in index.html. Developer console messages and
+  the fallback export filename (`keycapforge`) are unchanged.
+  `APP_VERSION` bumped to 2026-09-28.
+- **Cobb3D logo in the 3D view's background.** `assets/cobb3d-logo.png`
+  (the white-on-transparent logo, resized to 1200px wide, 31KB) sits
+  behind the 3D view at 7% opacity, centred, at most 60% of the view's
+  width (`#canvasHost::before` in style.css). The 3D canvas is now
+  transparent (`alpha: true`, clear colour fully transparent, no scene
+  background, in scene.js), so the logo shows through it and stays still
+  like a watermark while the model is orbited, panned, and zoomed, rather
+  than tilting and getting covered as it would inside the 3D scene. The
+  on-screen instructions and scale bar are layered above the canvas.
+  When deploying, upload the `assets` folder along with the rest.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

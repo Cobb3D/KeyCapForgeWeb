@@ -9,7 +9,11 @@
 
 // Bump this when publishing an update, so reports say which version they
 // came from.
-export const APP_VERSION = '2026-09-24';
+export const APP_VERSION = '2026-09-28';
+
+// The app's name as shown to users: the page title, the top bar, exported
+// files' metadata, and bug reports.
+export const APP_NAME = 'KeyCapForge Beta Pre Release';
 
 // The GitHub repository reports go to, as "owner/repo". Left empty, it's
 // worked out from the page's own address on GitHub Pages
@@ -76,7 +80,7 @@ export function initBugReport(getState) {
   const environment = () => {
     const st = getState() || {};
     return [
-      `- KeyCapForge version: ${APP_VERSION}`,
+      `- App: ${APP_NAME}, version ${APP_VERSION}`,
       `- Page: ${location.href}`,
       `- Browser: ${navigator.userAgent}`,
       `- Screen: ${innerWidth}x${innerHeight} at ${window.devicePixelRatio || 1}x`,
@@ -142,7 +146,7 @@ export function initBugReport(getState) {
 
   document.getElementById('bugEmail').addEventListener('click', async () => {
     const description = text.value.trim();
-    const subject = 'KeyCapForge bug: ' + (description ? description.split('\n')[0].slice(0, 70) : 'report');
+    const subject = `${APP_NAME} bug: ` + (description ? description.split('\n')[0].slice(0, 70) : 'report');
     // Mail links want CRLF line breaks.
     const makeUrl = (body) => `mailto:${REPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\n/g, '\r\n'))}`;
     let url = makeUrl(buildReport({ plain: true }));

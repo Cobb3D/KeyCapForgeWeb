@@ -49,13 +49,17 @@ export class Viewport {
     this.THREE = THREE;
     this.host = host;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0f0e11);
+    // No scene background: the canvas is transparent so the viewport's dark
+    // background and the faint Cobb3D logo behind it (style.css,
+    // #canvasHost::before) show through, staying put while the model moves.
+    this.scene.background = null;
 
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
     this.camera.up.set(0, 0, 1); // Z-up, matching the geometry convention
     this.camera.position.set(0, -75, 45);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setClearColor(0x000000, 0);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     host.appendChild(this.renderer.domElement);
 
