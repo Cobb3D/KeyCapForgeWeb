@@ -1186,6 +1186,72 @@ worked out:
   legend box inside the heart) would need its legend size factor cut from
   0.80 to 0.72, about 10% smaller legends. Centring on its area centre
   makes it worse (the point would reach -10.35mm).
+- **Cross Section and X-Ray views.** Two more checkboxes next to Exploded
+  View, both preview-only (`setViewModes()` in scene.js; exports are never
+  affected), usable together and with exploded view and the switch model.
+  Cross Section cuts the model with a clipping plane along the row of
+  caps, through their centres by default, so it passes through every
+  socket, stem, recess, and plate: across X for a vertical layout, across
+  Y for a horizontal one. A slider moves the cut up to 12mm either way.
+  Turning it on turns the camera to face the cut, since the default view
+  is top-down and would see it edge-on; turning it off returns to the
+  default view. Clipping alone leaves cut parts looking hollow, so each
+  part's inside faces are drawn in a flat, darker shade of its own colour:
+  once a part is cut open, those are exactly the faces that show through
+  the cut, so the section reads as solid. That works because every face
+  points outward, which the winding checks elsewhere in this project
+  verify. The switch's clear housing is left see-through. X-Ray makes
+  every surface faint (15% opacity, not written to the depth buffer) and
+  draws each part's edges (Three.js `EdgesGeometry`, 30 degree threshold)
+  on top without depth testing, so internal structure shows through. The
+  overlays are added to each rebuilt model and each material's own
+  settings are remembered, so turning the modes off restores them exactly,
+  including materials shared between the cloned switch models. That
+  switching logic was tested against a stand-in for Three.js (all mode
+  combinations, repeated toggling, shared and transparent materials); the
+  rendering itself couldn't be run in the build sandbox, which can't load
+  Three.js from its CDN.
+- **Report a Bug.** A button in the top bar opens a short form
+  (`js/bugReport.js`). The report holds the user's description, the app
+  version (`APP_VERSION` in bugReport.js: bump it when publishing an
+  update), page address, browser, screen size, graphics card, export
+  format, active view modes, the last 10 errors the page hit, and
+  optionally the full design (settings and caps as JSON) so the bug can be
+  recreated; "What gets sent" shows it all before sending. **Open on
+  GitHub** opens a new issue on the site's own repository, pre-filled and
+  labelled "bug" (it needs a free GitHub account, and Issues enabled on the
+  repo, which is the default). The repository is worked out from the
+  page's github.io address; set `BUG_REPORT_REPO` in bugReport.js if the
+  site is hosted elsewhere, otherwise the GitHub button is hidden. If the
+  pre-filled link would be too long for GitHub, the design is left out of
+  it and the full report is copied to the clipboard to paste in. **Copy
+  Report** copies the same report for sending any other way. The module is
+  set up before `main()` runs and records errors from page load, so it
+  still works, and captures the error, when the app fails to start.
+  Verified in a real browser: at a github.io address with the app failing
+  to start (no Three.js in the test sandbox), the dialog opened, the
+  report included the startup error, the issue link pointed at the right
+  repo with the right title and label (4,452 characters with the design),
+  Copy Report copied exactly the previewed text, and on a non-GitHub
+  address the GitHub button was hidden. Fits a phone screen.
+- **Bug reports go to Cobb3dPrinting@gmail.com.** **Email Report** is now
+  the main button in the Report a Bug dialog: it opens the user's email app
+  addressed to `REPORT_EMAIL` (bugReport.js; assembled at runtime rather
+  than written out whole, to stay clear of the simplest spam scrapers),
+  with a subject from the description's first line and the report as
+  plain text (no GitHub formatting symbols; CRLF line breaks, as mail
+  links expect). Mail apps don't reliably accept pre-filled emails much
+  over about 2,000 characters, so the design now lists only settings
+  changed from the defaults and, per cap, only what differs from a
+  standard cap; the report's version number tells which defaults applied.
+  A typical report with its design comes to about 1,250 characters, inside
+  the email. Above `MAX_MAILTO_LENGTH` (1,900) the design is left out of
+  the email, the full report is copied to the clipboard, and the email and
+  the dialog both ask the sender to paste it in. Copy Report copies the
+  same plain-text report, and the dialog shows the address in case no mail
+  app opens. Open on GitHub still works on github.io. Verified in a real
+  browser: correct address and subject, design inside the email for a
+  normal report, the oversized fallback, and the GitHub link.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

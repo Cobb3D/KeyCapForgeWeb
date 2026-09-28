@@ -76,6 +76,7 @@
       <span class="brand-sub">by Cobb3D</span>
     </div>
     <div class="topbar-actions">
+      <button class="btn ghost" id="bugReportBtn" title="Report a bug">Report a Bug</button>
       <div class="format-toggle" id="formatToggle">
         <button class="fmt active" data-fmt="stl">STL</button>
         <button class="fmt" data-fmt="3mf">3MF</button>
@@ -191,6 +192,11 @@
           <label class="checkbox"><input type="checkbox" id="switchToggle" disabled> Show KeySwitch</label>
         </div>
         <input type="range" id="explodeSlider" min="2" max="50" value="20" disabled>
+        <div class="toggle-stack">
+          <label class="checkbox"><input type="checkbox" id="sectionToggle"> Cross Section</label>
+          <label class="checkbox"><input type="checkbox" id="xrayToggle"> X-Ray</label>
+        </div>
+        <input type="range" id="sectionSlider" min="-12" max="12" step="0.1" value="0" disabled title="Move the cut (0 = through the middle of the keycaps)">
         <button class="btn ghost" id="resetViewBtn">Reset View</button>
       </div>
       <div id="canvasHost">
@@ -199,6 +205,25 @@
     </section>
   </main>
 
+  <dialog id="bugDialog" class="bug-dialog">
+    <form method="dialog" class="bug-form">
+      <h2>Report a Bug</h2>
+      <label for="bugText">What happened? What were you doing, and what did you expect?</label>
+      <textarea id="bugText" rows="6" placeholder="e.g. I added a heart-shaped cap and the base shows a hole next to it after exporting to Bambu Studio."></textarea>
+      <label class="checkbox"><input type="checkbox" id="bugIncludeDesign" checked> Include my current design, so the bug can be recreated</label>
+      <details>
+        <summary>What gets sent</summary>
+        <pre id="bugPreview"></pre>
+      </details>
+      <p class="hint" id="bugNote"></p>
+      <div class="bug-actions">
+        <button type="button" class="btn ghost" id="bugCancel">Cancel</button>
+        <button type="button" class="btn ghost" id="bugCopy">Copy Report</button>
+        <button type="button" class="btn ghost" id="bugGithub">Open on GitHub</button>
+        <button type="button" class="btn primary" id="bugEmail">Email Report</button>
+      </div>
+    </form>
+  </dialog>
   <script type="module" src="js/app.js" onerror="window.showDiag && window.showDiag('The main app.js module script itself failed to load — likely a 404, or your local server is serving .js files with the wrong MIME type (a known issue with some Python http.server setups). Try VS Code\'s Live Server extension instead, or check the Network tab for the actual status/content-type of js/app.js.')"></script>
 </body>
 </html>

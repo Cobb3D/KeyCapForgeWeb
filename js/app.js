@@ -5,6 +5,7 @@ import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
 import { buildThreeMF, limitDistinctColors } from './threeMFExport.js';
+import { initBugReport } from './bugReport.js';
 
 const FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];
 
@@ -51,6 +52,13 @@ let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
 let explodeDistance = 20;
 let showSwitches = false; // "Show KeySwitch": only takes effect in exploded view
+// Snapshots of the defaults, so bug reports can list only what the user
+// changed (a full design is too long to fit in a pre-filled email).
+const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
+const DEFAULT_CAP = makeCap('');
+const changedFrom = (obj, defaults) => Object.fromEntries(Object.entries(obj).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(defaults[k])));
+// Pieces of main()'s state the bug reporter reads (set once main() has them).
+const liveState = { viewport: null, getExportFormat: null };
 
 function makeCap(text, { colorfulEmoji = false } = {}) {
   return {
@@ -79,6 +87,23 @@ async function main() {
   // which static imports can't do since they can't be wrapped in try/catch).
   const { THREE, OrbitControls } = await ensureThreeLoaded();
   const viewport = new Viewport(document.getElementById('canvasHost'), THREE, OrbitControls);
+  liveState.viewport = viewport;
+
+  // Pushes the Cross Section / X-Ray checkbox state to the viewport. Looks
+  // the elements up itself so it's safe to call from rebuild(), which first
+  // runs before the toolbar's event wiring further down.
+  function applyViewModes() {
+    const section = document.getElementById('sectionToggle');
+    const slider = document.getElementById('sectionSlider');
+    const xray = document.getElementById('xrayToggle');
+    if (!section || !slider || !xray) return;
+    viewport.setViewModes({
+      crossSection: section.checked,
+      cutOffset: parseFloat(slider.value) || 0,
+      cutAxis: settings.verticalLayout ? 'x' : 'y',
+      xray: xray.checked,
+    });
+  }
 
   function rebuild() {
     const count = caps.length;
@@ -128,6 +153,7 @@ async function main() {
     });
 
     viewport.setModel(group);
+    applyViewModes();
     viewport.frameToModel();
 
     renderCapCount();
@@ -400,6 +426,24 @@ async function main() {
     rebuild();
     viewport.frameToModel(true);
   });
+
+  // Cross Section / X-Ray: preview-only view modes (see setViewModes in
+  // scene.js). The cut runs along the row of caps, through their centres by
+  // default, so it passes through every socket, stem, and recess: across X
+  // for a vertical layout, across Y for a horizontal one.
+  const sectionToggle = document.getElementById('sectionToggle');
+  const sectionSlider = document.getElementById('sectionSlider');
+  const xrayToggle = document.getElementById('xrayToggle');
+  sectionToggle.addEventListener('change', () => {
+    sectionSlider.disabled = !sectionToggle.checked;
+    applyViewModes();
+    // Turn the camera to face the cut (the default view is top-down, which
+    // would see it edge-on); turning it off goes back to the default view.
+    if (sectionToggle.checked) viewport.viewFrom(settings.verticalLayout ? [1, 0, 0.35] : [0, -1, 0.35]);
+    else viewport.frameToModel(true);
+  });
+  sectionSlider.addEventListener('input', applyViewModes);
+  xrayToggle.addEventListener('change', applyViewModes);
   explodeSlider.addEventListener('input', () => { explodeDistance = parseFloat(explodeSlider.value); rebuild(); });
 
   // ---------- Reset view ----------
@@ -407,6 +451,7 @@ async function main() {
 
   // ---------- Export ----------
   let exportFormat = 'stl';
+  liveState.getExportFormat = () => exportFormat;
   document.querySelectorAll('#formatToggle .fmt').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#formatToggle .fmt').forEach((b) => b.classList.remove('active'));
@@ -535,6 +580,18 @@ async function main() {
   // self-corrects that silently.
   document.fonts.ready.then(() => rebuild());
 }
+
+// Set up before main() so reporting still works if the app fails to start.
+initBugReport(() => {
+  const checked = (id) => !!(document.getElementById(id) && document.getElementById(id).checked);
+  return {
+    settings: changedFrom(settings, DEFAULT_SETTINGS),
+    caps: caps.map((cap) => ({ text: cap.text, ...changedFrom(cap, DEFAULT_CAP) })),
+    renderer: liveState.viewport && liveState.viewport.renderer,
+    exportFormat: liveState.getExportFormat && liveState.getExportFormat(),
+    view: { exploded: explodedView, switches: explodedView && showSwitches, crossSection: checked('sectionToggle'), xray: checked('xrayToggle') },
+  };
+});
 
 main().catch((err) => {
   console.error('KeyCapForge failed to start:', err);

@@ -275,6 +275,96 @@ export class Viewport {
   setModel(object3D) {
     this.modelGroup.clear();
     this.modelGroup.add(object3D);
+    this._applyViewModes();
+  }
+
+  // Frames the model like Reset View, but from a given direction (a vector
+  // from the model toward the camera) with Z up, instead of top-down. Used
+  // to face the cut when Cross Section turns on.
+  viewFrom(dir) {
+    this.frameToModel(false); // refreshes defaultTarget / defaultDistance
+    if (!this.defaultTarget) return;
+    const d = new this.THREE.Vector3(dir[0], dir[1], dir[2]).normalize();
+    this.controls.target.copy(this.defaultTarget);
+    this.camera.up.set(0, 0, 1);
+    this.camera.position.copy(this.defaultTarget).addScaledVector(d, this.defaultDistance);
+    this.controls.update();
+  }
+
+  // Preview-only view modes; exported files are never affected.
+  //
+  // Cross Section: a clipping plane through the caps' centre line, running
+  // along the row (axis 'x' cuts across X for a vertical layout, 'y' across
+  // Y for a horizontal one), offset by cutOffset mm. Clipping alone leaves
+  // cut parts hollow-looking, so every part's inside faces are drawn in a
+  // flat, darker shade of its colour: once a part is cut open, its inside
+  // faces are exactly what shows through the cut, so the section reads as
+  // solid. That relies on every face pointing outward, which the model's
+  // winding checks guarantee.
+  //
+  // X-Ray: surfaces go mostly transparent and each part's edges are drawn
+  // on top, without being hidden by the model, so the inside shows through.
+  setViewModes(modes) {
+    this.viewModes = { ...this.viewModes, ...modes };
+    this._applyViewModes();
+  }
+
+  _applyViewModes() {
+    const THREE = this.THREE;
+    const vm = this.viewModes || { crossSection: false, xray: false, cutOffset: 0, cutAxis: 'x' };
+    if (!this._cutPlane) this._cutPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+    // A plane keeps points where normal . p + constant >= 0.
+    if (vm.cutAxis === 'y') this._cutPlane.set(new THREE.Vector3(0, 1, 0), -vm.cutOffset);  // keeps y >= offset
+    else this._cutPlane.set(new THREE.Vector3(-1, 0, 0), vm.cutOffset);                       // keeps x <= offset
+    this.renderer.clippingPlanes = vm.crossSection ? [this._cutPlane] : [];
+
+    const meshes = [];
+    this.modelGroup.traverse((o) => { if (o.isMesh && !o.userData.viewDecoration) meshes.push(o); });
+    for (const m of meshes) {
+      const mat = m.material;
+      // Remember each material's own settings once (materials can be shared,
+      // e.g. between the cloned switch models), so turning modes off
+      // restores them exactly.
+      if (!mat.userData.orig) mat.userData.orig = { side: mat.side, transparent: mat.transparent, opacity: mat.opacity, depthWrite: mat.depthWrite };
+      const orig = mat.userData.orig;
+      const seeThroughPart = orig.transparent; // e.g. the switch's clear housing
+
+      // Cross Section: outward faces only on the part, inside faces in a
+      // flat darker shade on a copy sharing the same geometry.
+      const wantCut = vm.crossSection && !seeThroughPart;
+      if (wantCut && !m.userData.cutFaces) {
+        const cut = new THREE.Mesh(m.geometry, new THREE.MeshBasicMaterial({ color: mat.color.clone().multiplyScalar(0.55), side: THREE.BackSide }));
+        cut.userData.viewDecoration = true;
+        m.add(cut);
+        m.userData.cutFaces = cut;
+      }
+      if (m.userData.cutFaces) m.userData.cutFaces.visible = wantCut;
+      const side = wantCut ? THREE.FrontSide : orig.side;
+
+      // X-Ray: faint surfaces plus always-visible edge outlines.
+      if (vm.xray && !m.userData.xrayEdges) {
+        const edges = new THREE.LineSegments(
+          new THREE.EdgesGeometry(m.geometry, 30),
+          new THREE.LineBasicMaterial({ color: mat.color.clone().lerp(new THREE.Color('#ffffff'), 0.55), transparent: true, opacity: 0.9, depthTest: false })
+        );
+        edges.renderOrder = 10;
+        edges.userData.viewDecoration = true;
+        m.add(edges);
+        m.userData.xrayEdges = edges;
+      }
+      if (m.userData.xrayEdges) m.userData.xrayEdges.visible = vm.xray;
+      const transparent = vm.xray ? true : orig.transparent;
+      const opacity = vm.xray ? Math.min(orig.opacity, 0.15) : orig.opacity;
+      const depthWrite = vm.xray ? false : orig.depthWrite;
+      if (m.userData.cutFaces) {
+        const cm = m.userData.cutFaces.material;
+        cm.transparent = vm.xray; cm.opacity = vm.xray ? 0.35 : 1; cm.depthWrite = !vm.xray; cm.needsUpdate = true;
+      }
+      if (mat.side !== side || mat.transparent !== transparent || mat.opacity !== opacity || mat.depthWrite !== depthWrite) {
+        mat.side = side; mat.transparent = transparent; mat.opacity = opacity; mat.depthWrite = depthWrite;
+        mat.needsUpdate = true;
+      }
+    }
   }
 
   _animate() {

@@ -233,7 +233,7 @@ input[type="color"] {
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
 }
-.viewport-toolbar #explodeSlider { width: 140px; }
+.viewport-toolbar #explodeSlider, .viewport-toolbar #sectionSlider { width: 140px; }
 /* Exploded View with Show KeySwitch directly underneath it. */
 .toggle-stack { display: flex; flex-direction: column; gap: 4px; }
 .checkbox:has(input:disabled) { opacity: 0.45; }
@@ -301,7 +301,7 @@ input[type="color"] {
   }
 
   .viewport-toolbar { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; }
-  .viewport-toolbar #explodeSlider { width: auto; flex: 1; min-width: 80px; }
+  .viewport-toolbar #explodeSlider, .viewport-toolbar #sectionSlider { width: auto; flex: 1; min-width: 80px; }
 
   /* Instructions move to the top edge so they don't collide with the
      scale bar in the bottom-left corner of a narrow screen. */
@@ -321,3 +321,30 @@ input[type="color"] {
   .delete-cap { font-size: 20px; padding: 4px 10px; }
   .slider-row { grid-template-columns: 96px 1fr 52px; }
 }
+
+/* ---- Report a Bug dialog ---- */
+.bug-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel, #1b1a1f);
+  color: var(--text);
+}
+.bug-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.bug-form { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.bug-form h2 { margin: 0 0 4px; font-size: 16px; }
+.bug-form textarea {
+  width: 100%; box-sizing: border-box; resize: vertical;
+  background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; font: inherit;
+}
+.bug-form details { color: var(--text-dim); }
+.bug-form pre {
+  max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px;
+  font-family: var(--mono); font-size: 11px;
+}
+.bug-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 820px) { .bug-form textarea { font-size: 16px; } }
