@@ -31,7 +31,7 @@ const loggedCombos = new Set();
 // just produce one part), so it doesn't need a separate "is this actually
 // multicolor" check — it just reflects however many distinct colors were
 // actually present.
-export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, depth, colorful = false }) {
+export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, depth, colorful = false, stencil = false }) {
   if (!text) return [];
 
   const RES = 12; // canvas px per mm — plenty for a legend a few mm tall
@@ -156,7 +156,7 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   const step = Math.max(1, Math.round(Math.max(canvasW, canvasH) / targetCellsPerAxis));
 
   if (window.showDiag) {
-    const comboKey = `${text}|${fontFamily}|${weight}|${styleStr}|${colorful}`;
+    const comboKey = `${text}|${fontFamily}|${weight}|${styleStr}|${colorful}|${stencil}`;
     if (!loggedCombos.has(comboKey)) {
       loggedCombos.add(comboKey);
       const fontAvailable = document.fonts.check(`${weight} ${sizePx}px "${fontFamily}"`);
@@ -226,6 +226,35 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
       }
       return best;
     };
+  } else if (stencil) {
+    // One-colour emoji: the emoji's shape in a single colour (the cap's
+    // legend colour), with its dark details (eyes, mouth) cut out like a
+    // stencil, so it stays recognisable. Its plain outline alone would lose
+    // them: a smiley would be a filled circle. A pixel counts as a dark
+    // detail when it's under half the emoji's median brightness (the
+    // brightness of its typical pixel). The median, not the most common
+    // colour: a shaded face spreads over several similar yellows, and 😎's
+    // flat dark sunglasses out-counted each one, so they were taken as the
+    // main colour and nothing got cut. Emoji that are dark overall (a black
+    // heart) have a dark median, so they aren't hollowed out. (Cutting only
+    // dark areas enclosed by the emoji, keeping ones that touch its edge,
+    // was tried too: it lost 😎's sunglasses and blanked the soccer ball
+    // and basketball, whose dark lines reach the edge.)
+    //
+    // Cut-outs are held as a temporary second slot (1) while the
+    // diagonal-contact fix-up and small-feature cleanup below run, so they
+    // get the same treatment as a colour region (specks under 1mm merged
+    // away, no corner-only contacts), and only then turned into holes.
+    const lum = (r, g, b) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const lums = [];
+    for (let py = 0; py < canvasH; py += step) {
+      for (let px = 0; px < canvasW; px += step) {
+        if (isInside(px, py)) lums.push(lum(...rgbAt(px, py)));
+      }
+    }
+    lums.sort((a, b) => a - b);
+    const medianLum = lums.length ? lums[Math.floor(lums.length / 2)] : 0;
+    slotOf = (px, py) => (medianLum > 0.15 && lum(...rgbAt(px, py)) < medianLum * 0.5 ? 1 : 0);
   }
 
   const meshes = slotColors.map(() => new Mesh());
@@ -400,6 +429,10 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
     }
   }
 
+  // One-colour emoji: the cut-outs, held as slot 1 through the clean-ups
+  // above, become holes.
+  if (stencil) for (let i = 0; i < slotGrid.length; i++) if (slotGrid[i] === 1) slotGrid[i] = -1;
+
   for (let gy = 0; gy < gridH; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
       const slot = gridSlotAt(gx, gy);
@@ -446,7 +479,21 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
 
   const toHex = ([r, g, b]) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 
-  return meshes
+  const parts = meshes
     .map((mesh, i) => ({ mesh, colorHex: colorful ? toHex(slotColors[i]) : null }))
     .filter((part) => !part.mesh.isEmpty);
+  // The legend's footprint on its grid: which cells are filled (by any
+  // colour) and where the grid lines sit, using exactly the same
+  // expressions as the cells above, so geometry built from it lines up with
+  // the legend's own walls to the last bit. keycapBuilder uses it to cut a
+  // pocket in the cap exactly the legend's shape, so the two parts don't
+  // overlap (slicers keep only one of two overlapping parts, and could drop
+  // the legend). xAt/yAt accept grid lines just outside the grid too.
+  parts.footprint = {
+    gridW, gridH,
+    filled: (gx, gy) => gridSlotAt(gx, gy) >= 0,
+    xAt: (g) => ((g * step) / RES) * scale - meshWidth / 2,
+    yAt: (g) => meshHeight / 2 - ((g * step) / RES) * scale,
+  };
+  return parts;
 }

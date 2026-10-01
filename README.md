@@ -1270,6 +1270,195 @@ worked out:
   than tilting and getting covered as it would inside the 3D scene. The
   on-screen instructions and scale bar are layered above the canvas.
   When deploying, upload the `assets` folder along with the rest.
+- **Colour themes.** A Theme panel above "Caps in this set" picks the
+  base colour and every cap's body and legend colours at once:
+  **Grass Block** (dirt-brown base, caps alternating grass green and stone
+  grey, white legends; inspired by blocky voxel-game terrain but named
+  generically, since game names are trademarks), **Cow** (white base, caps
+  alternating black with pink legends and white with black legends), and
+  **Camo** (olive base, caps cycling khaki, brown, and forest green, each
+  with a contrasting camo-colour legend). Palettes live in `js/themes.js`.
+  Caps take the theme's cap colours in turn, and the theme is re-applied
+  whenever the caps change (typing the word, Add Cap, the symbol and emoji
+  palette, deleting a cap), so the pattern continues and stays in step.
+  Changing any colour by hand switches the picker back to Custom and keeps
+  the current colours; choosing Custom changes nothing. Each theme uses at
+  most 4 distinct colours for any number of caps (verified for 1 to 12;
+  Cow uses 3), matching the 3MF export's 4-colour limit for a 4-slot AMS,
+  so themes print as they look; colourful emoji legends bring their own
+  colours. Verified in a real browser, with a stand-in for Three.js so the
+  full interface could start in the test sandbox: each theme's colours
+  applied, the pattern continued through typing, Add Cap, and delete, and
+  hand edits switched to Custom, with no page errors.
+- **Camo marks on the base.** Choosing the Camo theme (or ticking "Camo
+  marks on the base" in the Theme panel) covers the base's outside with
+  irregular blobs in the Camo theme's khaki, brown, and forest green over
+  the base colour, like hand-painting it in a slicer (`js/camo.js`). The
+  pattern is two smooth, seeded 3D noise fields: one decides where marks go
+  (half the surface), a slower one decides each blob's colour, so blobs
+  wrap continuously around corners and edges and come out the same every
+  export. Picking Grass Block or Cow turns the marks off; Custom leaves
+  them as they are. The 3MF gets them as per-triangle colours (what a
+  slicer's paint tool writes; `buildThreeMF()` and `limitDistinctColors()`
+  now handle per-triangle colours) and the preview as vertex colours; the
+  STL, which has no colour, keeps the plain base.
+
+  The base is built from very large triangles, so it's subdivided first:
+  every outside edge longer than 1.5mm is split at its midpoint, splitting
+  every triangle sharing that edge so no gaps open. Only the outside is
+  subdivided and marked (outer walls, top, bottom, keyring): a face counts
+  as outside if stepping 0.3mm off it, the way it faces, lands in open air
+  rather than inside a cap cell, which also skips the walls buried where a
+  joined base's cells overlap. That's about 65,000 triangles for a 4-cap
+  base (a third of what Bambu Studio's paint tool produced for a
+  hand-painted one), computed in well under a second and cached while the
+  base's shape doesn't change. A 3MF with marks is about 11MB against 6MB
+  without.
+
+  Getting the subdivision clean took several fixes, each found by checking
+  every shape's base: zero-area slivers (which close runs of in-line
+  points) are removed first by splitting their long edge at their middle
+  point; a midpoint within 3 microns of the tip of a sliver on the same
+  edge reuses that point, but no other nearby point (reusing points from
+  another cell's buried wall, or ones already forming a triangle with the
+  edge, stacked mirrored duplicate triangles); and the combined recess
+  outline now drops points within 0.01mm of each other (a crossing point
+  could land 2 microns from an outline corner). Verified for all 8 shapes,
+  joined and single: 0 open, 0 non-manifold, 0 winding errors, 0 stacked
+  duplicates, volume identical to the plain base. Also verified end to end
+  in a real browser (with a stand-in for Three.js): choosing Camo turns
+  the marks on; the exported 3MF's base carries them (49% olive, the rest
+  khaki, brown, and green), stays at 4 colours, and is a clean solid; the
+  checkbox and the other themes turn them off. A software render confirmed
+  the blobs look like camo and the recesses stay plain.
+- **Smooth camo edges.** Blob edges came out jagged: each small triangle
+  took one colour, so a blob's edge followed the triangles' own edges, a
+  staircase with saw-teeth where the wall triangles are long and thin.
+  Shrinking triangles would only have shrunk the teeth. Now the triangles
+  are cut along each blob boundary (step 3 in `subdivideMesh()`): every
+  outside edge whose two ends lie on opposite sides of a boundary is split
+  exactly where the pattern crosses it, by linear interpolation along the
+  edge. A boundary crossing a triangle crosses two of its edges, and
+  splitting both puts a triangle edge along the line between the two
+  crossings, so the boundary runs along triangle edges as a smooth line
+  and no triangle straddles it. It reuses the same edge-split step as the
+  subdivision, so neighbouring triangles stay in agreement and no gaps
+  open. The three boundaries (where marks start, and the two that pick a
+  mark's colour) are cut in turn; the colour ones are skipped where both
+  ends are in the unmarked background. Crossings within 0.05mm of an
+  edge's end aren't split, and a crossing within 0.02mm of a sliver's tip
+  on that edge cuts there instead, to avoid hair-thin slivers and points a
+  hair apart. Each triangle's colour is then read from the pattern's
+  average over its corners.
+
+  Since edges no longer depend on triangle size, the subdivision went from
+  1.5mm to 2mm triangles: about 51,000 for a 4-cap base instead of 65,000,
+  and the 3MF went from 11MB to 10MB, with visibly smooth edges (compared
+  in close-up software renders against the old staircase). Verified for
+  all 8 shapes, joined and single, as the exported 3MF sees them (welded,
+  by index): 0 open, 0 non-manifold, 0 winding errors, 0 stacked or
+  collapsed triangles, volume matching the plain base to within 0.02mm3
+  in 15,000 (from cuts snapping onto sliver tips). End to end in a browser
+  (with a stand-in for Three.js): the Camo theme's 3MF has 4 colours and a
+  clean base.
+- **Navy and Snow camo themes.** The camo theme is now "Camo (Woodland)",
+  joined by **Camo (Navy)** (navy-blue base; blue-grey, light-grey, and
+  near-black marks, in the style of the Navy's blue working uniform; named
+  descriptively rather than as anything official) and **Camo (Snow)**
+  (snow-white base; light, medium, and dark grey marks). Each camo theme
+  lists its own mark colours (`camo` in themes.js), and choosing one turns
+  on the base's marks in those colours; the checkbox remembers the last
+  marks used (`settings.camoMarks`), so switching to Custom keeps them.
+  Each theme is still 4 colours in total: the base plus three mark colours,
+  with caps and letters reusing them. Letter contrast per cap is 3.2 to 6.8
+  on the new themes (the lowest, near-black on blue-grey, about Grass
+  Block's and within the large-text contrast standard). Verified end to
+  end in a browser: Navy and Snow each export a 4-colour 3MF with a clean
+  base in the right colours, Custom keeps the last camo marks over a new
+  base colour, and Cow turns them off.
+- **Cow patches on the base.** The Cow theme now also covers the white
+  base with black Holstein-style patches. The pattern generator (camo.js)
+  takes a style instead of fixed constants (`PATTERN_STYLES`: patch
+  `scale`, `coverage`, `colorScale`, and `warp` / `warpScale`); colour
+  thresholds are worked out per style and number of mark colours, and a
+  single mark colour skips the colour-splitting cuts. The cow style uses
+  bigger patches (scale 15mm), 40% coverage, and domain warping (the
+  pattern sampled at points pushed around by up to 5mm by a second, slower
+  noise), which turns round blobs into irregular, lobed, map-like
+  patches; chosen from three rendered variants (a wavier one smeared into
+  stripes, a smaller one looked busy). Camo's style keeps exactly its old
+  values, and camo bases were verified byte-identical to before. Themes
+  now name their `pattern` and `marks` (replacing the camo-only `camo`
+  list), the settings are `basePattern` / `patternStyle` / `patternMarks`,
+  and the checkbox is "Pattern on the base". The Cow theme's black patches
+  reuse its black, so it stays at 3 colours (white, black, pink). Verified
+  for all 8 shapes, joined and single, at the exported-file level: 0 open,
+  0 non-manifold, 0 winding errors, 0 stacked or collapsed triangles,
+  volume identical to the plain base. End to end in a browser: Cow exports
+  a clean 3-colour 3MF with a white-and-black base, switching to Woodland
+  switches the pattern style too, Grass Block turns it off, and Custom
+  keeps it.
+- **Letters missing after slicing: legends now sit in pockets.** Bambu
+  Studio's sliced preview dropped the letters on some caps (the Camo
+  theme's "o" and first "b", khaki letters on brown and green caps) while
+  others printed fine. An engraved legend was a separate part sitting
+  inside the top 0.6mm of the cap body's solid top, so the two parts
+  overlapped, and a slicer keeps only one of two overlapping parts. Which
+  one it kept depended on the parts' filaments (in that slice, apparently
+  the lower-numbered filament won), so letters whose colour lost vanished.
+  The file can't control that, so the overlap is gone: the cap body now
+  has a pocket exactly the legend's shape and the legend fills it.
+  `rasterizeLegend()` (textVoxel.js) exposes the legend's grid footprint,
+  built from exactly the same expressions as the legend's own walls, and
+  `buildLegendPocket()` (keycapBuilder.js) builds the pocket on those grid
+  lines: floor, walls, and the top face around the legend inside a
+  rectangle one cell bigger than the legend, with a ring from the cap's
+  top outline to that rectangle (`ringFaceBetween`). Faces are merged into
+  per-row strips, with a vertex wherever the neighbouring row changes, so
+  every edge still meets its neighbours. 'shineThrough' legends (buried
+  under the top) had the same overlap and now get a closed cavity their
+  shape; 'embossed' legends sit on top and never overlapped. Engraved
+  legends are now exactly flush (they used to sit 0.02mm high, which only
+  kept overlapping coincident faces from flickering in the preview).
+  Verified in a real browser across letters, symbols, a 3-colour emoji,
+  all 8 cap shapes, and all 3 styles: the pocketed body is a clean solid,
+  and body plus legend volume equals a plain cap's exactly (no overlap, no
+  gap). End to end, the Camo "Cobb" 3MF has every part clean, and for each
+  cap 400 points sampled inside the letter were all outside the body.
+- **1-color emoji.** A "1-color emoji" checkbox directly under the emoji
+  palette in the Text panel (`settings.emojiOneColor`) prints every emoji in its cap's legend colour
+  instead of up to 3 of its own colours: fewer filament swaps, and it
+  suits any colour theme. An emoji's plain outline alone would lose its
+  features (a smiley would be a filled circle), so `rasterizeLegend()`'s
+  new `stencil` mode cuts out its dark details: a pixel is a cut-out when
+  it's under half the emoji's median brightness. The median, not the most
+  common colour, because a shaded face spreads over several similar
+  yellows and 😎's flat dark sunglasses out-counted each one, so they were
+  taken as the main colour and nothing got cut. Emoji that are dark
+  overall (a black heart) have a dark median and aren't hollowed out.
+  Cut-outs are held as a temporary second slot through the existing
+  diagonal-contact fix-up and 1mm small-feature cleanup, then turned into
+  holes, so they get the same clean-up as colour regions (no pinholes, no
+  corner-only contacts). Cutting only dark areas enclosed by the emoji
+  (keeping those touching its edge) was also tried and dropped: it lost
+  😎's sunglasses and blanked the soccer ball and basketball. The legend
+  pocket follows the stencil, cut-outs included. Verified in a real
+  browser on all 96 palette emoji: each is 1 part in the legend colour,
+  with a clean legend and body and no overlap; 44 get visible cut-outs
+  (faces 5-16%). Checked visually on a sample against the original emoji,
+  and end to end: the exported 3MF's emoji is 1 part in the legend colour
+  when ticked and back to 3 colours when unticked.
+- **"What's new" pop-up.** Opening the site after an update shows a short
+  bulleted list of what changed (`js/whatsNew.js`), once: "Got it" or Esc
+  dismisses it, and the browser remembers the version it last showed
+  (localStorage), so it stays closed until the next update. A "What's new"
+  link in the sidebar footer reopens it. It's set up before `main()`, like
+  the bug reporter, so it shows even if the 3D view fails to load. **For
+  each upload:** bump `APP_VERSION` in bugReport.js (that's what makes the
+  pop-up appear again for everyone) and replace the `WHATS_NEW` bullets.
+  Verified in a browser: shown on first visit, stays closed after "Got it"
+  and a reload, shows again when an older version is remembered, Esc
+  counts as seen, the footer link reopens it, and it fits a phone screen.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window

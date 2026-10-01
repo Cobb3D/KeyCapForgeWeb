@@ -337,7 +337,8 @@ export class Viewport {
       // flat darker shade on a copy sharing the same geometry.
       const wantCut = vm.crossSection && !seeThroughPart;
       if (wantCut && !m.userData.cutFaces) {
-        const cut = new THREE.Mesh(m.geometry, new THREE.MeshBasicMaterial({ color: mat.color.clone().multiplyScalar(0.55), side: THREE.BackSide }));
+        const partColor = m.userData.plainColorHex ? new THREE.Color(m.userData.plainColorHex) : mat.color.clone();
+        const cut = new THREE.Mesh(m.geometry, new THREE.MeshBasicMaterial({ color: partColor.multiplyScalar(0.55), side: THREE.BackSide }));
         cut.userData.viewDecoration = true;
         m.add(cut);
         m.userData.cutFaces = cut;
@@ -349,7 +350,7 @@ export class Viewport {
       if (vm.xray && !m.userData.xrayEdges) {
         const edges = new THREE.LineSegments(
           new THREE.EdgesGeometry(m.geometry, 30),
-          new THREE.LineBasicMaterial({ color: mat.color.clone().lerp(new THREE.Color('#ffffff'), 0.55), transparent: true, opacity: 0.9, depthTest: false })
+          new THREE.LineBasicMaterial({ color: (m.userData.plainColorHex ? new THREE.Color(m.userData.plainColorHex) : mat.color.clone()).lerp(new THREE.Color('#ffffff'), 0.55), transparent: true, opacity: 0.9, depthTest: false })
         );
         edges.renderOrder = 10;
         edges.userData.viewDecoration = true;
@@ -379,7 +380,7 @@ export class Viewport {
   }
 }
 
-export function meshToObject3D(THREE, mesh, colorHex, { decal = false } = {}) {
+export function meshToObject3D(THREE, mesh, colorHex, { decal = false, triangleColors = null } = {}) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(mesh.vertices, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(mesh.normals, 3));
@@ -396,6 +397,24 @@ export function meshToObject3D(THREE, mesh, colorHex, { decal = false } = {}) {
   const IndexArray = vertexCount > 65535 ? Uint32Array : Uint16Array;
   geo.setIndex(new THREE.BufferAttribute(new IndexArray(mesh.indices), 1));
   const matOptions = { color: colorHex, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide };
+  // Per-triangle colours (the base's camo marks): one vertex colour per
+  // corner. mesh's vertices are three per triangle in order, so vertex i
+  // belongs to triangle floor(i / 3). The material colour goes white so it
+  // doesn't tint them; the plain colour is kept for the cross-section and
+  // X-ray overlays.
+  let plainColorHex = null;
+  if (triangleColors) {
+    const colors = new Float32Array(vertexCount * 3);
+    const c = new THREE.Color();
+    for (let v = 0; v < vertexCount; v++) {
+      c.set(triangleColors[Math.floor(v / 3)]);
+      colors[v * 3] = c.r; colors[v * 3 + 1] = c.g; colors[v * 3 + 2] = c.b;
+    }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    matOptions.vertexColors = true;
+    plainColorHex = colorHex;
+    matOptions.color = '#ffffff';
+  }
   if (decal) {
     // For the 'engraved'/flush legend specifically: its top face sits a
     // hair above the cap body's own top face (see keycapBuilder.js's
@@ -417,5 +436,7 @@ export function meshToObject3D(THREE, mesh, colorHex, { decal = false } = {}) {
     matOptions.polygonOffsetUnits = -4;
   }
   const mat = new THREE.MeshStandardMaterial(matOptions);
-  return new THREE.Mesh(geo, mat);
+  const obj = new THREE.Mesh(geo, mat);
+  if (plainColorHex) obj.userData.plainColorHex = plainColorHex;
+  return obj;
 }

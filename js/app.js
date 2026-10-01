@@ -6,6 +6,9 @@ import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
 import { buildThreeMF, limitDistinctColors } from './threeMFExport.js';
 import { initBugReport, APP_NAME } from './bugReport.js';
+import { initWhatsNew } from './whatsNew.js';
+import { THEMES, themeCapColors } from './themes.js';
+import { camoBase, PATTERN_STYLES } from './camo.js';
 
 const FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];
 
@@ -13,6 +16,9 @@ const settings = {
   capWidthMM: 18, capTopWidthMM: 13.5, capHeightMM: 10, wallThicknessMM: 1.4,
   cornerRadiusMM: 1.6, topBevelMM: 0.8, bottomBevelMM: 0.8,
   legendDepthMM: 0.6, legendSizeFraction: 0.62,
+  // Emoji in their cap's legend colour, with dark details cut out, instead
+  // of up to 3 of their own colours (the '1-color emoji' checkbox).
+  emojiOneColor: false,
   stemCavityWidthMM: 4.2, stemCavityThicknessMM: 1.35, stemCavityDepthMM: 3.5,
   // Wall thickness of the stem boss, measured straight out from the end of
   // each cross arm. 0.65mm gives a 5.5mm-diameter boss (4.2mm cross +
@@ -42,6 +48,14 @@ const settings = {
   baseTopBevelMM: 0.8, baseBottomBevelMM: 0.8,
   keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
   baseColorHex: '#c92a2a', verticalLayout: true,
+  // A pattern on the base (camo.js): camo blobs or cow patches, in
+  // patternMarks' colours over the base colour, in the patternStyle style.
+  // Choosing a patterned theme turns it on with that theme's pattern and
+  // colours (themes.js); the checkbox keeps the last ones used.
+  // base colour. Turned on by choosing the Camo theme, or by its checkbox.
+  basePattern: false,
+  patternStyle: 'camo',
+  patternMarks: ['#c2b280', '#5b4632', '#3b4a2a'],
 };
 
 let shape = 'square';
@@ -52,6 +66,7 @@ let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
 let explodeDistance = 20;
 let showSwitches = false; // "Show KeySwitch": only takes effect in exploded view
+let activeTheme = null;    // key into THEMES, or null for Custom (see themes.js)
 // Snapshots of the defaults, so bug reports can list only what the user
 // changed (a full design is too long to fit in a pre-filled email).
 const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
@@ -105,13 +120,27 @@ async function main() {
     });
   }
 
+  // The base with camo marks, or null when they're off. Uses the Camo
+  // theme's cap colours for the marks, over whatever the base colour is.
+  function camoForBase(baseMesh) {
+    if (!settings.basePattern) return null;
+    return camoBase(baseMesh, settings.baseColorHex, settings.patternMarks, {
+      centers: capCenters(caps.length, settings),
+      halfFootprint: settings.baseFootprintMM / 2,
+      thickness: settings.baseThicknessMM,
+    }, PATTERN_STYLES[settings.patternStyle] || PATTERN_STYLES.camo);
+  }
+
   function rebuild() {
     const count = caps.length;
     const centers = capCenters(count, settings);
     const baseMesh = buildBase(caps, settings);
 
     const group = new THREE.Group();
-    group.add(meshToObject3D(THREE, baseMesh, settings.baseColorHex));
+    const camo = camoForBase(baseMesh);
+    group.add(camo
+      ? meshToObject3D(THREE, camo.mesh, settings.baseColorHex, { triangleColors: camo.triangleColors })
+      : meshToObject3D(THREE, baseMesh, settings.baseColorHex));
 
     const explodeZ = explodedView ? explodeDistance : 0;
 
@@ -210,11 +239,32 @@ async function main() {
   // syncWordFromCaps is a function declaration further down, so it's
   // already available here.
   syncWordFromCaps();
+  // Re-colours the base and every cap from the active theme (no-op when
+  // Custom). Called whenever the caps list changes, so added caps continue
+  // the theme's pattern and deleting one keeps it in step.
+  function applyTheme() {
+    if (!activeTheme) return;
+    settings.baseColorHex = THEMES[activeTheme].base;
+    document.getElementById('baseColor').value = settings.baseColorHex;
+    caps.forEach((cap, i) => {
+      const c = themeCapColors(activeTheme, i);
+      cap.bodyColorHex = c.body;
+      cap.legendColorHex = c.legend;
+    });
+  }
+  // A hand-picked colour means the design no longer follows the theme.
+  function leaveTheme() {
+    if (!activeTheme) return;
+    activeTheme = null;
+    document.getElementById('themeSelect').value = '';
+  }
+
   function setWord(word) {
     const letters = Array.from(word);
     if (letters.length === 0) { caps = []; renderCapList(); rebuild(); return; }
     const next = letters.map((ch, i) => (i < caps.length ? { ...caps[i], text: ch } : makeCap(ch)));
     caps = next;
+    applyTheme();
     renderCapList();
     rebuild();
   }
@@ -252,7 +302,7 @@ async function main() {
 
       const del = document.createElement('button');
       del.className = 'delete-cap'; del.textContent = '✕';
-      del.addEventListener('click', () => { caps.splice(i, 1); syncWordFromCaps(); renderCapList(); rebuild(); });
+      del.addEventListener('click', () => { caps.splice(i, 1); applyTheme(); syncWordFromCaps(); renderCapList(); rebuild(); });
 
       line1.append(textInput, shapeSel, fontSel, del);
 
@@ -273,7 +323,7 @@ async function main() {
 
       const swatches = document.createElement('div');
       swatches.className = 'swatches';
-      swatches.append(colorInput(cap.bodyColorHex, (v) => { cap.bodyColorHex = v; rebuild(); }), document.createTextNode(' '), colorInput(cap.legendColorHex, (v) => { cap.legendColorHex = v; rebuild(); }));
+      swatches.append(colorInput(cap.bodyColorHex, (v) => { cap.bodyColorHex = v; leaveTheme(); rebuild(); }), document.createTextNode(' '), colorInput(cap.legendColorHex, (v) => { cap.legendColorHex = v; leaveTheme(); rebuild(); }));
 
       line2.append(styleToggle, legendSel, swatches);
       row.append(line1, line2);
@@ -298,6 +348,7 @@ async function main() {
 
   function appendCap(char, { colorfulEmoji = false } = {}) {
     caps.push(makeCap(char, { colorfulEmoji }));
+    applyTheme();
     syncWordFromCaps();
     renderCapList();
     rebuild();
@@ -388,6 +439,7 @@ async function main() {
   bindSlider('bottomBevel', 'bottomBevelMM', 'mm');
   bindSlider('legendDepth', 'legendDepthMM', 'mm');
   bindSlider('legendSize', 'legendSizeFraction', '×', 2);
+  document.getElementById('emojiOneColor').addEventListener('change', (e) => { settings.emojiOneColor = e.target.checked; rebuild(); });
   bindSlider('baseFootprint', 'baseFootprintMM', 'mm');
   bindSlider('baseThickness', 'baseThicknessMM', 'mm');
   bindSlider('plateHole', 'plateHoleMM', 'mm', 2);
@@ -403,7 +455,27 @@ async function main() {
   bindSlider('stemBossWall', 'stemBossWallMM', 'mm', 2);
   bindSlider('topThickness', 'topThicknessMM', 'mm');
 
-  document.getElementById('baseColor').addEventListener('input', (e) => { settings.baseColorHex = e.target.value; rebuild(); });
+  document.getElementById('baseColor').addEventListener('input', (e) => { settings.baseColorHex = e.target.value; leaveTheme(); rebuild(); });
+
+  // ---------- Themes ----------
+  document.getElementById('basePatternToggle').addEventListener('change', (e) => { settings.basePattern = e.target.checked; rebuild(); });
+  document.getElementById('themeSelect').addEventListener('change', (e) => {
+    activeTheme = e.target.value || null;
+    // Picking a theme also decides the base's pattern: on, in the theme's
+    // own pattern and colours, for patterned themes (camo, cow); off for the
+    // others (Custom leaves it as it is).
+    if (activeTheme) {
+      const { marks, pattern } = THEMES[activeTheme];
+      settings.basePattern = !!marks;
+      if (marks) { settings.patternMarks = [...marks]; settings.patternStyle = pattern; }
+      document.getElementById('basePatternToggle').checked = settings.basePattern;
+    }
+    // Choosing Custom keeps the current colours as they are.
+    if (!activeTheme) return;
+    applyTheme();
+    renderCapList();
+    rebuild();
+  });
   document.getElementById('joinedBase').addEventListener('change', (e) => { settings.joinedBase = e.target.checked; rebuild(); });
   document.getElementById('verticalLayout').addEventListener('change', (e) => { settings.verticalLayout = e.target.checked; rebuild(); });
   document.getElementById('keyringStyle').addEventListener('change', (e) => { settings.keyringStyle = e.target.value; rebuild(); });
@@ -504,7 +576,12 @@ async function main() {
 
     const combined = new Mesh();
     combined.append(baseMesh);
-    const threeMFObjects = [{ mesh: baseMesh, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }];
+    // The 3MF gets the base with its camo marks as per-triangle colours;
+    // the STL (no colour) keeps the plain base.
+    const camo = camoForBase(baseMesh);
+    const threeMFObjects = [camo
+      ? { mesh: camo.mesh, triangleColors: camo.triangleColors, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }
+      : { mesh: baseMesh, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }];
 
     caps.forEach((cap, i) => {
       const { body, legendParts } = buildKeycap(cap, settings);
@@ -582,6 +659,10 @@ async function main() {
 }
 
 // Set up before main() so reporting still works if the app fails to start.
+// Like the bug reporter, set up before main() so it shows even if the app
+// fails to start.
+initWhatsNew();
+
 initBugReport(() => {
   const checked = (id) => !!(document.getElementById(id) && document.getElementById(id).checked);
   return {

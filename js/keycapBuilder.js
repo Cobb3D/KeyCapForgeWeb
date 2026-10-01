@@ -2,11 +2,6 @@ import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resampl
 import { profileFor, regularPolygon, legendFitFactor } from './shapeProfiles.js';
 import { rasterizeLegend } from './textVoxel.js';
 
-// See buildLegend()'s 'engraved' case below for why this exists — avoids
-// Z-fighting between two coincident-plane surfaces without being anywhere
-// near large enough to matter for print quality or visual appearance.
-const FLUSH_EPSILON = 0.02;
-
 // The stem boss: the round post on the underside that holds the cross-
 // shaped socket. Its wall is stemBossWallMM thick, measured straight out
 // from the end of each cross arm, so its width across is
@@ -102,15 +97,142 @@ export function buildKeycap(cap, settings) {
   // Solid top cap — topRim, not topProfile, since the actual outer edge at
   // full height is the beveled (smaller) rim, not the un-beveled taper
   // profile.
-  const { points, triangles } = earClip(topRim);
-  for (const [a, b, c] of triangles) {
-    body.addTriangle([points[a][0], points[a][1], height], [points[b][0], points[b][1], height], [points[c][0], points[c][1], height]);
+  // The legend is built first: its footprint shapes the cap's top. An
+  // 'engraved' legend sits in a pocket in the top, and a 'shineThrough' one
+  // in a closed cavity just under it, each exactly the legend's shape, so
+  // legend and body never overlap. (They used to: the legend sat inside the
+  // body's solid top, and slicers keep only one of two overlapping parts,
+  // so Bambu Studio dropped some caps' letters.) 'embossed' sits on top of
+  // the cap and never overlapped.
+  const legend = buildLegend(cap, settings, height);
+  const fp = legend.footprint;
+  const pocket = fp && cap.legendStyle === 'engraved' ? buildLegendPocket(fp, legend.baseZ, height, true) : null;
+  if (pocket) {
+    // The top face: a ring from the cap's top outline in to the pocket's
+    // rectangle, plus the pocket (which includes the top face around the
+    // legend inside that rectangle).
+    body.append(ringFaceBetween(topRim, pocket.rect, height, false));
+    body.append(pocket.mesh);
+  } else {
+    const { points, triangles } = earClip(topRim);
+    for (const [a, b, c] of triangles) {
+      body.addTriangle([points[a][0], points[a][1], height], [points[b][0], points[b][1], height], [points[c][0], points[c][1], height]);
+    }
+    if (fp && cap.legendStyle === 'shineThrough') {
+      const cavity = buildLegendPocket(fp, legend.baseZ, legend.baseZ + legend.depth, false);
+      if (cavity) body.append(cavity.mesh);
+    }
   }
 
   body.append(bossMesh);
 
-  const legendParts = buildLegend(cap, settings, height);
-  return { body, legendParts };
+  return { body, legendParts: legend.parts };
+}
+
+// A pocket in the cap body exactly the legend's shape, so the legend fills
+// it without overlapping the body. Slicers can't print two parts in the same
+// space: where parts overlap they keep one and cut the other away, and which
+// one wins isn't something the file controls. With the legend sitting inside
+// the body's solid top, Bambu Studio dropped the legend on some caps (the
+// ones whose letter colour lost out), so letters went missing after slicing.
+//
+// `fp` is the legend's grid footprint from rasterizeLegend(). The pocket
+// runs from z0 to z1 (z1 = the cap's top for 'engraved', where the pocket is
+// open; for 'shineThrough' it's a closed cavity under the top). Everything is
+// built on the legend's own grid lines, inside `rect`: the legend's bounding
+// box plus a one-cell margin. For 'engraved', the part of the cap's top face
+// inside rect is built here too (as the grid cells around the legend), and
+// the caller fills the rest of the top face with a ring from the cap's top
+// outline to rect.
+//
+// Faces are merged per row into strips (runs of cells) instead of one
+// square per cell, to keep the triangle count down. So every edge still meets
+// its neighbours exactly, each strip gets a vertex wherever the neighbouring
+// row's filled/empty pattern changes: that's exactly where the neighbouring
+// strips end and where pocket walls meet the strip's edge. Walls along rows
+// are merged the same way; walls across rows stay one cell tall, matching
+// the strips' ends.
+function buildLegendPocket(fp, z0, z1, openTop) {
+  let gA = Infinity, gB = -Infinity, hA = Infinity, hB = -Infinity;
+  for (let gy = 0; gy < fp.gridH; gy++) for (let gx = 0; gx < fp.gridW; gx++) {
+    if (!fp.filled(gx, gy)) continue;
+    gA = Math.min(gA, gx); gB = Math.max(gB, gx + 1); hA = Math.min(hA, gy); hB = Math.max(hB, gy + 1);
+  }
+  if (gA === Infinity) return null;
+  gA -= 1; gB += 1; hA -= 1; hB += 1; // one empty cell of margin all round
+  const X = fp.xAt, Y = fp.yAt; // Y decreases as the row number grows
+  const filled = (gx, gy) => gx >= gA && gx < gB && gy >= hA && gy < hB && fp.filled(gx, gy);
+  const mesh = new Mesh();
+  const quad = (a, b, c, d, normal) => {
+    // Orders the corners so the face points along `normal`.
+    const n = [(b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]), (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]), (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])];
+    if (n[0] * normal[0] + n[1] * normal[1] + n[2] * normal[2] >= 0) mesh.addQuad(a, b, c, d);
+    else mesh.addQuad(d, c, b, a);
+  };
+
+  // Strips of cells in one row that are `want` (filled or not), at height z,
+  // facing up or down. Row gy spans Y(gy + 1) (lower) to Y(gy) (upper).
+  const changesIn = (row, a, b) => { // grid lines strictly between a and b where `row` changes
+    const out = [];
+    for (let g = a + 1; g < b; g++) if (filled(g - 1, row) !== filled(g, row)) out.push(g);
+    return out;
+  };
+  const strips = (want, z, up) => {
+    for (let gy = hA; gy < hB; gy++) {
+      let gx = gA;
+      while (gx < gB) {
+        if (filled(gx, gy) !== want) { gx++; continue; }
+        const a = gx;
+        while (gx < gB && filled(gx, gy) === want) gx++;
+        const b = gx;
+        const lower = [a, ...changesIn(gy + 1, a, b), b].map((g) => [X(g), Y(gy + 1), z]);
+        const upper = [a, ...changesIn(gy - 1, a, b), b].map((g) => [X(g), Y(gy), z]);
+        // Zip the two edges together left to right.
+        let i = 0, j = 0;
+        while (i < lower.length - 1 || j < upper.length - 1) {
+          const advanceLower = j >= upper.length - 1 || (i < lower.length - 1 && lower[i + 1][0] <= upper[j + 1][0]);
+          const tri = advanceLower ? [lower[i], lower[i + 1], upper[j]] : [lower[i], upper[j + 1], upper[j]];
+          if (up) mesh.addTriangle(tri[0], tri[1], tri[2]); else mesh.addTriangle(tri[0], tri[2], tri[1]);
+          if (advanceLower) i++; else j++;
+        }
+      }
+    }
+  };
+
+  // Walls between filled and empty cells, facing into the pocket (toward
+  // the filled side), from z0 to z1.
+  for (let gy = hA; gy < hB; gy++) {
+    for (let g = gA + 1; g < gB; g++) { // walls across the row, one cell tall
+      const left = filled(g - 1, gy), right = filled(g, gy);
+      if (left === right) continue;
+      const x = X(g), ya = Y(gy + 1), yb = Y(gy);
+      quad([x, ya, z0], [x, yb, z0], [x, yb, z1], [x, ya, z1], [right ? 1 : -1, 0, 0]);
+    }
+  }
+  for (let gy = hA; gy < hB - 1; gy++) { // walls along the line between rows gy and gy + 1, merged
+    const y = Y(gy + 1);
+    let g = gA;
+    while (g < gB) {
+      const up = filled(g, gy), down = filled(g, gy + 1);
+      if (up === down) { g++; continue; }
+      const a = g;
+      while (g < gB && filled(g, gy) === up && filled(g, gy + 1) === down) g++;
+      quad([X(a), y, z0], [X(g), y, z0], [X(g), y, z1], [X(a), y, z1], [0, up ? 1 : -1, 0]);
+    }
+  }
+
+  strips(true, z0, true); // pocket floor, facing up into the pocket
+  if (openTop) strips(false, z1, true); // the cap's top face around the legend
+  else strips(true, z1, false); // closed cavity's ceiling, facing down into it
+
+  // rect's outline, counter-clockwise, with a vertex at every row line on
+  // its left and right sides (where the top-face strips end) and only the
+  // corners on its top and bottom (the margin rows are single strips).
+  const rect = [[X(gA), Y(hB)], [X(gB), Y(hB)]];
+  for (let h = hB - 1; h > hA; h--) rect.push([X(gB), Y(h)]);
+  rect.push([X(gB), Y(hA)], [X(gA), Y(hA)]);
+  for (let h = hA + 1; h < hB; h++) rect.push([X(gA), Y(h)]);
+  return { mesh, rect: new Polygon2D(rect) };
 }
 
 function ringFaceBottomRim(outer, inner) {
@@ -123,43 +245,45 @@ function ringFaceBottomRim(outer, inner) {
 // up to 3, each already carrying its own detected color. See
 // rasterizeLegend() in textVoxel.js for how those colors get picked.
 function buildLegend(cap, settings, topZ) {
-  if (!cap.text) return [];
+  if (!cap.text) return { parts: [], footprint: null };
   const safeSize = settings.capTopWidthMM * settings.legendSizeFraction * legendFitFactor(cap.shape);
   const depth = settings.legendDepthMM;
 
   let baseZ;
   if (cap.legendStyle === 'engraved') {
-    // The legend's top face lands a hair above topZ — not exactly AT it —
-    // flush with the cap body's own flat top surface for every practical
-    // (and printing) purpose, but not bit-for-bit coincident with it. The
-    // cap body is built independently of the legend and is already flat
-    // at topZ regardless of style; 'engraved' overlaps a differently-
-    // colored volume into that same top-surface plane rather than
-    // displacing it. Landing EXACTLY at topZ caused real Z-fighting/
-    // flickering in the live preview — two unrelated sets of triangles
-    // occupying the identical plane, so the renderer can't consistently
-    // decide which one wins the depth test frame to frame. FLUSH_EPSILON
-    // is far below both screen resolution and print-layer resolution, so
-    // it's invisible either place; it only exists to give the depth buffer
-    // an unambiguous winner. 'embossed' (legend above topZ) would instead
-    // put the raised letters as the lowest points touching the bed when
-    // flipped, leaving the flat background suspended above them.
-    baseZ = topZ + FLUSH_EPSILON - depth;
+    // Exactly flush with the cap's top, filling a pocket in the body the
+    // legend's shape (see buildKeycap). It used to sit 0.02mm above
+    // the top, inside the body's solid top: that kept the two coincident
+    // top faces from flickering in the preview, but the overlap let slicers
+    // drop the legend. With the pocket nothing shares the top plane in the
+    // same place, so there's nothing to flicker.
+    baseZ = topZ - depth;
   } else if (cap.legendStyle === 'shineThrough') baseZ = topZ - depth * 2;
   else baseZ = topZ; // embossed
 
   const parts = rasterizeLegend(cap.text, {
     fontFamily: cap.fontFamily, bold: cap.isBold, italic: cap.isItalic, underline: cap.isUnderline,
-    targetWidth: safeSize, targetHeight: safeSize, depth, colorful: !!cap.colorfulEmoji,
+    // Emoji normally keep up to 3 of their own colours; with the one-colour
+    // emoji setting they become a single part in the cap's legend colour,
+    // with their dark details cut out (see `stencil` in rasterizeLegend).
+    targetWidth: safeSize, targetHeight: safeSize, depth,
+    colorful: !!cap.colorfulEmoji && !settings.emojiOneColor,
+    stencil: !!cap.colorfulEmoji && !!settings.emojiOneColor,
   });
-  return parts.map(({ mesh, colorHex }) => ({
-    mesh: mesh.translated(0, 0, baseZ),
-    // colorHex is only non-null for the colorful-emoji path (each of its
-    // up to 3 parts already carries its own detected color there); the
-    // plain-text path always returns colorHex: null, meaning "use the
-    // cap's own chosen legend color," same as before this feature existed.
-    colorHex: colorHex || cap.legendColorHex,
-  }));
+  return {
+    parts: parts.map(({ mesh, colorHex }) => ({
+      mesh: mesh.translated(0, 0, baseZ),
+      // colorHex is only non-null for the colorful-emoji path (each of its
+      // up to 3 parts already carries its own detected color there); the
+      // plain-text path always returns colorHex: null, meaning "use the
+      // cap's own chosen legend color," same as before this feature existed.
+      colorHex: colorHex || cap.legendColorHex,
+    })),
+    // Where the legend sits, for cutting its pocket or cavity in the body.
+    footprint: parts.length ? parts.footprint : null,
+    baseZ,
+    depth,
+  };
 }
 
 // Small boss on the underside of the cap with a cross-shaped socket that

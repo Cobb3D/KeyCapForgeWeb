@@ -94,7 +94,25 @@
         <input type="text" id="wordInput" placeholder="Type a word…" maxlength="12" value="Cobb" autocomplete="off">
         <p class="hint">One letter per cap, updates as you type.</p>
         <div class="quick-insert" id="quickInsert"></div>
+        <label class="checkbox"><input type="checkbox" id="emojiOneColor"> 1-color emoji</label>
+        <p class="hint">Prints every emoji in its cap's legend color instead of the emoji's own colors, with its dark details (eyes, mouth, outlines) cut out so it stays recognizable. Fewer filament swaps, and it fits any color theme.</p>
         <p class="hint">Click a symbol or emoji to add it as its own cap at the end of the set.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Theme</h2>
+        <div class="row"><label>Colors</label>
+          <select id="themeSelect">
+            <option value="">Custom</option>
+            <option value="grass">Grass Block</option>
+            <option value="cow">Cow</option>
+            <option value="camo">Camo (Woodland)</option>
+            <option value="navy">Camo (Navy)</option>
+            <option value="snow">Camo (Snow)</option>
+          </select>
+        </div>
+        <label class="checkbox"><input type="checkbox" id="basePatternToggle"> Pattern on the base</label>
+        <p class="hint">Picks every color for you: the base, each cap, and the letters. Change any color yourself and it switches back to Custom. The camo and Cow themes also add a pattern to the base (camo blobs or cow patches), which shows up in the 3MF (the STL has no color).</p>
       </section>
 
       <section class="panel">
@@ -182,7 +200,7 @@
         <p class="hint">The ring loop takes every bit of pulling and impact force on the whole keychain — kept thick and overlapped into the base on purpose.</p>
       </section>
 
-      <footer class="sidebar-footer">KeyCapForge Beta Pre Release · Cobb3D</footer>
+      <footer class="sidebar-footer">KeyCapForge Beta Pre Release · Cobb3D · <a href="#" id="whatsNewLink">What's new</a></footer>
     </aside>
 
     <section class="viewport">
@@ -205,6 +223,16 @@
     </section>
   </main>
 
+  <dialog id="whatsNewDialog" class="bug-dialog whats-new-dialog">
+    <div class="bug-form">
+      <h2>What's new</h2>
+      <p class="hint" id="whatsNewVersion"></p>
+      <ul id="whatsNewList" class="whats-new-list"></ul>
+      <div class="bug-actions">
+        <button type="button" class="btn primary" id="whatsNewClose">Got it</button>
+      </div>
+    </div>
+  </dialog>
   <dialog id="bugDialog" class="bug-dialog">
     <form method="dialog" class="bug-form">
       <h2>Report a Bug</h2>

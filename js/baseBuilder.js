@@ -112,9 +112,19 @@ function recessOutlineFor(shape, settings) {
     }
   }
   withCrossings.sort((a, b) => a - b);
-  const pts = withCrossings
+  const raw = withCrossings
     .filter((a, k) => k === 0 || a - withCrossings[k - 1] > 1e-9)
     .map((a) => { const r = Math.max(reach(capOutline, a), reach(pocket, a)); return [Math.cos(a) * r, Math.sin(a) * r]; });
+  // Drop points within 0.01mm of the previous one. A crossing point can
+  // land a couple of microns from one of the outlines' own corners, and two
+  // points that close get merged by slicers (and by mesh checks), which
+  // left non-manifold edges once the camo marks subdivided the surface.
+  const pts = [];
+  for (const p of raw) {
+    const q = pts[pts.length - 1];
+    if (!q || Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.01) pts.push(p);
+  }
+  if (pts.length > 2 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) <= 0.01) pts.pop();
   return new Polygon2D(pts);
 }
 

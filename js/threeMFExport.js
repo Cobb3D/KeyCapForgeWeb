@@ -98,7 +98,9 @@ export function limitDistinctColors(objects, maxColors) {
   };
   const rgbToHex = ([r, g, b]) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 
-  const distinct = [...new Set(objects.map((o) => o.colorHex))];
+  // Objects can also carry per-triangle colours (triangleColors, e.g. the
+  // base's camo marks); those count toward the limit and get merged too.
+  const distinct = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   if (distinct.length <= maxColors) return objects;
 
   let clusters = distinct.map((hex) => ({ colors: [hex], rgb: hexToRgb(hex) }));
@@ -122,7 +124,11 @@ export function limitDistinctColors(objects, maxColors) {
     const finalHex = rgbToHex(cluster.rgb);
     for (const origHex of cluster.colors) mapping.set(origHex, finalHex);
   }
-  return objects.map((o) => ({ ...o, colorHex: mapping.get(o.colorHex) }));
+  return objects.map((o) => ({
+    ...o,
+    colorHex: mapping.get(o.colorHex),
+    ...(o.triangleColors ? { triangleColors: o.triangleColors.map((c) => mapping.get(c)) } : {}),
+  }));
 }
 
 const CRC_TABLE = (() => {
@@ -145,7 +151,7 @@ function crc32(bytes) {
 // sits on the plate (already-baked absolute position, not a relative
 // offset — see computeExportLayout in app.js for where these come from).
 export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
-  const distinctColors = [...new Set(objects.map((o) => o.colorHex))];
+  const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
   // A <m:colorgroup> from the Materials and Properties Extension, not a
   // plain core-spec <basematerials> — that's the actual bug this fixes.
@@ -172,8 +178,11 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
       verticesXML += `<vertex x="${fmt(obj.mesh.vertices[i])}" y="${fmt(obj.mesh.vertices[i + 1])}" z="${fmt(obj.mesh.vertices[i + 2])}"/>\n`;
     }
     let trianglesXML = '';
-    for (let i = 0; i < obj.mesh.indices.length; i += 3) {
-      trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}" pid="1" p1="${pIndex}"/>\n`;
+    // Per-triangle colours when the object has them (the same thing a
+    // slicer's paint tool writes), otherwise the object's one colour.
+    for (let i = 0, t = 0; i < obj.mesh.indices.length; i += 3, t++) {
+      const p1 = obj.triangleColors ? (colorIndex.get(obj.triangleColors[t]) ?? pIndex) : pIndex;
+      trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}" pid="1" p1="${p1}"/>\n`;
     }
     // pid/pindex declared on the object itself too, not just per-triangle —
     // every part here is entirely one uniform color, so this is actually
