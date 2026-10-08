@@ -9,13 +9,15 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  'New camo themes: Navy and Snow, alongside Woodland',
-  'Camo themes now add camo marks to the base (in the 3MF)',
-  'Cow theme now adds black cow spots to the base',
-  'Smoother pattern edges, and smaller 3MF files',
-  'Fixed: some letters went missing after slicing in Bambu Studio',
-  'New "1-color emoji" option under the emoji buttons',
-];
+  'New Logo clicker mode: import your own logo image (switch modes at the top of the sidebar)',
+  'Logos are now traced with smooth edges and fine detail instead of a blocky grid, with truer colors and much smaller files',
+  'Logos made of separate pieces (like an icon with text under it) now keep every piece on the cap',
+  'The cap is shaped like your logo, and the base follows the same outline',
+  'New Cap shape choice: keep the logo outline, or pick a circle, rounded square, rounded rectangle, square, hexagon, octagon, heart or star (the base follows the shape)',
+  'Logos are now printed the full Top thickness (1.5mm by default) instead of one thin layer; use the Top thickness slider to change it',
+  'Logos print in up to 3 of their own colors, or 1 color with a cap-color background',
+  'PNGs with transparent backgrounds work best; plain backgrounds are removed automatically',
+]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';
 

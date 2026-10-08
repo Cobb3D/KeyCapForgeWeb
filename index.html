@@ -90,6 +90,40 @@
     <aside class="sidebar" id="sidebar">
 
       <section class="panel">
+        <h2>Mode</h2>
+        <div class="mode-toggle" id="modeToggle">
+          <button type="button" data-mode="letters" class="active">Letter caps</button>
+          <button type="button" data-mode="logo">Logo clicker</button>
+        </div>
+      </section>
+
+      <section class="panel logo-only">
+        <h2>Logo</h2>
+        <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
+        <button type="button" class="btn ghost logo-import" id="logoImportBtn">Import logo image…</button>
+        <p class="hint" id="logoStatus">A PNG with a transparent background works best. A plain-colored background (like a white JPG) is removed automatically.</p>
+        <div class="row"><label>Cap shape</label>
+          <select id="logoShape">
+            <option value="outline" selected>Logo outline</option>
+            <option value="circle">Circle</option>
+            <option value="roundsquare">Rounded square</option>
+            <option value="rect">Rounded rectangle</option>
+            <option value="square">Square</option>
+            <option value="hexagon">Hexagon</option>
+            <option value="octagon">Octagon</option>
+            <option value="heart">Heart</option>
+            <option value="star">Star</option>
+          </select>
+        </div>
+        <div class="slider-row"><label>Logo size</label><input type="range" id="logoSize" min="18" max="50" step="0.5" value="28"><output>28.0mm</output></div>
+        <p class="hint">The logo's longest side. With "Logo outline" the cap follows the logo's shape with a small rim; any other shape grows just enough to hold the whole logo with the same rim (Rounded rectangle follows the logo's proportions). Either way the cap always covers at least a 17mm square around the switch, and the base follows the cap.</p>
+        <div class="row"><label>Cap color</label><input type="color" id="logoCapColor" value="#3b5bdb"></div>
+        <label class="checkbox"><input type="checkbox" id="logoOneColor"> 1-color logo</label>
+        <div class="row" id="logoLegendColorRow"><label>Logo color</label><input type="color" id="logoLegendColor" value="#ffffff"></div>
+        <p class="hint">The logo prints in up to 3 of its own colors. With 1-color, it prints in the logo color, with its dark details cut out to show the cap color.</p>
+      </section>
+
+      <section class="panel letters-only">
         <h2>Text</h2>
         <input type="text" id="wordInput" placeholder="Type a word…" maxlength="12" value="Cobb" autocomplete="off">
         <p class="hint">One letter per cap, updates as you type.</p>
@@ -99,7 +133,7 @@
         <p class="hint">Click a symbol or emoji to add it as its own cap at the end of the set.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel letters-only">
         <h2>Theme</h2>
         <div class="row"><label>Colors</label>
           <select id="themeSelect">
@@ -115,7 +149,7 @@
         <p class="hint">Picks every color for you: the base, each cap, and the letters. Change any color yourself and it switches back to Custom. The camo and Cow themes also add a pattern to the base (camo blobs or cow patches), which shows up in the 3MF (the STL has no color).</p>
       </section>
 
-      <section class="panel">
+      <section class="panel letters-only">
         <div class="panel-header">
           <h2>Caps in this set</h2>
           <span class="count" id="capCount">4</span>
@@ -125,7 +159,7 @@
 
       <section class="panel">
         <h2>Shape &amp; Size</h2>
-        <div class="row">
+        <div class="row letters-only">
           <label>Shape (all caps)</label>
           <select id="shapeSelect">
             <option value="square">Square / Rect</option>
@@ -138,30 +172,31 @@
             <option value="star">Star</option>
           </select>
         </div>
-        <div class="slider-row"><label>Base width</label><input type="range" id="capWidth" min="14" max="22" step="0.1" value="18"><output>18.0mm</output></div>
-        <div class="slider-row"><label>Top width</label><input type="range" id="capTopWidth" min="8" max="20" step="0.1" value="13.5"><output>13.5mm</output></div>
+        <div class="slider-row letters-only"><label>Base width</label><input type="range" id="capWidth" min="14" max="22" step="0.1" value="18"><output>18.0mm</output></div>
+        <div class="slider-row letters-only"><label>Top width</label><input type="range" id="capTopWidth" min="8" max="20" step="0.1" value="13.5"><output>13.5mm</output></div>
         <div class="slider-row"><label>Height</label><input type="range" id="capHeight" min="6" max="16" step="0.1" value="10"><output>10.0mm</output></div>
         <div class="slider-row"><label>Wall thickness</label><input type="range" id="wallThickness" min="0.8" max="2.5" step="0.05" value="1.4"><output>1.4mm</output></div>
         <div class="slider-row"><label>Top thickness</label><input type="range" id="topThickness" min="0.8" max="3" step="0.1" value="1.5"><output>1.5mm</output></div>
-        <div class="slider-row"><label>Corner radius</label><input type="range" id="cornerRadius" min="0" max="6" step="0.1" value="1.6"><output>1.6mm</output></div>
-        <p class="hint" id="cornerRadiusHint">Only affects square-shaped caps — other shapes (round, hexagon, star, etc.) don't have independently-roundable corners in this model, so this has no visible effect on them.</p>
-        <div class="slider-row"><label>Top bevel</label><input type="range" id="topBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
-        <div class="slider-row"><label>Bottom bevel</label><input type="range" id="bottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <p class="hint logo-only">The logo is printed this thick, through the whole top of the clicker, so its colors run several layers deep.</p>
+        <div class="slider-row letters-only"><label>Corner radius</label><input type="range" id="cornerRadius" min="0" max="6" step="0.1" value="1.6"><output>1.6mm</output></div>
+        <p class="hint letters-only" id="cornerRadiusHint">Only affects square-shaped caps — other shapes (round, hexagon, star, etc.) don't have independently-roundable corners in this model, so this has no visible effect on them.</p>
+        <div class="slider-row letters-only"><label>Top bevel</label><input type="range" id="topBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row letters-only"><label>Bottom bevel</label><input type="range" id="bottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
         <div class="slider-row"><label>Stem wall</label><input type="range" id="stemBossWall" min="0.5" max="1.6" step="0.05" value="0.65"><output>0.65mm</output></div>
         <p class="hint">Wall around the cross-shaped socket on the underside. It has to slide inside the round or square ring around the stem on box-style switches: 0.65mm makes a 5.5mm-wide stem, about the size of store-bought keycaps. If it won't fit your switch, lower this; if it cracks, raise it.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel letters-only">
         <h2>Legend</h2>
         <div class="slider-row"><label>Legend depth</label><input type="range" id="legendDepth" min="0.2" max="1.5" step="0.05" value="0.6"><output>0.6mm</output></div>
-        <div class="slider-row"><label>Legend size</label><input type="range" id="legendSize" min="0.3" max="0.9" step="0.01" value="0.62"><output>0.62×</output></div>
-        <p class="hint">How much of the cap's top face the text can fill — text is scaled to fit both width and height, so a longer word shrinks automatically instead of overflowing.</p>
+        <div class="slider-row letters-only"><label>Legend size</label><input type="range" id="legendSize" min="0.3" max="0.9" step="0.01" value="0.62"><output>0.62×</output></div>
+        <p class="hint letters-only">How much of the cap's top face the text can fill — text is scaled to fit both width and height, so a longer word shrinks automatically instead of overflowing.</p>
       </section>
 
       <section class="panel">
         <h2>Base &amp; Fit</h2>
         <div class="row"><label>Base color</label><input type="color" id="baseColor" value="#c92a2a"></div>
-        <div class="slider-row"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
+        <div class="slider-row letters-only"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
         <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="24" step="0.1" value="17.4"><output>17.4mm</output></div>
         <div class="slider-row"><label>Plate hole (MX clip)</label><input type="range" id="plateHole" min="13.6" max="14.4" step="0.01" value="14"><output>14.00mm</output></div>
         <div class="slider-row"><label>Base floor</label><input type="range" id="floorThickness" min="0.6" max="4" step="0.1" value="2"><output>2.0mm</output></div>
@@ -169,12 +204,12 @@
         <div class="slider-row"><label>Plate thickness</label><input type="range" id="plateThickness" min="1.0" max="2.2" step="0.05" value="1.5"><output>1.5mm</output></div>
         <div class="slider-row"><label>Lower clearance</label><input type="range" id="clearance" min="15" max="18" step="0.05" value="15.8"><output>15.8mm</output></div>
         <div class="slider-row"><label>Recess depth</label><input type="range" id="recessDepth" min="0.3" max="10" step="0.1" value="8.0"><output>8.0mm</output></div>
-        <div class="slider-row"><label>Base top bevel</label><input type="range" id="baseTopBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
-        <div class="slider-row"><label>Base bottom bevel</label><input type="range" id="baseBottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row letters-only"><label>Base top bevel</label><input type="range" id="baseTopBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row letters-only"><label>Base bottom bevel</label><input type="range" id="baseBottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
         <p class="hint" id="recessDepthHint">Switch clearance is the empty void below the plate a real switch's lower housing travels into before its retention clips can engage — too shallow and the switch bottoms out before it snaps in. Recess depth (how deep each cap nests into the base) is purely cosmetic and always kept a safe distance from this mechanism regardless of how deep you go — it may get capped below what you set if there isn't enough room left over after the floor, switch clearance, and plate thickness are reserved. Base floor is the solid layer under the switch that its bottom rests on.</p>
         <p class="hint">Real Cherry MX plate-mount spec: a 14mm clip hole in a ~1.5mm plate, closed on the bottom with a solid floor (Base floor, 2mm by default) that the bottom of the switch rests on.</p>
-        <label class="checkbox"><input type="checkbox" id="joinedBase" checked> Fuse adjacent bases into one solid block</label>
-        <label class="checkbox"><input type="checkbox" id="verticalLayout" checked> Vertical layout (hangs top-to-bottom)</label>
+        <label class="checkbox letters-only"><input type="checkbox" id="joinedBase" checked> Fuse adjacent bases into one solid block</label>
+        <label class="checkbox letters-only"><input type="checkbox" id="verticalLayout" checked> Vertical layout (hangs top-to-bottom)</label>
       </section>
 
       <section class="panel">

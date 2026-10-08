@@ -472,7 +472,7 @@ function buildBlock(outer, cells, thickness, settings) {
 
 // The keyring loop is the bottom 25% of the base's thickness, flush with
 // its bottom (the side on the print bed), so it prints without support.
-function keyringLoopHeight(settings) {
+export function keyringLoopHeight(settings) {
   return settings.baseThicknessMM * 0.25;
 }
 
@@ -493,7 +493,7 @@ function keyringLoopHeight(settings) {
 // loftShell() can pair their points one-to-one. That works because the
 // "D" is star-shaped around the centre: every ray from the centre crosses
 // its boundary exactly once.
-function keyringFeature(settings, neckLength) {
+export function keyringFeature(settings, neckLength) {
   const outerR = settings.keyringOuterMM / 2;
   const holeR = settings.keyringHoleMM / 2;
   const loopHeight = keyringLoopHeight(settings);

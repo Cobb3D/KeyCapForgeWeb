@@ -1459,6 +1459,112 @@ worked out:
   Verified in a browser: shown on first visit, stays closed after "Got it"
   and a reload, shows again when an older version is remembered, Esc
   counts as seen, the footer link reopens it, and it fits a phone screen.
+- **Emoji palette review.** Every palette emoji was rendered beside its
+  printed version (drawn from the actual legend parts, in their colours),
+  in full colour and in 1-colour mode. Full colour (the default) looks
+  close to the original for all but a few that need more than 3 colours,
+  so those were removed along with the owner's picks: 🌈 (needs the full
+  spectrum), 😱 (loses its blue), 🌮 (loses its fillings), and the degree
+  symbol. The palette is now 23 symbols and 84 emoji. Borderline but kept:
+  😡 (a red rim around an orange face, a fair 3-colour version of its
+  gradient), 🍩 (loses its sprinkles), 📱 (screen detail lost). Refining
+  the 3 colours with k-means was tried: it kept some of 😱's blue and gave
+  🌮 a darker filling, but muted 🎉's confetti, so it was reverted. In
+  1-colour mode a few lose their key features because those are bright or
+  similar to the face rather than dark (🤩's star eyes, 🙄's and 😳's
+  white eyes, 🐵 becomes a plain circle, 🍔 and 🎂 become blobs); they're
+  kept because they look right in full colour, and 1-colour is opt-in.
+- **Logo clicker mode.** A Mode switch at the top of the sidebar
+  (Letter caps / Logo clicker). In logo mode the user imports an image and
+  gets one clicker: a cap shaped like the logo, with the logo printed flush
+  on top, on a base that follows the same outline. Letter-only controls are
+  hidden (`.letters-only` / `.logo-only` with `body.mode-logo`); shared ones
+  (cap height, walls, top thickness, stem, logo depth, base thickness,
+  switch fit, keyring) apply to both.
+
+  `js/logoImport.js` loads the image (scaled to at most 900px), keeps a
+  transparent background, or otherwise finds the background colour from
+  the border and flood-fills it away from the edges (colour inside the
+  logo that's enclosed is kept), then crops. Outlines come from one signed
+  distance field of the logo's footprint on the legend's own grid
+  (Felzenszwalb EDT), traced with interpolating marching squares and
+  simplified (Douglas-Peucker, 0.02mm): cap = logo + 1.2mm rim, unioned
+  with a 16.8mm rounded square around the stem (so a small or thin logo
+  still covers the switch); cavity = cap - wall thickness, keeping the
+  region around the stem; recess = cap + 0.3mm clearance, unioned with the
+  16.2mm switch pocket; base = recess + 2.5mm wall. Holes are filled. The
+  stem sits at the logo's centre of area. Checked on synthetic shapes
+  (disc, star, ring, thin bar, two separate blobs): walls 1.38-1.39mm,
+  clearance 0.28-0.29mm, base wall 2.48-2.49mm, each outline nested in the
+  next, and the switch's rounded square fits in every cavity and recess.
+
+  `js/logoBuilder.js` builds the cap (straight walls, flat top at full
+  height minus the logo depth, hollow underside, the letter caps' own stem
+  post via the now-exported `stemBoss()`), the logo layer (`rasterizeLegend`
+  now takes an `image` in place of text and runs the same colour
+  clustering, clean-up, and meshing as emoji), and a rim part filling the
+  rest of the top layer in the cap colour, on the same grid so it meets
+  the logo exactly and never overlaps the body. Rim cells touching only at
+  a corner are bridged or dropped. The base reuses the letter base's
+  plate, switch space and floor stack (`baseStackFor`) and the keyring lug
+  (`keyringFeature`), placed on the chosen side beyond the base's farthest
+  point across the lug's width, its neck reaching into the wall but
+  stopping clear of the switch space. No bevels and no camo/cow patterns
+  in logo mode.
+
+  Image-only changes to `rasterizeLegend`: the grid scales with the logo's
+  size (about 0.15mm cells, 160-340 across; letters and emoji keep 160),
+  and an extra colour must have a real interior: blended edge pixels (anti-
+  aliasing, JPEG) measured 0% interior against 73-94% for real accent
+  colours as small as 2.6% of a logo, so the 30% rule drops fringes
+  without dropping accents. Letter caps and emoji are byte-identical to
+  before.
+
+  Verified in a real browser on a 2-colour star, a text logo on a white
+  JPG, a ring, and the Cobb3DPrinting logo, each in colour and 1-colour:
+  cap body, base, logo parts and rim all 0 open, 0 non-manifold, 0
+  winding errors. End to end through the real UI: import, 3MF (cap
+  printed face-down beside the base, logo layer on the bed) and STL export,
+  size/1-colour/lug-side changes, and switching back to letters. Software
+  renders confirmed the shapes.
+- **Logo clicker: smooth traced logos.** The logo layer was a grid of
+  square columns (about 0.15mm), which showed as a staircase along every
+  curved or slanted edge, with point-sampled colours speckling the edges.
+  `js/logoVector.js` replaces it: the logo is resampled to about 0.04mm
+  cells with proper averaging and labelled (up to 3 colours, picked as
+  before with the edge-fringe rule and then refined to each colour's
+  average; or the 1-colour stencil), specks under 0.4mm are merged away,
+  and corner-only contacts are fixed. Boundaries between labels are split
+  into chains between junctions (where 3+ labels meet); each chain is
+  smoothed (4 passes of a [1,2,1] filter, ends fixed) and simplified
+  (0.012mm) once, and both neighbouring regions use those exact points, so
+  parts meet with no gaps or overlaps. Each label's chains are joined into
+  loops (outer counter-clockwise, holes clockwise), holes are bridged to
+  their outline and ear-clipped, and each shape is extruded through the
+  logo depth. The rim's outer loop is the cap outline itself, so the layer
+  covers the body's top exactly. Every shape is checked (triangle areas
+  must equal its area); a failure retries with unsmoothed edges, then falls
+  back to the square-column version. Two cutter bugs found by testing: a
+  hole spliced at the wrong copy of an outline point already used by an
+  earlier bridge (a letter with 3 holes), and cuts passing exactly through
+  other points, which grid-aligned outlines make common; both fixed.
+  Rebuilds in logo mode wait 150ms for changes to pause (a build takes up
+  to about a second at 50mm).
+
+  Also fixed: the cap outline kept only its largest piece, so parts of a
+  logo more than about 2.4mm from the rest (an icon's caption, a rocket
+  emoji's flames) were left off the cap. Separate pieces are now joined by
+  a morphological closing (grow by the smallest d from 0.5 to 12mm that
+  makes one piece, then shrink by d), giving a smooth bridge; anything
+  still outside is dropped rather than breaking the model.
+
+  Verified: 230 builds (23 logos including 20 emoji drawn as images, 5
+  sizes from 18 to 50mm, colour and 1-colour) all trace, with every part
+  0 open, 0 non-manifold, 0 winding, and the logo layer covering the cap's
+  top to within 0.01mm3; logos in separate pieces keep 99.8-100.3% of
+  their area; every size from 18 to 50mm for the Cobb3DPrinting logo; the
+  full UI flow end to end (3MF 0.78MB, was 3.8MB). Letter caps and emoji
+  are byte-identical to before.
 - **`js/scene.js`** — Three.js scene/camera, using its built-in
   `OrbitControls` rather than hand-rolled mouse handling. The native app
   burned a lot of time on custom camera code fighting AppKit focus/window
@@ -1820,3 +1926,20 @@ Chrome, Firefox, Safari, or Edge. `TextMetrics.actualBoundingBoxAscent`
 (used for sizing the legend canvas) has been broadly supported for years,
 but if you see clipped legends on an unusually old browser, that's the
 first thing to check.
+
+- **Logo clicker: cap shapes.** A Cap shape menu in the logo panel: Logo
+  outline (default), circle, rounded square, rounded rectangle (follows the
+  logo's proportions), square, hexagon, octagon, heart and star. The shape
+  is centred on the logo and scaled just large enough to hold the logo plus
+  its rim and the switch pocket; the heart and star are anchored at their
+  roomiest point, so they come out larger than the convex shapes. The base
+  follows the chosen shape. (`LOGO_SHAPES`, `fitShape` and `roomiestPoint`
+  in js/logoImport.js.)
+
+- **Logo clicker: full-thickness logo.** The logo layer used to be Legend
+  depth (0.6mm, about one or two printed layers). It now fills the whole top
+  cover: Top thickness (default 1.5mm, slider 0.8 to 3mm), from the hollow
+  underneath up to the face. The cap body below it is just the side walls
+  and the stem post, each a closed solid ending flat at the logo layer's
+  underside. The Legend panel is hidden in logo mode, since Legend depth no
+  longer applies there.

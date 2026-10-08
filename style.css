@@ -374,3 +374,18 @@ input[type="color"] {
 .whats-new-dialog .hint { margin: -4px 0 0; }
 .sidebar-footer a { color: var(--text-dim); }
 .sidebar-footer a:hover { color: var(--text); }
+
+/* ---- Mode: letter caps or logo clicker ---- */
+.mode-toggle { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.mode-toggle button {
+  flex: 1; padding: 8px 10px; background: transparent; color: var(--text-dim);
+  border: 0; font: inherit; cursor: pointer;
+}
+.mode-toggle button + button { border-left: 1px solid var(--line); }
+.mode-toggle button.active { background: var(--ember); color: #1a0f08; font-weight: 600; }
+body.mode-logo .letters-only { display: none !important; }
+body:not(.mode-logo) .logo-only { display: none !important; }
+.logo-import { width: 100%; margin-bottom: 4px; }
+#logoStatus.ok { color: var(--text); }
+#logoStatus.error { color: #ff8a65; }
+@media (max-width: 820px) { .mode-toggle button { padding: 10px; } }

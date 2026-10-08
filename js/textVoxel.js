@@ -31,77 +31,96 @@ const loggedCombos = new Set();
 // just produce one part), so it doesn't need a separate "is this actually
 // multicolor" check — it just reflects however many distinct colors were
 // actually present.
-export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, depth, colorful = false, stencil = false }) {
-  if (!text) return [];
+// Share of an imported image's extra colour that must be interior (not
+// a thin edge band) for it to get its own filament; see the clustering.
+const IMAGE_MIN_INTERIOR = 0.3;
+
+export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, depth, colorful = false, stencil = false, image = null }) {
+  if (!text && !image) return [];
 
   const RES = 12; // canvas px per mm — plenty for a legend a few mm tall
   const pad = 8; // px padding so strokes near the edge aren't clipped
 
-  const probe = document.createElement('canvas').getContext('2d');
-  const weight = SINGLE_WEIGHT_FONTS.has(fontFamily) ? '400' : (bold ? '700' : '400');
-  const styleStr = italic ? 'italic' : 'normal';
-  const sizePx = 200;
-  probe.font = `${styleStr} ${weight} ${sizePx}px "${fontFamily}"`;
-  const metrics = probe.measureText(text);
-  const textWidthPx = Math.max(metrics.width, 1);
-  // Nullish coalescing (??), not ||, for every one of these metrics: 0 is a
-  // legitimate value for all four (an all-caps word like "LENA" genuinely
-  // has ~zero descent; ink can genuinely start exactly at the fillText
-  // anchor, making actualBoundingBoxLeft exactly 0), and || treats any
-  // falsy value — including a real, correct 0 — as "missing metric, use
-  // the fallback instead." That bug is what shoved text noticeably
-  // rightward for exactly this kind of text: simple left-aligned capital
-  // letters routinely have actualBoundingBoxLeft land at exactly 0, which
-  // `|| textWidthPx / 2` was silently overriding with a large bogus value.
-  const ascent = metrics.actualBoundingBoxAscent ?? sizePx * 0.75;
-  const descent = metrics.actualBoundingBoxDescent ?? sizePx * 0.25;
-  const underlineH = underline ? Math.max(sizePx * 0.06, 6) : 0;
-  const underlineGap = underline ? sizePx * 0.08 : 0;
+  // `image` (a canvas whose background is already transparent, e.g. an
+  // imported logo from logoImport.js) is drawn in place of text; everything
+  // after this (colour clustering, clean-up passes, meshing, footprint) is
+  // shared, so a logo is treated exactly like a colourful emoji.
+  let canvasW, canvasH, ctx, weight = '400', styleStr = 'normal';
+  if (image) {
+    canvasW = image.width + pad * 2;
+    canvasH = image.height + pad * 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(image, pad, pad);
+  } else {
+    const probe = document.createElement('canvas').getContext('2d');
+    weight = SINGLE_WEIGHT_FONTS.has(fontFamily) ? '400' : (bold ? '700' : '400');
+    styleStr = italic ? 'italic' : 'normal';
+    const sizePx = 200;
+    probe.font = `${styleStr} ${weight} ${sizePx}px "${fontFamily}"`;
+    const metrics = probe.measureText(text);
+    const textWidthPx = Math.max(metrics.width, 1);
+    // Nullish coalescing (??), not ||, for every one of these metrics: 0 is a
+    // legitimate value for all four (an all-caps word like "LENA" genuinely
+    // has ~zero descent; ink can genuinely start exactly at the fillText
+    // anchor, making actualBoundingBoxLeft exactly 0), and || treats any
+    // falsy value — including a real, correct 0 — as "missing metric, use
+    // the fallback instead." That bug is what shoved text noticeably
+    // rightward for exactly this kind of text: simple left-aligned capital
+    // letters routinely have actualBoundingBoxLeft land at exactly 0, which
+    // `|| textWidthPx / 2` was silently overriding with a large bogus value.
+    const ascent = metrics.actualBoundingBoxAscent ?? sizePx * 0.75;
+    const descent = metrics.actualBoundingBoxDescent ?? sizePx * 0.25;
+    const underlineH = underline ? Math.max(sizePx * 0.06, 6) : 0;
+    const underlineGap = underline ? sizePx * 0.08 : 0;
 
-  // metrics.width is the font's *advance* width (how far the text cursor
-  // moves) — not necessarily the actual visible ink's width. For upright
-  // non-italic text in most fonts these are close, but italic slant can
-  // make ink overhang the advance box asymmetrically, bold strokes can
-  // extend past it, and left/right side bearing is often unequal for an
-  // arbitrary string regardless of style. Sizing and centering the canvas
-  // around the advance width alone means the drawn ink doesn't necessarily
-  // fill that symmetric box evenly, producing legends that are visibly a
-  // little off-center without being outright broken. actualBoundingBoxLeft/
-  // Right give the TRUE ink extent from the text's anchor point, so
-  // centering against those — falling back to the advance-width split when
-  // a browser doesn't report them — fixes it.
-  const inkLeft = metrics.actualBoundingBoxLeft ?? textWidthPx / 2;
-  const inkRight = metrics.actualBoundingBoxRight ?? textWidthPx / 2;
-  const inkWidth = Math.max(inkLeft + inkRight, 1);
-  // Whichever is wider — the ink or the advance box (which the underline
-  // spans) — sets the content width, so neither one clips or forces the
-  // other off-center.
-  const contentWidth = Math.max(inkWidth, textWidthPx);
+    // metrics.width is the font's *advance* width (how far the text cursor
+    // moves) — not necessarily the actual visible ink's width. For upright
+    // non-italic text in most fonts these are close, but italic slant can
+    // make ink overhang the advance box asymmetrically, bold strokes can
+    // extend past it, and left/right side bearing is often unequal for an
+    // arbitrary string regardless of style. Sizing and centering the canvas
+    // around the advance width alone means the drawn ink doesn't necessarily
+    // fill that symmetric box evenly, producing legends that are visibly a
+    // little off-center without being outright broken. actualBoundingBoxLeft/
+    // Right give the TRUE ink extent from the text's anchor point, so
+    // centering against those — falling back to the advance-width split when
+    // a browser doesn't report them — fixes it.
+    const inkLeft = metrics.actualBoundingBoxLeft ?? textWidthPx / 2;
+    const inkRight = metrics.actualBoundingBoxRight ?? textWidthPx / 2;
+    const inkWidth = Math.max(inkLeft + inkRight, 1);
+    // Whichever is wider — the ink or the advance box (which the underline
+    // spans) — sets the content width, so neither one clips or forces the
+    // other off-center.
+    const contentWidth = Math.max(inkWidth, textWidthPx);
 
-  const canvasW = Math.ceil(contentWidth) + pad * 2;
-  const canvasH = Math.ceil(ascent + descent + underlineH + underlineGap) + pad * 2;
+    canvasW = Math.ceil(contentWidth) + pad * 2;
+    canvasH = Math.ceil(ascent + descent + underlineH + underlineGap) + pad * 2;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = canvasW;
-  canvas.height = canvasH;
-  const ctx = canvas.getContext('2d');
-  ctx.font = `${styleStr} ${weight} ${sizePx}px "${fontFamily}"`;
-  // Ignored by color-emoji glyphs, which always draw their own native
-  // colors regardless of fillStyle — this only matters for the plain-text
-  // path, where it's what makes the alpha-only silhouette technique work.
-  ctx.fillStyle = '#fff';
-  ctx.textBaseline = 'alphabetic';
-  const baselineY = pad + ascent;
-  // Positions the fillText anchor so the ACTUAL ink — not the advance box —
-  // ends up centered within contentWidth (itself centered in the canvas via
-  // the symmetric pad on each side).
-  const fillX = pad + (contentWidth - inkWidth) / 2 + inkLeft;
-  ctx.fillText(text, fillX, baselineY);
-  if (underline) {
-    // The underline spans the advance width, centered the same way — a
-    // slight overshoot past tight ink bounds is normal for underlines.
-    const underlineX = pad + (contentWidth - textWidthPx) / 2;
-    ctx.fillRect(underlineX, baselineY + underlineGap, textWidthPx, underlineH);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    ctx = canvas.getContext('2d');
+    ctx.font = `${styleStr} ${weight} ${sizePx}px "${fontFamily}"`;
+    // Ignored by color-emoji glyphs, which always draw their own native
+    // colors regardless of fillStyle — this only matters for the plain-text
+    // path, where it's what makes the alpha-only silhouette technique work.
+    ctx.fillStyle = '#fff';
+    ctx.textBaseline = 'alphabetic';
+    const baselineY = pad + ascent;
+    // Positions the fillText anchor so the ACTUAL ink — not the advance box —
+    // ends up centered within contentWidth (itself centered in the canvas via
+    // the symmetric pad on each side).
+    const fillX = pad + (contentWidth - inkWidth) / 2 + inkLeft;
+    ctx.fillText(text, fillX, baselineY);
+    if (underline) {
+      // The underline spans the advance width, centered the same way — a
+      // slight overshoot past tight ink bounds is normal for underlines.
+      const underlineX = pad + (contentWidth - textWidthPx) / 2;
+      ctx.fillRect(underlineX, baselineY + underlineGap, textWidthPx, underlineH);
+    }
   }
 
   const { data } = ctx.getImageData(0, 0, canvasW, canvasH);
@@ -152,14 +171,18 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   // Sample on a grid sized so the final mm-scale mesh gets a fine cell size
   // (bounded cell COUNT, same reasoning as the native app: cost scales with
   // the glyph's own size, not a fixed constant).
-  const targetCellsPerAxis = 160;
+  // About 160 cells across suits a letter or emoji (around 0.05mm cells on
+  // a 10mm cap). An imported logo can be 50mm across, where 160 cells would
+  // be 0.3mm each, too coarse for fine lettering, so images get enough
+  // cells for about 0.15mm, up to 340 across.
+  const targetCellsPerAxis = image ? Math.max(160, Math.min(340, Math.round(Math.max(targetWidth, targetHeight) / 0.15))) : 160;
   const step = Math.max(1, Math.round(Math.max(canvasW, canvasH) / targetCellsPerAxis));
 
   if (window.showDiag) {
     const comboKey = `${text}|${fontFamily}|${weight}|${styleStr}|${colorful}|${stencil}`;
     if (!loggedCombos.has(comboKey)) {
       loggedCombos.add(comboKey);
-      const fontAvailable = document.fonts.check(`${weight} ${sizePx}px "${fontFamily}"`);
+      const fontAvailable = image ? 'n/a (image)' : document.fonts.check(`${weight} 200px "${fontFamily}"`);
       let opaqueCount = 0;
       for (let i = 3; i < data.length; i += 4) if (data[i] > 96) opaqueCount++;
       window.showDiag(`Legend "${text}": font="${fontFamily}" weight=${weight} loaded=${fontAvailable} canvas=${canvasW}x${canvasH} content=${contentPxW}x${contentPxH} step=${step} opaquePixels=${opaqueCount}/${canvasW * canvasH} colorful=${colorful}`);
@@ -204,10 +227,41 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
     const remaining = new Map(freq);
     const clusters = [];
     const MERGE_DIST = 70;
+    let totalPx = 0;
+    for (const c of freq.values()) totalPx += c;
     while (clusters.length < 3 && remaining.size > 0) {
       let bestKey = null, bestCount = -1;
       for (const [k, c] of remaining) if (c > bestCount) { bestCount = c; bestKey = k; }
       const [r, g, b] = bestKey.split(',').map(Number);
+      // Imported images (not emoji): an extra colour must be a real area of
+      // the logo, not the thin band of blended pixels along its edges
+      // (anti-aliasing, JPEG compression), which would otherwise claim a
+      // filament slot for scattered specks. Share alone can't tell them
+      // apart (a JPG's edge band measured 2.1% of a logo, a real accent
+      // dot 2.7%), but shape can: a band is a pixel or two wide, so almost
+      // none of it is interior (with the same colour on all four sides),
+      // while a real area mostly is. Rejected candidates are dropped and
+      // the next one is tried.
+      if (image && clusters.length > 0) {
+        const near = (px, py) => {
+          if (px < 0 || py < 0 || px >= canvasW || py >= canvasH || !isInside(px, py)) return false;
+          const [pr, pg, pb] = rgbAt(px, py);
+          return Math.hypot(pr - r, pg - g, pb - b) < MERGE_DIST / 2;
+        };
+        let members = 0, interior = 0;
+        for (let py = 0; py < canvasH; py += step) for (let px = 0; px < canvasW; px += step) {
+          if (!near(px, py)) continue;
+          members++;
+          if (near(px - step, py) && near(px + step, py) && near(px, py - step) && near(px, py + step)) interior++;
+        }
+        if (members < totalPx * 0.005 || interior < members * IMAGE_MIN_INTERIOR) {
+          for (const k of [...remaining.keys()]) {
+            const [kr, kg, kb] = k.split(',').map(Number);
+            if (Math.hypot(kr - r, kg - g, kb - b) < MERGE_DIST) remaining.delete(k);
+          }
+          continue;
+        }
+      }
       clusters.push([r, g, b]);
       for (const k of [...remaining.keys()]) {
         const [kr, kg, kb] = k.split(',').map(Number);

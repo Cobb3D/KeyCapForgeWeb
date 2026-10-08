@@ -12,8 +12,8 @@ import { rasterizeLegend } from './textVoxel.js';
 // too wide to fit inside those rings. The boss is a 24-sided polygon, so
 // the returned corner radius is scaled up by 1/cos(180/24 deg) to put its
 // flat sides, its thinnest points, at exactly the requested wall.
-const STEM_BOSS_SIDES = 24;
-function stemBossRadius(settings) {
+export const STEM_BOSS_SIDES = 24;
+export function stemBossRadius(settings) {
   const wall = settings.stemBossWallMM ?? 0.65;
   return (settings.stemCavityWidthMM / 2 + wall) / Math.cos(Math.PI / STEM_BOSS_SIDES);
 }
@@ -296,7 +296,7 @@ function buildLegend(cap, settings, topZ) {
 // actually ends at, which buildKeycap's own ceiling ring needs to match
 // exactly; see the fillet below for why that isn't always just bossOuter
 // itself.
-function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
+export function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
   const t = settings.stemCavityThicknessMM, w = settings.stemCavityWidthMM;
   // The socket's OWN opening — where a real switch's cross-shaped stem
   // actually enters — is anchored to Z=0, the exact same plane the

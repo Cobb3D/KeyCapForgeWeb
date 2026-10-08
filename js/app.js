@@ -9,6 +9,8 @@ import { initBugReport, APP_NAME } from './bugReport.js';
 import { initWhatsNew } from './whatsNew.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
+import { loadLogoFile } from './logoImport.js';
+import { buildLogoClicker } from './logoBuilder.js';
 
 const FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];
 
@@ -53,6 +55,10 @@ const settings = {
   // Choosing a patterned theme turns it on with that theme's pattern and
   // colours (themes.js); the checkbox keeps the last ones used.
   // base colour. Turned on by choosing the Camo theme, or by its checkbox.
+  // Logo clicker mode (logoImport.js, logoBuilder.js): the logo's longest
+  // side, whether it prints in 1 colour, and the cap and 1-colour logo
+  // colours.
+  logoSizeMM: 28, logoShape: 'outline', logoOneColor: false, logoCapColorHex: '#3b5bdb', logoLegendColorHex: '#ffffff',
   basePattern: false,
   patternStyle: 'camo',
   patternMarks: ['#c2b280', '#5b4632', '#3b4a2a'],
@@ -64,6 +70,10 @@ let shape = 'square';
 // index.html's value="Cobb" only shows for the moment before the app loads.
 let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
+// 'letters' (a set of letter caps) or 'logo' (one logo-shaped clicker).
+let mode = 'letters';
+// The imported logo: { canvas (background removed, cropped), name, hadTransparency }.
+let logo = null;
 let explodeDistance = 20;
 let showSwitches = false; // "Show KeySwitch": only takes effect in exploded view
 let activeTheme = null;    // key into THEMES, or null for Custom (see themes.js)
@@ -131,7 +141,99 @@ async function main() {
     }, PATTERN_STYLES[settings.patternStyle] || PATTERN_STYLES.camo);
   }
 
+  // ---------- Logo clicker ----------
+  // The logo clicker is rebuilt only when something it depends on changes
+  // (building it takes a fraction of a second, and the preview also
+  // rebuilds for view-only changes like exploded view).
+  let logoCache = { key: null, result: null };
+  function logoBuild() {
+    if (!logo) return null;
+    const key = JSON.stringify([logo.id, settings]);
+    if (logoCache.key !== key) {
+      logoCache = { key, result: buildLogoClicker(logo.canvas, settings, {
+        sizeMM: settings.logoSizeMM, oneColor: settings.logoOneColor,
+        capColorHex: settings.logoCapColorHex, legendColorHex: settings.logoLegendColorHex,
+      }) };
+    }
+    return logoCache.result;
+  }
+
+  function rebuildLogo() {
+    const group = new THREE.Group();
+    const r = logoBuild();
+    if (r) {
+      group.add(meshToObject3D(THREE, r.base, settings.baseColorHex));
+      const explodeZ = explodedView ? explodeDistance : 0;
+      let capZ = settings.baseThicknessMM + explodeZ;
+      if (explodedView && showSwitches) {
+        const switchPlateZ = settings.baseThicknessMM + explodeZ + MX_SWITCH.lowestBelowPlate;
+        capZ = switchPlateZ + MX_SWITCH.stemTopAbovePlate + explodeZ;
+        const sw = buildSwitchObject(THREE);
+        sw.position.set(0, 0, switchPlateZ);
+        group.add(sw);
+      }
+      const bodyObj = meshToObject3D(THREE, r.capBody, settings.logoCapColorHex);
+      bodyObj.position.set(0, 0, capZ);
+      group.add(bodyObj);
+      for (const part of r.capParts) {
+        const obj = meshToObject3D(THREE, part.mesh, part.colorHex, { decal: true });
+        obj.position.set(0, 0, capZ);
+        group.add(obj);
+      }
+    }
+    viewport.setModel(group);
+    applyViewModes();
+    if (r) viewport.frameToModel();
+    updateRecessDepthHint();
+  }
+
+  function exportLogo() {
+    const r = logoBuild();
+    if (!r) { alert('Import a logo image first.'); return; }
+    const H = settings.capHeightMM;
+    // The cap prints face-down, beside the base.
+    const xs = (poly) => poly.points.map((p) => p[0]);
+    const capX = Math.max(...xs(r.outlines.base)) - Math.min(...xs(r.outlines.cap)) + 4;
+    const fileBase = 'logo_' + (logo.name || 'clicker').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const combined = new Mesh();
+    combined.append(r.base);
+    const objects = [{ mesh: r.base, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }];
+    const body = r.capBody.flippedForPrint(H);
+    combined.append(body, capX, 0, 0);
+    objects.push({ mesh: body, colorHex: settings.logoCapColorHex, name: 'logo_cap_body', translation: [capX, 0, 0] });
+    r.capParts.forEach((part, j) => {
+      const m = part.mesh.flippedForPrint(H);
+      combined.append(m, capX, 0, 0);
+      objects.push({ mesh: m, colorHex: part.colorHex, name: part.isRim ? 'logo_cap_rim' : `logo_cap_logo_${j}`, translation: [capX, 0, 0] });
+    });
+    if (exportFormat === 'stl' || exportFormat === 'both') {
+      downloadBlob(meshToSTL(combined.welded(), `${APP_NAME} by Cobb3D`), `${fileBase}.stl`);
+    }
+    if (exportFormat === '3mf' || exportFormat === 'both') {
+      const limited = limitDistinctColors(objects, 4);
+      downloadBlob(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
+    }
+  }
+
+  function setMode(next) {
+    mode = next;
+    document.body.classList.toggle('mode-logo', mode === 'logo');
+    for (const b of document.querySelectorAll('#modeToggle button')) b.classList.toggle('active', b.dataset.mode === mode);
+    if (mode === 'logo') rebuildLogo(); else rebuild();
+    if (mode === 'logo' && logo) viewport.frameToModel(true);
+    else if (mode === 'letters') viewport.frameToModel(true);
+  }
+
+  // In logo mode the rebuild waits until changes pause for a moment: the
+  // traced logo takes up to about a second to build at large sizes, and a
+  // slider fires many changes per second while being dragged.
+  let logoRebuildTimer = null;
   function rebuild() {
+    if (mode === 'logo') {
+      clearTimeout(logoRebuildTimer);
+      logoRebuildTimer = setTimeout(rebuildLogo, 150);
+      return;
+    }
     const count = caps.length;
     const centers = capCenters(count, settings);
     const baseMesh = buildBase(caps, settings);
@@ -370,14 +472,19 @@ async function main() {
   // colors instead (see rasterizeLegend in textVoxel.js).
   const QUICK_INSERT_SYMBOLS = [
     '★', '♥', '♦', '♣', '♠', '☆', '✓', '✗',
-    '№', '§', '©', '®', '™', '°', '&', '@',
+    '№', '§', '©', '®', '™', '&', '@',
     '#', '%', '+', '=', '∞', '♪', '☀', '☂',
   ];
+  // Each emoji prints in up to 3 of its own colours, so the palette leaves
+  // out ones that don't survive that: 🌈 (needs the full spectrum), 😱
+  // (loses its blue), and 🌮 (loses its fillings). All the others were
+  // reviewed against their 3-colour print versions. (° was removed from
+  // the symbols as unwanted.)
   const QUICK_INSERT_EMOJI = [
     // Faces & emotions
     '😀', '😂', '😅', '😊', '😍', '🥰', '😘', '😜',
     '🤔', '😴', '😭', '😢', '😡', '🥳', '🤩', '😎',
-    '🙄', '😳', '🤗', '😇', '🥺', '😱', '🤣', '😆',
+    '🙄', '😳', '🤗', '😇', '🥺', '🤣', '😆',
     // Hearts & hands
     '❤️', '💕', '💖', '💯', '👍', '👎', '👏', '🙏',
     '✌️', '🤞', '👋', '💪',
@@ -385,10 +492,10 @@ async function main() {
     '🐶', '🐱', '🐭', '🐰', '🦊', '🐻', '🐼', '🐨',
     '🐸', '🐷', '🦄', '🐵',
     // Food & drink
-    '🍕', '🍔', '🍟', '🌮', '🍰', '🎂', '🍩', '🍦',
+    '🍕', '🍔', '🍟', '🍰', '🎂', '🍩', '🍦',
     '🍺', '☕',
     // Nature & weather
-    '🌙', '⭐', '🌈', '⚡', '🔥', '❄️', '🌊', '🌟',
+    '🌙', '⭐', '⚡', '🔥', '❄️', '🌊', '🌟',
     // Activities & objects
     '🎉', '🎊', '🎈', '🎁', '🎮', '🎵', '🎧', '⚽',
     '🏀', '🚀', '✈️', '🚗', '💰', '📱', '💻', '🏆',
@@ -570,6 +677,7 @@ async function main() {
   }
 
   document.getElementById('exportBtn').addEventListener('click', () => {
+    if (mode === 'logo') { exportLogo(); return; }
     const baseMesh = buildBase(caps, settings);
     const exportPositions = computeExportLayout();
     const fileBase = exportFileBaseName();
@@ -646,6 +754,39 @@ async function main() {
     }
   });
 
+  // ---------- Logo clicker controls ----------
+  for (const b of document.querySelectorAll('#modeToggle button')) b.addEventListener('click', () => setMode(b.dataset.mode));
+  const logoFile = document.getElementById('logoFile');
+  const logoStatus = document.getElementById('logoStatus');
+  document.getElementById('logoImportBtn').addEventListener('click', () => logoFile.click());
+  let logoCounter = 0;
+  logoFile.addEventListener('change', async () => {
+    const file = logoFile.files && logoFile.files[0];
+    logoFile.value = ''; // so choosing the same file again still triggers
+    if (!file) return;
+    logoStatus.textContent = 'Reading the image…';
+    logoStatus.className = 'hint';
+    try {
+      const { canvas, hadTransparency } = await loadLogoFile(file);
+      logo = { canvas, name: file.name, hadTransparency, id: ++logoCounter };
+      logoStatus.textContent = `${file.name}: ${hadTransparency ? 'transparent background kept' : 'background removed'}.`;
+      logoStatus.className = 'hint ok';
+      rebuildLogo();
+      viewport.frameToModel(true);
+    } catch (err) {
+      logoStatus.textContent = err.message || String(err);
+      logoStatus.className = 'hint error';
+    }
+  });
+  bindSlider('logoSize', 'logoSizeMM', 'mm');
+  document.getElementById('logoShape').addEventListener('change', (e) => { settings.logoShape = e.target.value; rebuild(); });
+  const logoLegendColorRow = document.getElementById('logoLegendColorRow');
+  const syncLogoOneColor = () => { logoLegendColorRow.style.display = settings.logoOneColor ? '' : 'none'; };
+  syncLogoOneColor();
+  document.getElementById('logoOneColor').addEventListener('change', (e) => { settings.logoOneColor = e.target.checked; syncLogoOneColor(); rebuild(); });
+  document.getElementById('logoCapColor').addEventListener('input', (e) => { settings.logoCapColorHex = e.target.value; rebuild(); });
+  document.getElementById('logoLegendColor').addEventListener('input', (e) => { settings.logoLegendColorHex = e.target.value; rebuild(); });
+
   // ---------- Initial render ----------
   renderCapList();
   rebuild();
@@ -670,6 +811,7 @@ initBugReport(() => {
     caps: caps.map((cap) => ({ text: cap.text, ...changedFrom(cap, DEFAULT_CAP) })),
     renderer: liveState.viewport && liveState.viewport.renderer,
     exportFormat: liveState.getExportFormat && liveState.getExportFormat(),
+    mode,
     view: { exploded: explodedView, switches: explodedView && showSwitches, crossSection: checked('sectionToggle'), xray: checked('xrayToggle') },
   };
 });
