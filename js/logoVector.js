@@ -439,7 +439,7 @@ function simplifyClosed(p, tol) {
 // earlier bridges), giving one outline; that's then ear-clipped, using a
 // spatial grid so each ear test only looks at nearby points. Returns
 // triangles as point triples (counter-clockwise), or null on failure.
-function triangulate(outer, holes) {
+export function triangulate(outer, holes) {
   let poly = outer.slice();
   const hs = holes.map((h) => { let m = 0; for (let k = 1; k < h.length; k++) if (h[k][0] > h[m][0]) m = k; return { h, m }; })
     .sort((a, b) => b.h[b.m][0] - a.h[a.m][0]);

@@ -1943,3 +1943,44 @@ first thing to check.
   and the stem post, each a closed solid ending flat at the logo layer's
   underside. The Legend panel is hidden in logo mode, since Legend depth no
   longer applies there.
+
+- **More animal emoji.** 39 animals added to the quick-insert palette
+  (QUICK_INSERT_EMOJI in js/app.js), each checked against its 3-colour
+  print version. Tried and left out because they print poorly or look like
+  another one: otter, rabbit, cat, squid, caterpillar, boar, kangaroo,
+  fish, chipmunk.
+
+- **Joined base: one solid.** A joined base used to be one closed block per
+  key, each pushed 0.2mm into its neighbour to fuse them. Printed, that
+  showed rough patches on the outside and darker bands when held up to the
+  light at every wall between two keys, mostly over the recess height,
+  where the outer wall is thinnest: slicers can wall off each block where
+  it meets the next, and the outer wall turns inward at that seam every
+  layer. `buildJoinedBlock` (js/baseBuilder.js) now builds the row as one
+  solid: one outer wall and bevels (rounded rectangles with the same
+  corner points, long sides split every ~2mm), one top face with every
+  pocket cut out (the hole-bridging triangulator from js/logoVector.js),
+  one bottom face, and each key's pocket, plate and switch shaft inside.
+  The top bevel is capped at the wall beside the pockets minus 0.3mm (1.2mm
+  wall at default sizes, 0.6mm beside a heart); before, a bevel wider than
+  that let the pocket cut into it and broke the top face. The old per-key
+  blocks (`buildBlock`) are still used for single-key bases and as a
+  fallback if the top face can't be triangulated. Tested: 432 bases (1 to
+  12 keys, all cap shapes and mixes, both layouts, bevels 0/0.8/2mm, with
+  and without the keyring) are all clean closed solids, with material
+  between every pair of keys at every height and no fallbacks.
+
+- **3MF colours are filament assignments, not paint.** Each distinct colour
+  gets a filament number (1 to 4, in order of first appearance, the base
+  first) and each part is assigned it in the slicer's own per-object
+  settings: Metadata/model_settings.config (Bambu Studio and OrcaSlicer read
+  it from any 3MF) and Metadata/Slic3r_PE_model.config (PrusaSlicer). The
+  parts used to carry their colour in a 3MF colour group on every triangle;
+  Bambu Studio's import turns that into paint on a single-part object (its
+  ObjColorDialog only assigns a filament when an object has several parts),
+  and paint overrides the part's filament, so colours couldn't be changed
+  in the slicer. Checked against Bambu Studio's source (bbs_3mf.cpp,
+  Plater.cpp, ObjColorDialog.cpp), not yet in the slicer itself. The camo
+  base, whose marks are per-triangle colours, still carries a colour group.
+  The parts show in whatever colours the slicer's filaments 1 to 4 have;
+  Bambu Studio adds filaments if the project has fewer than the file uses.

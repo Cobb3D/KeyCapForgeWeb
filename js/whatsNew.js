@@ -9,14 +9,10 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  'New Logo clicker mode: import your own logo image (switch modes at the top of the sidebar)',
-  'Logos are now traced with smooth edges and fine detail instead of a blocky grid, with truer colors and much smaller files',
-  'Logos made of separate pieces (like an icon with text under it) now keep every piece on the cap',
-  'The cap is shaped like your logo, and the base follows the same outline',
-  'New Cap shape choice: keep the logo outline, or pick a circle, rounded square, rounded rectangle, square, hexagon, octagon, heart or star (the base follows the shape)',
-  'Logos are now printed the full Top thickness (1.5mm by default) instead of one thin layer; use the Top thickness slider to change it',
-  'Logos print in up to 3 of their own colors, or 1 color with a cap-color background',
-  'PNGs with transparent backgrounds work best; plain backgrounds are removed automatically',
+  '3MF files now open in Bambu Studio, OrcaSlicer and PrusaSlicer with each part assigned to a filament (1 to 4, one per color) instead of painted, so you can change any part\'s filament or color right in the slicer',
+  'Joined bases are now one solid piece instead of one block per key fused together. This fixes rough patches on the outside of printed bases where the walls between keys meet the outer wall',
+  'Top bevel on a joined base now stops short of the key pockets, so a big bevel or heart-shaped keys no longer cut into it',
+  '39 more animal emoji in the quick-insert palette',
 ]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';

@@ -150,18 +150,32 @@ function crc32(bytes) {
 // One printable part: a mesh, the color it should be assigned, and where it
 // sits on the plate (already-baked absolute position, not a relative
 // offset — see computeExportLayout in app.js for where these come from).
+//
+// How colour gets into the slicer. Each distinct colour gets a filament
+// number (1, 2, 3, 4 in the order the colours first appear: the base first),
+// and each part is assigned its colour's filament in the slicer's own
+// per-object settings:
+//   - Metadata/model_settings.config for Bambu Studio and OrcaSlicer, which
+//     read it from any 3MF, not just their own (bbs_3mf.cpp,
+//     _extract_xml_from_archive on BBS_MODEL_CONFIG_FILE);
+//   - Metadata/Slic3r_PE_model.config, the same thing for PrusaSlicer.
+// The part then comes in on that filament, and changing its filament (or
+// that filament's colour) in the slicer works as for any other part.
+//
+// This replaced writing each part's colour into the mesh itself (a 3MF
+// <m:colorgroup>, with a colour on every triangle). Bambu Studio turns a
+// colour group on a single-part object into paint on every triangle (its
+// ObjColorDialog only assigns a filament instead when an object has more
+// than one part), and paint overrides the part's filament, so a part's
+// colour couldn't be changed in the slicer without repainting it.
+//
+// The one exception is a part with its own per-triangle colours (the camo
+// base's marks): those really are paint, so that part alone still carries a
+// colour group.
 export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
   const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
-  // A <m:colorgroup> from the Materials and Properties Extension, not a
-  // plain core-spec <basematerials> — that's the actual bug this fixes.
-  // <basematerials> is meant more for real material types (PLA/ABS/etc.)
-  // and, while it technically supports a displaycolor attribute, many
-  // real-world 3MF consumers (Bambu Studio, OrcaSlicer, PrusaSlicer's
-  // AMS/MMU color assignment) specifically look for a proper color group
-  // to treat something as a per-part color hint, not just informational
-  // metadata — which is exactly why the exported color was being ignored
-  // and everything came in as one flat color.
+  const painted = objects.some((o) => o.triangleColors && o.mesh && !o.mesh.isEmpty);
   let colorGroupXML = '';
   distinctColors.forEach((hex) => {
     colorGroupXML += `<m:color color="${hex.toUpperCase()}FF"/>\n`;
@@ -169,48 +183,36 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
 
   let resourcesXML = '';
   let buildXML = '';
+  let bambuXML = '';
+  let prusaXML = '';
   let objectId = 1;
   for (const obj of objects) {
     if (!obj.mesh || obj.mesh.isEmpty) continue;
     const pIndex = colorIndex.get(obj.colorHex) ?? 0;
+    const filament = pIndex + 1;
+    const name = escapeXML(obj.name);
     let verticesXML = '';
     for (let i = 0; i < obj.mesh.vertices.length; i += 3) {
       verticesXML += `<vertex x="${fmt(obj.mesh.vertices[i])}" y="${fmt(obj.mesh.vertices[i + 1])}" z="${fmt(obj.mesh.vertices[i + 2])}"/>\n`;
     }
     let trianglesXML = '';
-    // Per-triangle colours when the object has them (the same thing a
-    // slicer's paint tool writes), otherwise the object's one colour.
+    const triCount = obj.mesh.indices.length / 3;
     for (let i = 0, t = 0; i < obj.mesh.indices.length; i += 3, t++) {
-      const p1 = obj.triangleColors ? (colorIndex.get(obj.triangleColors[t]) ?? pIndex) : pIndex;
-      trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}" pid="1" p1="${p1}"/>\n`;
+      const paint = obj.triangleColors ? ` pid="1" p1="${colorIndex.get(obj.triangleColors[t]) ?? pIndex}"` : '';
+      trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}"${paint}/>\n`;
     }
-    // pid/pindex declared on the object itself too, not just per-triangle —
-    // every part here is entirely one uniform color, so this is actually
-    // the more natural, spec-correct way to say so, and it's a cheap,
-    // harmless belt-and-suspenders for readers that check the object-level
-    // default rather than (or in addition to) the per-triangle values.
-    resourcesXML += `<object id="${objectId}" type="model" name="${escapeXML(obj.name)}" pid="1" pindex="${pIndex}"><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
+    const objectPaint = obj.triangleColors ? ` pid="1" pindex="${pIndex}"` : '';
+    resourcesXML += `<object id="${objectId}" type="model" name="${name}"${objectPaint}><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
+    bambuXML += `  <object id="${objectId}">\n    <metadata key="name" value="${name}"/>\n    <metadata key="extruder" value="${filament}"/>\n    <part id="${objectId}" subtype="normal_part">\n      <metadata key="name" value="${name}"/>\n    </part>\n  </object>\n`;
+    prusaXML += ` <object id="${objectId}" instances_count="1">\n  <metadata type="object" key="name" value="${name}"/>\n  <metadata type="object" key="extruder" value="${filament}"/>\n  <volume firstid="0" lastid="${triCount - 1}">\n   <metadata type="volume" key="name" value="${name}"/>\n  </volume>\n </object>\n`;
     const t = obj.translation || [0, 0, 0];
     // Each part is its own independent top-level <build> item — NOT
-    // wrapped in a parent <components> assembly. A previous version of
-    // this function did exactly that, to answer Bambu Studio's "should
-    // this be treated as a single object with multiple parts?" prompt
-    // definitively — but that caused a real, worse regression: sliced
-    // output lost detail entirely (the base's recess/plate-hole cavities
-    // came out as a solid block, cap legends and the internal switch
-    // mount vanished). This project never does true CSG/boolean union
-    // anywhere — every cavity is carved directly into a single part's own
-    // mesh via matched-point-count ringFace/loftShell, not by subtracting
-    // a separate object — so these parts genuinely need to stay
-    // independent solids through slicing, not get merged into one. A
-    // <components> assembly is exactly what invites (and for Bambu
-    // Studio's slicer, apparently triggers) that kind of merge attempt,
-    // which a thin, coincident-surface part like the flush legend can't
-    // survive intact — it doesn't share real volumetric overlap with the
-    // cap body, only a touching surface, so a merge treats it as
-    // disconnected/floating and drops it. Reverted for correctness: one
-    // extra confirmation click on import is a far smaller cost than
-    // print-breaking geometry loss.
+    // wrapped in a parent <components> assembly. A previous version did
+    // that, and Bambu Studio's slicer merged the parts and lost detail (the
+    // base's recess/plate-hole cavities came out solid, cap legends and the
+    // switch mount vanished): every cavity here is carved into one part's
+    // own mesh, and a legend only touches its cap body, so the parts need
+    // to stay independent solids.
     buildXML += `<item objectid="${objectId}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2])}"/>\n`;
     objectId++;
   }
@@ -219,17 +221,25 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02">
 <metadata name="Application">${escapeXML(appName)}</metadata>
 <resources>
-<m:colorgroup id="1">
-${colorGroupXML}</m:colorgroup>
-${resourcesXML}</resources>
+${painted ? `<m:colorgroup id="1">\n${colorGroupXML}</m:colorgroup>\n` : ''}${resourcesXML}</resources>
 <build>
 ${buildXML}</build>
 </model>`;
+
+  const bambuConfig = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+${bambuXML}</config>
+`;
+  const prusaConfig = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+${prusaXML}</config>
+`;
 
   const contentTypes = `<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
+<Default Extension="config" ContentType="text/xml"/>
 </Types>`;
 
   const rels = `<?xml version="1.0" encoding="UTF-8"?>
@@ -241,6 +251,8 @@ ${buildXML}</build>
   zip.addFile('[Content_Types].xml', new TextEncoder().encode(contentTypes));
   zip.addFile('_rels/.rels', new TextEncoder().encode(rels));
   zip.addFile('3D/3dmodel.model', new TextEncoder().encode(modelXML));
+  zip.addFile('Metadata/model_settings.config', new TextEncoder().encode(bambuConfig));
+  zip.addFile('Metadata/Slic3r_PE_model.config', new TextEncoder().encode(prusaConfig));
   return zip.finalize();
 }
 

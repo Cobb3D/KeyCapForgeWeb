@@ -1,5 +1,6 @@
 import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon, insetCellSides } from './mesh.js';
 import { roundedRect, roundedRectPerCorner, regularPolygon, profileFor } from './shapeProfiles.js';
+import { triangulate } from './logoVector.js';
 
 // Every profile that gets connected to another one (via ringFace/loftShell)
 // in this file is resampled to this many points first, so a hexagon's 6
@@ -75,7 +76,7 @@ const SWITCH_POCKET_CLEARANCE_MM = 0.3;
 // by sampling that at every corner of both outlines plus each point where
 // they cross: between two neighbouring samples one outline is outermost
 // the whole way, along one of its own straight edges.
-function recessOutlineFor(shape, settings) {
+export function recessOutlineFor(shape, settings) {
   const capOutline = resamplePolygon(profileFor(shape, settings.capWidthMM + RECESS_CLEARANCE_MM, settings.cornerRadiusMM), RESAMPLE_N);
   const pocketSize = SWITCH_HOUSING_MM + 2 * SWITCH_POCKET_CLEARANCE_MM;
   const pocket = resamplePolygon(roundedRect(pocketSize, pocketSize, 0.5), RESAMPLE_N);
@@ -193,7 +194,7 @@ export function buildBase(caps, settings) {
     const outer = resamplePolygon(settings.verticalLayout
       ? roundedRect(footprint, spanLong, Math.min(footprint * 0.08, 0.6)).translated(midX, midY)
       : roundedRect(spanLong, footprint, Math.min(footprint * 0.08, 0.6)).translated(midX, midY), RESAMPLE_N);
-    mesh.append(buildBlock(outer, cells, thickness, settings));
+    mesh.append(buildJoinedBlock(outer, cells, thickness, settings) || buildBlock(outer, cells, thickness, settings));
   } else {
     for (const cell of cells) {
       const outer = resamplePolygon(roundedRect(footprint, footprint, Math.min(footprint * 0.08, 0.6)).translated(cell.cx, cell.cy), RESAMPLE_N);
@@ -242,6 +243,83 @@ export function buildBase(caps, settings) {
     mesh.append(keyringFeature(settings, reach + overlap).rotatedZ(rotation).translated(anchorX, anchorY, 0));
   }
 
+  return mesh;
+}
+
+// A joined base as ONE closed solid: a single outer wall around the whole
+// row, one top face with every key's recess cut out of it, one bottom
+// face, and each key's recess, plate and switch shaft inside that.
+//
+// It used to be one closed block per key, each pushed 0.2mm into its
+// neighbour so they'd fuse (buildBlock below, still used for a single key
+// and as a fallback). Slicers don't always merge overlapping blocks
+// cleanly: they can print walls around each block where it meets the next
+// one, and every layer's outer wall then turns inward at that seam. That
+// showed on a printed base as rough patches on the outside, and darker
+// bands when held up to the light, at each wall between two keys, mostly
+// over the recess height where the outer wall is thinnest. One solid
+// leaves nothing for the slicer to stitch together.
+//
+// Returns null if the top face can't be triangulated (never seen), so the
+// caller falls back to the per-key blocks.
+function buildJoinedBlock(outer, cells, thickness, settings) {
+  const bottomBevel = baseBottomBevelFor(settings);
+  const xs = outer.points.map((p) => p[0]), ys = outer.points.map((p) => p[1]);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const recessesRaw = cells.map(({ cx, cy, shape }) => recessOutlineFor(shape, settings).translated(cx, cy));
+  // The top bevel can't be wider than the wall beside the pockets (1.2mm
+  // at default sizes, 0.6mm beside a heart), or a pocket would cut into the
+  // bevel and the top face would be broken; it stops 0.3mm short of them.
+  let wallAtTop = Infinity;
+  for (const r of recessesRaw) for (const [x, y] of r.points) wallAtTop = Math.min(wallAtTop, x - xMin, xMax - x, y - yMin, yMax - y);
+  const topBevel = Math.min(baseTopBevelFor(settings), Math.max(0, wallAtTop - 0.3));
+  // The outer wall and its two bevel rims, as rounded rectangles with the
+  // same corner points, so each rim lines up point for point with the wall.
+  // (The rims are inset on every side, corners included; the corner radius
+  // shrinks with the inset, down to a small minimum.)
+  const W = xMax - xMin, H = yMax - yMin, mx = (xMin + xMax) / 2, my = (yMin + yMax) / 2;
+  const R = Math.min(settings.baseFootprintMM * 0.08, 0.6);
+  const rectAt = (inset) => roundedRect(W - 2 * inset, H - 2 * inset, Math.max(R - inset, 0.05)).translated(mx, my);
+  const ccw = (poly) => (poly.signedArea < 0 ? new Polygon2D([...poly.points].reverse()) : poly);
+  // Long straight sides get points every 2mm or so (the same number on the
+  // wall and both rims), so the top face's triangulation always has a point
+  // near each pocket to connect it to.
+  const base0 = ccw(rectAt(0));
+  const splits = base0.points.map((a, k) => { const b = base0.points[(k + 1) % base0.points.length]; return Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2)); });
+  const densify = (poly) => new Polygon2D(poly.points.flatMap((a, k) => {
+    const b = poly.points[(k + 1) % poly.points.length], n = splits[k];
+    return Array.from({ length: n }, (_, j) => [a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]);
+  }));
+  const out = densify(base0);
+  const topRim = densify(ccw(rectAt(topBevel))), bottomRim = densify(ccw(rectAt(bottomBevel)));
+  const { recessFloorZ, plateZ, floorZ } = baseStackFor(settings);
+  const recesses = recessesRaw.map(ccw);
+
+  const tris = triangulate(topRim.points, recesses.map((r) => [...r.points].reverse()));
+  if (!tris) return null;
+
+  const mesh = new Mesh();
+  if (bottomBevel > 0.01) mesh.append(loftShell(bottomRim, out, 0, bottomBevel));
+  mesh.append(loftShell(out, out, bottomBevel, thickness - topBevel));
+  if (topBevel > 0.01) mesh.append(loftShell(out, topRim, thickness - topBevel, thickness));
+  for (const [a, b, c] of tris) mesh.addTriangle([a[0], a[1], thickness], [b[0], b[1], thickness], [c[0], c[1], thickness]);
+  const { points: bp, triangles: bt } = earClip(bottomRim);
+  for (const [a, b, c] of bt) mesh.addTriangle([bp[a][0], bp[a][1], 0], [bp[c][0], bp[c][1], 0], [bp[b][0], bp[b][1], 0]);
+
+  cells.forEach(({ cx, cy }, i) => {
+    const recessOutline = recesses[i];
+    const plateHole = resamplePolygon(roundedRect(settings.plateHoleMM, settings.plateHoleMM, 0.4), RESAMPLE_N).translated(cx, cy);
+    const clearanceHole = resamplePolygon(roundedRect(settings.clearanceMM, settings.clearanceMM, 0.6), RESAMPLE_N).translated(cx, cy);
+    mesh.append(loftShell(recessOutline, recessOutline, recessFloorZ, thickness, true));
+    mesh.append(ringFaceBetween(recessOutline, plateHole, recessFloorZ, false, [cx, cy]));
+    mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
+    mesh.append(ringFace(clearanceHole, plateHole, plateZ, true));
+    mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, plateZ, true));
+    const { points, triangles } = earClip(clearanceHole);
+    for (const [a, b, c] of triangles) {
+      mesh.addTriangle([points[a][0], points[a][1], floorZ], [points[b][0], points[b][1], floorZ], [points[c][0], points[c][1], floorZ]);
+    }
+  });
   return mesh;
 }
 
