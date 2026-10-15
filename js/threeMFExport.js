@@ -185,11 +185,14 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
   let buildXML = '';
   let bambuXML = '';
   let prusaXML = '';
-  let objectId = 1;
+  const meta = (key, value, type) => `<metadata${type ? ` type="${type}"` : ''} key="${key}" value="${value}"/>`;
+  let nextId = 1;
+  // Pass 1: every part as its own mesh object.
+  const parts = [];
   for (const obj of objects) {
     if (!obj.mesh || obj.mesh.isEmpty) continue;
+    const id = nextId++;
     const pIndex = colorIndex.get(obj.colorHex) ?? 0;
-    const filament = pIndex + 1;
     const name = escapeXML(obj.name);
     let verticesXML = '';
     for (let i = 0; i < obj.mesh.vertices.length; i += 3) {
@@ -202,19 +205,50 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
       trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}"${paint}/>\n`;
     }
     const objectPaint = obj.triangleColors ? ` pid="1" pindex="${pIndex}"` : '';
-    resourcesXML += `<object id="${objectId}" type="model" name="${name}"${objectPaint}><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
-    bambuXML += `  <object id="${objectId}">\n    <metadata key="name" value="${name}"/>\n    <metadata key="extruder" value="${filament}"/>\n    <part id="${objectId}" subtype="normal_part">\n      <metadata key="name" value="${name}"/>\n    </part>\n  </object>\n`;
-    prusaXML += ` <object id="${objectId}" instances_count="1">\n  <metadata type="object" key="name" value="${name}"/>\n  <metadata type="object" key="extruder" value="${filament}"/>\n  <volume firstid="0" lastid="${triCount - 1}">\n   <metadata type="volume" key="name" value="${name}"/>\n  </volume>\n </object>\n`;
-    const t = obj.translation || [0, 0, 0];
-    // Each part is its own independent top-level <build> item — NOT
-    // wrapped in a parent <components> assembly. A previous version did
-    // that, and Bambu Studio's slicer merged the parts and lost detail (the
-    // base's recess/plate-hole cavities came out solid, cap legends and the
-    // switch mount vanished): every cavity here is carved into one part's
-    // own mesh, and a legend only touches its cap body, so the parts need
-    // to stay independent solids.
-    buildXML += `<item objectid="${objectId}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2])}"/>\n`;
-    objectId++;
+    resourcesXML += `<object id="${id}" type="model" name="${name}"${objectPaint}><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
+    // PrusaSlicer loads each mesh of an assembly as its own object, so it
+    // gets a filament per mesh object (the cap and its letter stay
+    // separate objects there).
+    prusaXML += ` <object id="${id}" instances_count="1">\n  ${meta('name', name, 'object')}\n  ${meta('extruder', pIndex + 1, 'object')}\n  <volume firstid="0" lastid="${triCount - 1}">\n   ${meta('name', name, 'volume')}\n  </volume>\n </object>\n`;
+    parts.push({ id, name, filament: pIndex + 1, group: obj.group, translation: obj.translation || [0, 0, 0] });
+  }
+
+  // Pass 2: what goes on the plate. Parts that share a `group` (a cap's
+  // body and its letter or logo pieces) become one assembly object whose
+  // components are those parts, so Bambu Studio and OrcaSlicer load them as
+  // ONE object with several parts: it moves as one, and each part keeps its
+  // own filament (the <part> entries below). Everything else (the base) is
+  // placed directly.
+  //
+  // An earlier version wrapped the WHOLE export (every cap and the base) in
+  // a single assembly, and Bambu Studio's sliced output lost detail. That
+  // was before meshes were welded (Mesh.welded(), the root cause of that
+  // run of slicing problems), and the base is never grouped here.
+  const groups = new Map();
+  for (const part of parts) {
+    const key = part.group ?? `__single_${part.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(part);
+  }
+  for (const [key, members] of groups) {
+    const t = members[0].translation;
+    const place = (objectid) => `<item objectid="${objectid}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2])}"/>\n`;
+    if (members.length === 1) {
+      const p = members[0];
+      buildXML += place(p.id);
+      bambuXML += `  <object id="${p.id}">\n    ${meta('name', p.name)}\n    ${meta('extruder', p.filament)}\n    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n  </object>\n`;
+      continue;
+    }
+    const id = nextId++;
+    const name = escapeXML(String(key));
+    // Parts in a group share one position, so their meshes line up with
+    // identity component transforms and the group is placed as a whole.
+    const components = members.map((p) => `<component objectid="${p.id}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>`).join('\n');
+    resourcesXML += `<object id="${id}" type="model" name="${name}"><components>\n${components}\n</components></object>\n`;
+    buildXML += place(id);
+    bambuXML += `  <object id="${id}">\n    ${meta('name', name)}\n    ${meta('extruder', members[0].filament)}\n`;
+    for (const p of members) bambuXML += `    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n`;
+    bambuXML += `  </object>\n`;
   }
 
   const modelXML = `<?xml version="1.0" encoding="UTF-8"?>

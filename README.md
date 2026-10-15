@@ -1,6 +1,14 @@
 # KeyCapForge Beta Pre Release — Web
 
+**Version 10/15/2026a**
+
 *by Cobb3D*
+
+> This is the same version the live site shows in its "What's new" pop-up and
+> puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
+> update, change both together. Format: month/day/year, plus a letter for
+> each update that day (a, b, c...). The download is named the same way with
+> dashes, since file names can't contain slashes: KeyCapForge_10-15-2026a.zip.
 
 A browser-based version of the native macOS KeyCapForge app: design keycap
 fidget-toy keychains for real Cherry MX switches, right in a web page, no
@@ -1984,3 +1992,35 @@ first thing to check.
   base, whose marks are per-triangle colours, still carries a colour group.
   The parts show in whatever colours the slicer's filaments 1 to 4 have;
   Bambu Studio adds filaments if the project has fewer than the file uses.
+
+- **Each cap is one object in the slicer.** Parts that share a `group`
+  (a cap's body and its legend parts, or the logo clicker's body, rim and
+  logo pieces) are written as one 3MF assembly: an object whose
+  <components> are those parts' meshes, placed on the plate as a single
+  build item. Bambu Studio and OrcaSlicer load that as one object with
+  several parts (bbs_3mf.cpp: only build items become objects, and an
+  assembly's components become its parts), so the cap and its letter move
+  together. Each part keeps its own filament through a <part> entry with
+  "extruder" in model_settings.config. The base is never grouped. An
+  earlier version put the WHOLE export in one assembly and lost detail
+  when sliced, before meshes were welded. PrusaSlicer loads each component
+  as its own object, so there the cap and letter stay separate, each with
+  its filament from Slic3r_PE_model.config.
+
+- **Extra outer wall on fused bases.** `baseOuterWallExtraMM` (slider
+  "Extra outer wall", 0 to 3mm, default 1.5) grows a fused base outward
+  beyond its footprint without changing the key spacing
+  (`baseOuterExtraFor` in js/baseBuilder.js; used for the outline, the
+  keyring placement, and the export layout in app.js). Beside a pocket the
+  outer wall was 1.2mm, about three printed lines, and a test print still
+  showed faint lines on the outside at every divider even as one solid:
+  the slicer's fill right behind those lines changes where a divider meets
+  the wall. At 2.7mm there's room for three lines from the outside and
+  three around the pocket, so the outside lines run the full length with
+  nothing changing directly behind them. Single-key fused bases now also
+  go through `buildJoinedBlock` (and get the extra wall); separate unfused
+  bases have no dividers and are unchanged. Tested: 864 bases (1 to 12
+  keys, all shapes, both layouts, bevels 0/0.8/2, extra 0/1.5/3, with and
+  without the keyring): all clean closed solids with no fallbacks, walls
+  present along the outside, nothing outside the outline. With 0 extra the
+  base is identical to before.

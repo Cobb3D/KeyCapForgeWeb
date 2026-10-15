@@ -9,10 +9,9 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  '3MF files now open in Bambu Studio, OrcaSlicer and PrusaSlicer with each part assigned to a filament (1 to 4, one per color) instead of painted, so you can change any part\'s filament or color right in the slicer',
-  'Joined bases are now one solid piece instead of one block per key fused together. This fixes rough patches on the outside of printed bases where the walls between keys meet the outer wall',
-  'Top bevel on a joined base now stops short of the key pockets, so a big bevel or heart-shaped keys no longer cut into it',
-  '39 more animal emoji in the quick-insert palette',
+  'Fused bases now have a thicker outer wall (new Extra outer wall setting, 1.5mm by default), which hides the faint lines that could show on the outside where the walls between keys meet it. The keys stay the same distance apart; the base is 3mm wider',
+  'In Bambu Studio and OrcaSlicer, each keycap opens as one object with its letter as a part, so they move together',
+  '3MF files assign each part a filament instead of painting it, so you can change colors in the slicer',
 ]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';

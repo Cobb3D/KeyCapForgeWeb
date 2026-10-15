@@ -1,6 +1,6 @@
 import { ensureThreeLoaded, Viewport, meshToObject3D } from './scene.js';
 import { buildKeycap } from './keycapBuilder.js';
-import { buildBase, capCenters, maxSafeRecessDepth } from './baseBuilder.js';
+import { buildBase, capCenters, maxSafeRecessDepth, baseOuterExtraFor } from './baseBuilder.js';
 import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
@@ -48,6 +48,8 @@ const settings = {
   baseFootprintMM: 21, baseThicknessMM: 17.4, floorThicknessMM: 2.0, plateHoleMM: 14, plateThicknessMM: 1.5,
   clearanceMM: 15.8, clearanceHeightMM: 5.5, joinGapMM: 1.0, joinedBase: true, recessDepthMM: 8.0,
   baseTopBevelMM: 0.8, baseBottomBevelMM: 0.8,
+  // Extra thickness on the outside of a fused base (see baseOuterExtraFor).
+  baseOuterWallExtraMM: 1.5,
   keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
   baseColorHex: '#c92a2a', verticalLayout: true,
   // A pattern on the base (camo.js): camo blobs or cow patches, in
@@ -200,11 +202,11 @@ async function main() {
     const objects = [{ mesh: r.base, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }];
     const body = r.capBody.flippedForPrint(H);
     combined.append(body, capX, 0, 0);
-    objects.push({ mesh: body, colorHex: settings.logoCapColorHex, name: 'logo_cap_body', translation: [capX, 0, 0] });
+    objects.push({ mesh: body, colorHex: settings.logoCapColorHex, name: 'logo_cap_body', group: 'logo_cap', translation: [capX, 0, 0] });
     r.capParts.forEach((part, j) => {
       const m = part.mesh.flippedForPrint(H);
       combined.append(m, capX, 0, 0);
-      objects.push({ mesh: m, colorHex: part.colorHex, name: part.isRim ? 'logo_cap_rim' : `logo_cap_logo_${j}`, translation: [capX, 0, 0] });
+      objects.push({ mesh: m, colorHex: part.colorHex, name: part.isRim ? 'logo_cap_rim' : `logo_cap_logo_${j}`, group: 'logo_cap', translation: [capX, 0, 0] });
     });
     if (exportFormat === 'stl' || exportFormat === 'both') {
       downloadBlob(meshToSTL(combined.welded(), `${APP_NAME} by Cobb3D`), `${fileBase}.stl`);
@@ -553,6 +555,7 @@ async function main() {
   bindSlider('legendSize', 'legendSizeFraction', '×', 2);
   document.getElementById('emojiOneColor').addEventListener('change', (e) => { settings.emojiOneColor = e.target.checked; rebuild(); });
   bindSlider('baseFootprint', 'baseFootprintMM', 'mm');
+  bindSlider('baseOuterWall', 'baseOuterWallExtraMM', 'mm');
   bindSlider('baseThickness', 'baseThicknessMM', 'mm');
   bindSlider('plateHole', 'plateHoleMM', 'mm', 2);
   bindSlider('clearanceHeight', 'clearanceHeightMM', 'mm');
@@ -660,9 +663,10 @@ async function main() {
     const margin = footprint * 0.6;
     const gap = 2;
     const xs = centers.map((c) => c.x).concat(0), ys = centers.map((c) => c.y).concat(0);
-    const baseMaxX = Math.max(...xs) + footprint / 2;
-    const baseMinX = Math.min(...xs) - footprint / 2;
-    const baseMaxY = Math.max(...ys) + footprint / 2;
+    const half = footprint / 2 + baseOuterExtraFor(settings);
+    const baseMaxX = Math.max(...xs) + half;
+    const baseMinX = Math.min(...xs) - half;
+    const baseMaxY = Math.max(...ys) + half;
 
     const positions = [];
     if (settings.verticalLayout) {
@@ -715,14 +719,14 @@ async function main() {
       const flippedBody = orient(body);
       combined.append(flippedBody, x, y, 0);
       const label = cap.text || String(i);
-      threeMFObjects.push({ mesh: flippedBody, colorHex: cap.bodyColorHex, name: `cap_${i}_${label}_body`, translation: [x, y, 0] });
+      threeMFObjects.push({ mesh: flippedBody, colorHex: cap.bodyColorHex, name: `cap_${i}_${label}_body`, group: `cap_${i}_${label}`, translation: [x, y, 0] });
       // One object per legend part for 3MF (up to 3 distinct colors for a
       // colorfulEmoji cap); STL has no color anyway, so every part just
       // merges into the one combined mesh regardless of how many there are.
       legendParts.forEach((part, j) => {
         const flippedPart = orient(part.mesh);
         combined.append(flippedPart, x, y, 0);
-        threeMFObjects.push({ mesh: flippedPart, colorHex: part.colorHex, name: `cap_${i}_${label}_legend_${j}`, translation: [x, y, 0] });
+        threeMFObjects.push({ mesh: flippedPart, colorHex: part.colorHex, name: `cap_${i}_${label}_legend_${j}`, group: `cap_${i}_${label}`, translation: [x, y, 0] });
       });
     });
 

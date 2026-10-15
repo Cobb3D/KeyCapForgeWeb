@@ -142,6 +142,20 @@ function baseBottomBevelFor(settings) {
   return Math.min(settings.baseBottomBevelMM, settings.baseThicknessMM * 0.15);
 }
 
+// Extra wall added around the OUTSIDE of a fused base, beyond the
+// footprint: the keys stay the same distance apart, the base grows outward.
+// Beside a pocket the outer wall is otherwise only (footprint − pocket)/2,
+// 1.2mm at default sizes, about three printed lines, and where a divider
+// between two pockets meets it the slicer's fill behind those lines changes
+// (from wall lines to a solid block), which shows as a faint line on the
+// outside at every divider. With 1.5mm extra (2.7mm in all, room for three
+// lines from the outside and three around the pocket) the outside lines run
+// the whole length with nothing changing right behind them. Separate
+// (unfused) bases have no dividers and don't get it.
+export function baseOuterExtraFor(settings) {
+  return settings.joinedBase ? Math.max(0, settings.baseOuterWallExtraMM ?? 0) : 0;
+}
+
 export function pitchFor(settings) {
   return settings.joinedBase ? settings.baseFootprintMM : settings.baseFootprintMM + settings.joinGapMM;
 }
@@ -170,9 +184,11 @@ export function buildBase(caps, settings) {
 
   const cells = centers.map((c, i) => ({ cx: c.x, cy: c.y, shape: caps[i]?.shape || 'square' }));
 
-  if (settings.joinedBase && count > 1) {
+  const extra = baseOuterExtraFor(settings);
+  if (settings.joinedBase && count >= 1) {
     const pitch = pitchFor(settings);
-    const spanLong = pitch * (count - 1) + footprint;
+    const spanLong = pitch * (count - 1) + footprint + 2 * extra;
+    const spanShort = footprint + 2 * extra;
     const midX = (centers[0].x + centers[count - 1].x) / 2;
     const midY = (centers[0].y + centers[count - 1].y) / 2;
     // Resampled to RESAMPLE_N, same as localOuter inside buildBlock — this
@@ -192,8 +208,8 @@ export function buildBase(caps, settings) {
     // the kind of defect a slicer's auto-repair could "fix" by filling in
     // or simplifying the whole top surface, matching the reported symptom.
     const outer = resamplePolygon(settings.verticalLayout
-      ? roundedRect(footprint, spanLong, Math.min(footprint * 0.08, 0.6)).translated(midX, midY)
-      : roundedRect(spanLong, footprint, Math.min(footprint * 0.08, 0.6)).translated(midX, midY), RESAMPLE_N);
+      ? roundedRect(spanShort, spanLong, Math.min(footprint * 0.08, 0.6)).translated(midX, midY)
+      : roundedRect(spanLong, spanShort, Math.min(footprint * 0.08, 0.6)).translated(midX, midY), RESAMPLE_N);
     mesh.append(buildJoinedBlock(outer, cells, thickness, settings) || buildBlock(outer, cells, thickness, settings));
   } else {
     for (const cell of cells) {
@@ -204,8 +220,9 @@ export function buildBase(caps, settings) {
 
   if (settings.keyringStyle !== 'none' && centers.length > 0) {
     const xs = centers.map((c) => c.x), ys = centers.map((c) => c.y);
-    const minX = Math.min(...xs) - footprint / 2, maxX = Math.max(...xs) + footprint / 2;
-    const minY = Math.min(...ys) - footprint / 2, maxY = Math.max(...ys) + footprint / 2;
+    const half = footprint / 2 + extra;
+    const minX = Math.min(...xs) - half, maxX = Math.max(...xs) + half;
+    const minY = Math.min(...ys) - half, maxY = Math.max(...ys) + half;
     const midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
     const outerR = settings.keyringOuterMM / 2;
     // How far the lug's neck can reach into the base wall without breaking
@@ -224,7 +241,7 @@ export function buildBase(caps, settings) {
     const limitingHoleSize = lugReachesRecess
       ? Math.max(settings.clearanceMM, settings.capWidthMM + RECESS_CLEARANCE_MM)
       : settings.clearanceMM;
-    const wallThickness = (footprint - limitingHoleSize) / 2;
+    const wallThickness = (footprint - limitingHoleSize) / 2 + extra;
     const safetyMargin = 0.3;
     const overlap = Math.min(3.0, Math.max(0.5, wallThickness - safetyMargin));
     // The ring sits one full outer radius beyond the base edge (just
