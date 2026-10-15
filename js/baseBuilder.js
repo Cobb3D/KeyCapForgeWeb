@@ -1,6 +1,7 @@
 import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon, insetCellSides } from './mesh.js';
 import { roundedRect, roundedRectPerCorner, regularPolygon, profileFor } from './shapeProfiles.js';
 import { triangulate } from './logoVector.js';
+import { baseOutlineFor } from './baseShapes.js';
 
 // Every profile that gets connected to another one (via ringFace/loftShell)
 // in this file is resampled to this many points first, so a hexagon's 6
@@ -175,6 +176,69 @@ export function capCenters(count, settings) {
 
 // `caps` is the array of cap designs (needs each one's `.shape`) — the
 // recess each cap nests into is shaped to match, not just a plain square.
+// The chosen Base shape's outline for a fused row of keys, or null for the
+// rectangle (built by buildJoinedBlock itself), for unfused bases, or if a
+// shape can't fit (see baseOutlineFor). Cached: it's checked against every
+// pocket, and the preview rebuilds on every slider move.
+let shapedCache = { key: null, value: null };
+function shapedOutlineFor(cells, settings) {
+  const shape = settings.baseShape || 'rect';
+  if (!settings.joinedBase || shape === 'rect' || cells.length === 0) return null;
+  const keyring = settings.keyringStyle !== 'none' ? { holeR: settings.keyringHoleMM / 2, outerR: settings.keyringOuterMM / 2 } : null;
+  const key = JSON.stringify([shape, cells, settings.baseFootprintMM, settings.baseOuterWallExtraMM, settings.capWidthMM, settings.cornerRadiusMM,
+    settings.verticalLayout, settings.keyringSide, keyring, settings.joinGapMM]);
+  if (shapedCache.key === key) return shapedCache.value;
+  const vertical = !!settings.verticalLayout;
+  const xs = cells.map((c) => c.cx), ys = cells.map((c) => c.cy);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const pos = cells.map((c) => (vertical ? c.cy - cy : c.cx - cx));
+  const extra = baseOuterExtraFor(settings);
+  const span = Math.max(...pos) - Math.min(...pos);
+  const L0 = span / 2 + settings.baseFootprintMM / 2 + extra, A0 = settings.baseFootprintMM / 2 + extra;
+  const recesses = cells.map(({ cx: x, cy: y, shape: s }) => recessOutlineFor(s, settings).translated(x, y));
+  // The tag's nose goes on the keyring's end of the row (the top end of a
+  // vertical row, the right end of a horizontal one, unless the keyring is
+  // set to the other end).
+  const tagEnd = vertical ? (settings.keyringSide === 'bottom' ? -1 : 1) : (settings.keyringSide === 'left' ? -1 : 1);
+  const value = baseOutlineFor(shape, { cx, cy, vertical, pos }, L0, A0, recesses, tagEnd, keyring);
+  shapedCache = { key, value };
+  return value;
+}
+
+// The base's outline extent {minX, maxX, minY, maxY} (without the keyring
+// loop), for laying out the export.
+export function baseExtentsFor(count, settings) {
+  const centers = capCenters(count, settings);
+  const cells = centers.map((c) => ({ cx: c.x, cy: c.y, shape: 'square' }));
+  const shaped = shapedOutlineFor(cells, settings);
+  if (shaped) {
+    const P = shaped.at(0).points;
+    return { minX: Math.min(...P.map((p) => p[0])), maxX: Math.max(...P.map((p) => p[0])), minY: Math.min(...P.map((p) => p[1])), maxY: Math.max(...P.map((p) => p[1])) };
+  }
+  const half = settings.baseFootprintMM / 2 + baseOuterExtraFor(settings);
+  const xs = centers.map((c) => c.x).concat(0), ys = centers.map((c) => c.y).concat(0);
+  return { minX: Math.min(...xs) - half, maxX: Math.max(...xs) + half, minY: Math.min(...ys) - half, maxY: Math.max(...ys) + half };
+}
+
+// Where a keyring loop meets a shaped outline: walking out from the row's
+// middle along `dir`, the outline's last crossing, and how much wall there
+// is between it and the last of the `limits` outlines crossed.
+function rayExit(polys, mid, dir) {
+  let best = -Infinity;
+  for (const P of polys) {
+    for (let j = 0; j < P.length; j++) {
+      const a = P[j], b = P[(j + 1) % P.length];
+      const ex = b[0] - a[0], ey = b[1] - a[1];
+      const den = dir[0] * ey - dir[1] * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const wx = a[0] - mid[0], wy = a[1] - mid[1];
+      const t = (wx * ey - wy * ex) / den, s = (wx * dir[1] - wy * dir[0]) / den;
+      if (t >= 0 && s >= 0 && s <= 1) best = Math.max(best, t);
+    }
+  }
+  return best;
+}
+
 export function buildBase(caps, settings) {
   const count = caps.length;
   const centers = capCenters(count, settings);
@@ -185,6 +249,7 @@ export function buildBase(caps, settings) {
   const cells = centers.map((c, i) => ({ cx: c.x, cy: c.y, shape: caps[i]?.shape || 'square' }));
 
   const extra = baseOuterExtraFor(settings);
+  let shaped = null;
   if (settings.joinedBase && count >= 1) {
     const pitch = pitchFor(settings);
     const spanLong = pitch * (count - 1) + footprint + 2 * extra;
@@ -210,7 +275,12 @@ export function buildBase(caps, settings) {
     const outer = resamplePolygon(settings.verticalLayout
       ? roundedRect(spanShort, spanLong, Math.min(footprint * 0.08, 0.6)).translated(midX, midY)
       : roundedRect(spanLong, spanShort, Math.min(footprint * 0.08, 0.6)).translated(midX, midY), RESAMPLE_N);
-    mesh.append(buildJoinedBlock(outer, cells, thickness, settings) || buildBlock(outer, cells, thickness, settings));
+    // A shaped base that can't be built (never seen) falls back to the
+    // rectangle, and that to the per-key blocks.
+    shaped = shapedOutlineFor(cells, settings);
+    let block = shaped ? buildJoinedBlock(outer, cells, thickness, settings, shaped) : null;
+    if (!block) { shaped = null; block = buildJoinedBlock(outer, cells, thickness, settings) || buildBlock(outer, cells, thickness, settings); }
+    mesh.append(block);
   } else {
     for (const cell of cells) {
       const outer = resamplePolygon(roundedRect(footprint, footprint, Math.min(footprint * 0.08, 0.6)).translated(cell.cx, cell.cy), RESAMPLE_N);
@@ -218,7 +288,9 @@ export function buildBase(caps, settings) {
     }
   }
 
-  if (settings.keyringStyle !== 'none' && centers.length > 0) {
+  // The tag shape has the keyring hole built in, so no loop.
+  const builtInHole = shaped && settings.baseShape === 'tag';
+  if (settings.keyringStyle !== 'none' && centers.length > 0 && !builtInHole) {
     const xs = centers.map((c) => c.x), ys = centers.map((c) => c.y);
     const half = footprint / 2 + extra;
     const minX = Math.min(...xs) - half, maxX = Math.max(...xs) + half;
@@ -257,9 +329,70 @@ export function buildBase(caps, settings) {
       case 'top': anchorY = maxY + reach; rotation = 0; break;
       case 'bottom': anchorY = minY - reach; rotation = 180; break;
     }
-    mesh.append(keyringFeature(settings, reach + overlap).rotatedZ(rotation).translated(anchorX, anchorY, 0));
+    let neck = reach + overlap;
+    if (shaped) {
+      // A shaped outline isn't at the rectangle's edge everywhere (round
+      // ends reach further, the bubbles dip between keys), so the loop goes
+      // where the outline actually is along its centre line, and its overlap
+      // is measured against the pockets (or switch shafts) on that line.
+      const dir = { right: [1, 0], left: [-1, 0], top: [0, 1], bottom: [0, -1] }[settings.keyringSide] || [0, 1];
+      const mid = [midX, midY];
+      const tOut = rayExit([shaped.at(0).points], mid, dir);
+      const limits = lugReachesRecess
+        ? cells.map(({ cx, cy, shape }) => recessOutlineFor(shape, settings).translated(cx, cy).points)
+        : cells.map(({ cx, cy }) => roundedRect(settings.clearanceMM, settings.clearanceMM, 0.6).translated(cx, cy).points);
+      const tHole = Math.max(0, rayExit(limits, mid, dir));
+      const shapedOverlap = Math.min(3.0, Math.max(0.5, tOut - tHole - safetyMargin));
+      anchorX = mid[0] + dir[0] * (tOut + reach);
+      anchorY = mid[1] + dir[1] * (tOut + reach);
+      neck = reach + shapedOverlap;
+    }
+    mesh.append(keyringFeature(settings, neck).rotatedZ(rotation).translated(anchorX, anchorY, 0));
   }
 
+  return mesh;
+}
+
+// The switch shaft under the plate, from the floor up to the plate's
+// underside, and the plate's underside itself.
+//
+// A switch's clips spring out under the plate, so the plate has to
+// overhang the wider shaft below it. That overhang was a full ring (0.9mm
+// at default sizes), which slicers print slower and with more fan, and that
+// one layer showed on the outside of a printed base as a line around it
+// (reported at about 7mm up; the plate's underside is at 7.9mm at default
+// sizes). Now the overhang is only where clips can be: the middle 8mm of
+// each side (all four, so a switch can go in any way round). Toward each
+// corner the shaft's top instead slopes in to the plate hole over the last
+// 1.2mm (about 37° along the sides, 45° across the corners), which prints
+// without an overhang. Clips sit in the middle of a switch's side, well
+// inside the 8mm.
+const CLIP_HALF_MM = 4;
+const SHAFT_SLOPE_MM = 1.2;
+function switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ) {
+  const mesh = new Mesh();
+  const C = clearanceHole.points, P = plateHole.points, n = Math.min(C.length, P.length);
+  const clip = P.map(([x, y]) => {
+    const dx = Math.abs(x - cx), dy = Math.abs(y - cy);
+    return (dx < CLIP_HALF_MM && dy > CLIP_HALF_MM + 1) || (dy < CLIP_HALF_MM && dx > CLIP_HALF_MM + 1);
+  });
+  // The shaft's outline at the plate: the clearance where there's a clip,
+  // the plate hole elsewhere.
+  const M = new Polygon2D(C.map((c, i) => (clip[i] ? c : P[i])));
+  const slope = Math.min(SHAFT_SLOPE_MM, (plateZ - floorZ) / 2);
+  const zs = plateZ - slope;
+  mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, zs, true));
+  mesh.append(loftShell(clearanceHole, M, zs, plateZ, true));
+  // The plate's underside: the strip between M and the plate hole, facing
+  // down, only where they differ.
+  for (let i = 0; i < n; i++) {
+    const i2 = (i + 1) % n;
+    const o0 = [M.points[i][0], M.points[i][1], plateZ], o1 = [M.points[i2][0], M.points[i2][1], plateZ];
+    const p0 = [P[i][0], P[i][1], plateZ], p1 = [P[i2][0], P[i2][1], plateZ];
+    if (clip[i] && clip[i2]) mesh.addQuad(o1, o0, p0, p1);
+    else if (clip[i]) mesh.addTriangle(p1, o0, p0);
+    else if (clip[i2]) mesh.addTriangle(o1, p0, p1);
+  }
   return mesh;
 }
 
@@ -279,8 +412,8 @@ export function buildBase(caps, settings) {
 //
 // Returns null if the top face can't be triangulated (never seen), so the
 // caller falls back to the per-key blocks.
-function buildJoinedBlock(outer, cells, thickness, settings) {
-  const bottomBevel = baseBottomBevelFor(settings);
+function buildJoinedBlock(outer, cells, thickness, settings, shaped = null) {
+  let bottomBevel = baseBottomBevelFor(settings);
   const xs = outer.points.map((p) => p[0]), ys = outer.points.map((p) => p[1]);
   const xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
   const recessesRaw = cells.map(({ cx, cy, shape }) => recessOutlineFor(shape, settings).translated(cx, cy));
@@ -289,6 +422,12 @@ function buildJoinedBlock(outer, cells, thickness, settings) {
   // bevel and the top face would be broken; it stops 0.3mm short of them.
   let wallAtTop = Infinity;
   for (const r of recessesRaw) for (const [x, y] of r.points) wallAtTop = Math.min(wallAtTop, x - xMin, xMax - x, y - yMin, yMax - y);
+  // A shaped outline measures its own thinnest wall (pockets and any
+  // built-in keyring hole); the bottom bevel stops short of that hole too.
+  if (shaped) {
+    wallAtTop = Math.min(shaped.wall, shaped.maxBevel + 0.3);
+    if (shaped.holes.length) bottomBevel = Math.min(bottomBevel, Math.max(0, wallAtTop - 0.3));
+  }
   const topBevel = Math.min(baseTopBevelFor(settings), Math.max(0, wallAtTop - 0.3));
   // The outer wall and its two bevel rims, as rounded rectangles with the
   // same corner points, so each rim lines up point for point with the wall.
@@ -307,21 +446,33 @@ function buildJoinedBlock(outer, cells, thickness, settings) {
     const b = poly.points[(k + 1) % poly.points.length], n = splits[k];
     return Array.from({ length: n }, (_, j) => [a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]);
   }));
-  const out = densify(base0);
-  const topRim = densify(ccw(rectAt(topBevel))), bottomRim = densify(ccw(rectAt(bottomBevel)));
+  // A shaped outline brings its own wall and rims (same point layout at
+  // every inset; see baseShapes.js) and any through-hole (the tag's keyring
+  // hole).
+  const out = shaped ? shaped.at(0) : densify(base0);
+  const topRim = shaped ? shaped.at(topBevel) : densify(ccw(rectAt(topBevel)));
+  const bottomRim = shaped ? shaped.at(bottomBevel) : densify(ccw(rectAt(bottomBevel)));
+  const throughHoles = shaped ? shaped.holes : [];
   const { recessFloorZ, plateZ, floorZ } = baseStackFor(settings);
   const recesses = recessesRaw.map(ccw);
 
-  const tris = triangulate(topRim.points, recesses.map((r) => [...r.points].reverse()));
+  const tris = triangulate(topRim.points, recesses.concat(throughHoles).map((r) => [...r.points].reverse()));
   if (!tris) return null;
+  const bottomTris = throughHoles.length ? triangulate(bottomRim.points, throughHoles.map((h) => [...h.points].reverse())) : null;
+  if (throughHoles.length && !bottomTris) return null;
 
   const mesh = new Mesh();
   if (bottomBevel > 0.01) mesh.append(loftShell(bottomRim, out, 0, bottomBevel));
   mesh.append(loftShell(out, out, bottomBevel, thickness - topBevel));
   if (topBevel > 0.01) mesh.append(loftShell(out, topRim, thickness - topBevel, thickness));
   for (const [a, b, c] of tris) mesh.addTriangle([a[0], a[1], thickness], [b[0], b[1], thickness], [c[0], c[1], thickness]);
-  const { points: bp, triangles: bt } = earClip(bottomRim);
-  for (const [a, b, c] of bt) mesh.addTriangle([bp[a][0], bp[a][1], 0], [bp[c][0], bp[c][1], 0], [bp[b][0], bp[b][1], 0]);
+  if (bottomTris) {
+    for (const [a, b, c] of bottomTris) mesh.addTriangle([a[0], a[1], 0], [c[0], c[1], 0], [b[0], b[1], 0]);
+  } else {
+    const { points: bp, triangles: bt } = earClip(bottomRim);
+    for (const [a, b, c] of bt) mesh.addTriangle([bp[a][0], bp[a][1], 0], [bp[c][0], bp[c][1], 0], [bp[b][0], bp[b][1], 0]);
+  }
+  for (const h of throughHoles) mesh.append(loftShell(h, h, 0, thickness, true));
 
   cells.forEach(({ cx, cy }, i) => {
     const recessOutline = recesses[i];
@@ -330,8 +481,7 @@ function buildJoinedBlock(outer, cells, thickness, settings) {
     mesh.append(loftShell(recessOutline, recessOutline, recessFloorZ, thickness, true));
     mesh.append(ringFaceBetween(recessOutline, plateHole, recessFloorZ, false, [cx, cy]));
     mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
-    mesh.append(ringFace(clearanceHole, plateHole, plateZ, true));
-    mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, plateZ, true));
+    mesh.append(switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ));
     const { points, triangles } = earClip(clearanceHole);
     for (const [a, b, c] of triangles) {
       mesh.addTriangle([points[a][0], points[a][1], floorZ], [points[b][0], points[b][1], floorZ], [points[c][0], points[c][1], floorZ]);
@@ -541,13 +691,12 @@ function buildBlock(outer, cells, thickness, settings) {
     mesh.append(ringFaceBetween(recessOutline, plateHole, recessFloorZ, false, [cx, cy]));
 
     mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
-    mesh.append(ringFace(clearanceHole, plateHole, plateZ, true));
+    mesh.append(switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ));
 
-    // Closed floor at the reserved minimum height — see README: real
+    // (The shaft's walls are in switchShaftTop.) Closed floor at the reserved minimum height — see README: real
     // switches don't need a floor for retention (the plate clips do
     // that), but an open-through design lets you see straight to the
     // switch, which isn't wanted here.
-    mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, plateZ, true));
     const { points, triangles } = earClip(clearanceHole);
     for (const [a, b, c] of triangles) {
       mesh.addTriangle([points[a][0], points[a][1], floorZ], [points[b][0], points[b][1], floorZ], [points[c][0], points[c][1], floorZ]);

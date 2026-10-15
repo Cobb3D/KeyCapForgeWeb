@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/15/2026a**
+**Version 10/15/2026c**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-15-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-15-2026c.zip.
 
 A browser-based version of the native macOS KeyCapForge app: design keycap
 fidget-toy keychains for real Cherry MX switches, right in a web page, no
@@ -2024,3 +2024,49 @@ first thing to check.
   without the keyring): all clean closed solids with no fallbacks, walls
   present along the outside, nothing outside the outline. With 0 extra the
   base is identical to before.
+
+- **Base shapes.** A "Base shape" menu for fused bases (`baseShape`):
+  rounded rectangle (the original, unchanged code path), soft corners, pill,
+  bubbles, chamfered ends, and tag end. Outlines are in js/baseShapes.js:
+  each is built from straight and arc pieces whose point counts are fixed
+  the first time (`PathBuilder`), so `at(inset)` gives the bevel rims with
+  the same points as the wall. Every shape is checked against the pockets
+  (`minWall`, both directions) and must keep at least the rectangle's
+  thinnest wall, Extra outer wall included: soft, pill and chamfer grow at
+  the ends by the smallest amount that does it (bisection); bubbles try
+  smaller bulges and corner radii if a cap shape needs it, and fall back to
+  the rectangle if none fits. With 4 square keys and the defaults, the base
+  is 24 x 87mm as a rectangle, 89.2 soft, 100.4 pill, 90.0 long and 27 wide
+  as bubbles, 91.3 chamfered, 95.5 tag. All shapes go through
+  `buildJoinedBlock`, so they're one closed solid with the same pockets,
+  plate and switch shaft; the top bevel stops 0.3mm short of the thinnest
+  wall. The tag puts the keyring hole through the base on the keyring's
+  end (top of a vertical row unless set to bottom; right of a horizontal
+  one unless set to left) with 3mm of ring, replaces the loop, and limits
+  both bevels so the ring keeps 1.5mm on the first and last layers. On the
+  other shapes the keyring loop is placed where the outline actually is on
+  its centre line, with its overlap measured against the pockets or switch
+  shafts on that line. The export layout uses the real outline
+  (`baseExtentsFor`). Unfused bases ignore the shape (the menu is disabled).
+  Tested: about 5,000 bases across all six shapes (1, 2, 4, 7 and 12 keys;
+  square, round, heart, star and mixed caps; both layouts; bevels 0/0.8/2;
+  extra wall 0/1.5/3; no keyring and the loop on each side): all one
+  closed solid (two with a separate loop), no fallbacks, material between
+  every pair of keys, full wall around every pocket, the tag's hole open
+  through the full height with its ring intact, the loop attached with no
+  gap. A full export of each shape from the app is clean.
+
+- **Plate undercut only where the clips go.** The plate overhung the
+  switch shaft below it by 0.9mm all the way around (15.8mm shaft, 14mm
+  hole). Slicers print that layer as an overhang (slower, more fan), and a
+  test print showed it as a line around the outside of the base about 7mm
+  up (the plate's underside is at 7.9mm at default sizes).
+  `switchShaftTop` (js/baseBuilder.js) keeps the full undercut only in the
+  middle 8mm of each side, where a switch's clips catch (all four sides, so
+  a switch can go in any way round); toward the corners the shaft's top
+  slopes in to the plate hole over its last 1.2mm, which prints without an
+  overhang. Used by fused and unfused bases. Tested: the shaft is open at
+  the clip positions right up to the plate and full width lower down, the
+  corners are solid just under the plate, the plate is intact, and every
+  base is still one closed solid (all six base shapes, 1 and 4 keys, all the
+  combinations from the base-shape tests, plus unfused bases).

@@ -9,9 +9,11 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  'Fused bases now have a thicker outer wall (new Extra outer wall setting, 1.5mm by default), which hides the faint lines that could show on the outside where the walls between keys meet it. The keys stay the same distance apart; the base is 3mm wider',
-  'In Bambu Studio and OrcaSlicer, each keycap opens as one object with its letter as a part, so they move together',
-  '3MF files assign each part a filament instead of painting it, so you can change colors in the slicer',
+  'The ledge under each switch plate now only overhangs in the middle of each side, where the switch clips catch; the corners slope instead. This removes most of the overhang that could leave a line around the outside of the base about 8mm up',
+  'New Base shape menu for fused bases: rounded rectangle, soft corners, pill, bubbles, chamfered ends, or a tag end with the keyring hole built into the base',
+  'Every shape keeps the full wall around each key, so the faint divider lines stay hidden; shapes with rounded or angled ends get a little longer so their corners don\'t cut in',
+  'Fused bases have a thicker outer wall (Extra outer wall, 1.5mm by default)',
+  'Each keycap opens in Bambu Studio and OrcaSlicer as one object with its letter, and every part is on its own filament so you can change colors in the slicer',
 ]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';

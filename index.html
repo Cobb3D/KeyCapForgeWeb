@@ -199,6 +199,18 @@
         <div class="slider-row letters-only"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
         <div class="slider-row letters-only"><label>Extra outer wall</label><input type="range" id="baseOuterWall" min="0" max="3" step="0.1" value="1.5"><output>1.5mm</output></div>
         <p class="hint letters-only">Thickens the outside of a fused base without moving the keys apart. Thin outer walls can show faint lines on the outside where the walls between keys meet them; 1.5mm hides them.</p>
+        <div class="row letters-only">
+          <label>Base shape</label>
+          <select id="baseShape">
+            <option value="rect" selected>Rounded rectangle</option>
+            <option value="soft">Soft corners</option>
+            <option value="pill">Pill (round ends)</option>
+            <option value="bubbles">Bubbles (follows each key)</option>
+            <option value="chamfer">Chamfered ends</option>
+            <option value="tag">Tag end (keyring hole built in)</option>
+          </select>
+        </div>
+        <p class="hint letters-only">For fused bases. Every shape keeps at least the same wall around each key as the rectangle; shapes with rounded or angled ends get a little longer so their corners don't cut in. The tag puts the keyring hole in the base itself, on the keyring's end, instead of adding a loop.</p>
         <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="24" step="0.1" value="17.4"><output>17.4mm</output></div>
         <div class="slider-row"><label>Plate hole (MX clip)</label><input type="range" id="plateHole" min="13.6" max="14.4" step="0.01" value="14"><output>14.00mm</output></div>
         <div class="slider-row"><label>Base floor</label><input type="range" id="floorThickness" min="0.6" max="4" step="0.1" value="2"><output>2.0mm</output></div>

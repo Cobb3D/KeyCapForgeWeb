@@ -1,6 +1,6 @@
 import { ensureThreeLoaded, Viewport, meshToObject3D } from './scene.js';
 import { buildKeycap } from './keycapBuilder.js';
-import { buildBase, capCenters, maxSafeRecessDepth, baseOuterExtraFor } from './baseBuilder.js';
+import { buildBase, capCenters, maxSafeRecessDepth, baseExtentsFor } from './baseBuilder.js';
 import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
@@ -50,6 +50,8 @@ const settings = {
   baseTopBevelMM: 0.8, baseBottomBevelMM: 0.8,
   // Extra thickness on the outside of a fused base (see baseOuterExtraFor).
   baseOuterWallExtraMM: 1.5,
+  // Outline of a fused base: see BASE_SHAPES in baseShapes.js.
+  baseShape: 'rect',
   keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
   baseColorHex: '#c92a2a', verticalLayout: true,
   // A pattern on the base (camo.js): camo blobs or cow patches, in
@@ -591,7 +593,11 @@ async function main() {
     renderCapList();
     rebuild();
   });
-  document.getElementById('joinedBase').addEventListener('change', (e) => { settings.joinedBase = e.target.checked; rebuild(); });
+  const baseShapeSelect = document.getElementById('baseShape');
+  const syncBaseShape = () => { baseShapeSelect.disabled = !settings.joinedBase; };
+  baseShapeSelect.addEventListener('change', (e) => { settings.baseShape = e.target.value; rebuild(); });
+  document.getElementById('joinedBase').addEventListener('change', (e) => { settings.joinedBase = e.target.checked; syncBaseShape(); rebuild(); });
+  syncBaseShape();
   document.getElementById('verticalLayout').addEventListener('change', (e) => { settings.verticalLayout = e.target.checked; rebuild(); });
   document.getElementById('keyringStyle').addEventListener('change', (e) => { settings.keyringStyle = e.target.value; rebuild(); });
   document.getElementById('keyringSide').addEventListener('change', (e) => { settings.keyringSide = e.target.value; rebuild(); });
@@ -663,10 +669,10 @@ async function main() {
     const margin = footprint * 0.6;
     const gap = 2;
     const xs = centers.map((c) => c.x).concat(0), ys = centers.map((c) => c.y).concat(0);
-    const half = footprint / 2 + baseOuterExtraFor(settings);
-    const baseMaxX = Math.max(...xs) + half;
-    const baseMinX = Math.min(...xs) - half;
-    const baseMaxY = Math.max(...ys) + half;
+    const ext = baseExtentsFor(count, settings);
+    const baseMaxX = ext.maxX;
+    const baseMinX = ext.minX;
+    const baseMaxY = ext.maxY;
 
     const positions = [];
     if (settings.verticalLayout) {
