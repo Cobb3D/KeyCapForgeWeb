@@ -9,11 +9,9 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  'The ledge under each switch plate now only overhangs in the middle of each side, where the switch clips catch; the corners slope instead. This removes most of the overhang that could leave a line around the outside of the base about 8mm up',
-  'New Base shape menu for fused bases: rounded rectangle, soft corners, pill, bubbles, chamfered ends, or a tag end with the keyring hole built into the base',
-  'Every shape keeps the full wall around each key, so the faint divider lines stay hidden; shapes with rounded or angled ends get a little longer so their corners don\'t cut in',
-  'Fused bases have a thicker outer wall (Extra outer wall, 1.5mm by default)',
-  'Each keycap opens in Bambu Studio and OrcaSlicer as one object with its letter, and every part is on its own filament so you can change colors in the slicer',
+  'New "Same color for every cap" checkbox under Caps in this set: pick one cap color and one letter color for the whole set, including caps you add later',
+  'More room around each key in the base (0.45mm per side) so caps don\'t rub the pocket walls; adjust it with the Key clearance slider',
+  '3MF files bring your colors into Bambu Studio and OrcaSlicer: use Color match to map them to your AMS, and every part stays changeable in the slicer',
 ]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';

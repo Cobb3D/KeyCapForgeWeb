@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/15/2026c**
+**Version 10/19/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,10 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-15-2026c.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-19-2026a.zip.
+>
+> Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
+> Add an entry there with each new version.
 
 A browser-based version of the native macOS KeyCapForge app: design keycap
 fidget-toy keychains for real Cherry MX switches, right in a web page, no
@@ -2070,3 +2073,43 @@ first thing to check.
   corners are solid just under the plate, the plate is intact, and every
   base is still one closed solid (all six base shapes, 1 and 4 keys, all the
   combinations from the base-shape tests, plus unfused bases).
+
+- **App colours into the slicer, still editable.** buildThreeMF writes a
+  colour group again, with each part's colour on the object (pid/pindex),
+  not per triangle, alongside the per-part filament numbers in
+  model_settings.config. Bambu Studio's "Standard 3mf Import color" window
+  (ObjColorDialog.cpp) shows the app's colours; "Color match" maps them to
+  the loaded filaments (the AMS), "Append" adds new ones. On OK,
+  `apply_volume_filament_ids` assigns each part of a multi-part object to a
+  filament with no paint; a single-part object is painted instead, and a
+  part with no colour is painted with filament 1. So every object is at
+  least two parts: `buildBaseParts` gives the base as base + keyring loop,
+  or, with no loop (or the tag's built-in hole), split halfway up the solid
+  floor (below the switch shafts; inside the bottom bevel the cut follows
+  the bevel), and the logo base the same way (`buildLogoBase` returns
+  { mesh, parts }). The STL and preview still use the single base mesh.
+  The logo base now uses `switchShaftTop` too. Tested: 288 part sets
+  (all six shapes, loop or none, fused or separate, 1 and 4 keys, bevels
+  0/0.8/2, square and heart caps) are each closed solids whose volumes add
+  up to the whole base; exports from the app in letters and logo mode have
+  every plate object at two or more parts, every part coloured and on a
+  filament, no paint, all closed. Checked against Bambu Studio's source,
+  not yet in the slicer.
+
+- **Key clearance setting.** `keyClearanceMM` (slider "Key clearance",
+  0.3–1.5mm, default 0.45) is the gap on each side between a cap and its
+  recess wall: `keyClearanceFor` in js/baseBuilder.js, used for the recess
+  outline, the keyring overlap limit and the shaped-outline cache; the logo
+  clicker's recess uses it too (LOGO_FIT.clearanceMM is now its fallback).
+  It was a fixed 0.3mm per side; printed caps sometimes rubbed the walls.
+  Extra outer wall's default went from 1.5 to 1.7mm to keep the outer wall
+  beside a pocket at about 2.7mm. Tested: the base-shape and base-parts
+  suites (rectangle, tag, pill, bubbles) and the logo shapes suite all pass
+  with the new gap; full app export clean.
+
+- **Same color for every cap.** A checkbox in the caps panel
+  (`sameCapColor` in app.js) with a cap and a letter colour. While it's on,
+  `applyTheme()` (called whenever the caps list changes) sets every cap's
+  body and legend colours to those two, so added caps follow, and the
+  per-cap swatches are hidden. Turning it on starts from the first cap's
+  colours and switches the theme to Custom; picking a theme turns it off.

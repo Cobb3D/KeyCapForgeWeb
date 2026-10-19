@@ -154,6 +154,11 @@
           <h2>Caps in this set</h2>
           <span class="count" id="capCount">4</span>
         </div>
+        <label class="checkbox"><input type="checkbox" id="sameCapColor"> Same color for every cap</label>
+        <div class="row same-cap-colors" id="sameCapColors" hidden>
+          <label>Cap</label><input type="color" id="allCapBody" value="#3b5bdb">
+          <label>Letters</label><input type="color" id="allCapLegend" value="#ffffff">
+        </div>
         <div id="capList" class="cap-list"></div>
       </section>
 
@@ -197,8 +202,10 @@
         <h2>Base &amp; Fit</h2>
         <div class="row"><label>Base color</label><input type="color" id="baseColor" value="#c92a2a"></div>
         <div class="slider-row letters-only"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
-        <div class="slider-row letters-only"><label>Extra outer wall</label><input type="range" id="baseOuterWall" min="0" max="3" step="0.1" value="1.5"><output>1.5mm</output></div>
-        <p class="hint letters-only">Thickens the outside of a fused base without moving the keys apart. Thin outer walls can show faint lines on the outside where the walls between keys meet them; 1.5mm hides them.</p>
+        <div class="slider-row"><label>Key clearance</label><input type="range" id="keyClearance" min="0.3" max="1.5" step="0.05" value="0.45"><output>0.45mm</output></div>
+        <p class="hint">Gap on each side between a keycap and the wall of its pocket, so the cap can press down without rubbing. Raise it if caps catch on the walls; lower it if they wobble.</p>
+        <div class="slider-row letters-only"><label>Extra outer wall</label><input type="range" id="baseOuterWall" min="0" max="3" step="0.1" value="1.7"><output>1.7mm</output></div>
+        <p class="hint letters-only">Thickens the outside of a fused base without moving the keys apart. Thin outer walls can show faint lines on the outside where the walls between keys meet them; 1.7mm (about a 2.7mm wall beside each key) hides them.</p>
         <div class="row letters-only">
           <label>Base shape</label>
           <select id="baseShape">

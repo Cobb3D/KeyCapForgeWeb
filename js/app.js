@@ -1,6 +1,6 @@
 import { ensureThreeLoaded, Viewport, meshToObject3D } from './scene.js';
 import { buildKeycap } from './keycapBuilder.js';
-import { buildBase, capCenters, maxSafeRecessDepth, baseExtentsFor } from './baseBuilder.js';
+import { buildBase, buildBaseParts, capCenters, maxSafeRecessDepth, baseExtentsFor } from './baseBuilder.js';
 import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
@@ -49,7 +49,9 @@ const settings = {
   clearanceMM: 15.8, clearanceHeightMM: 5.5, joinGapMM: 1.0, joinedBase: true, recessDepthMM: 8.0,
   baseTopBevelMM: 0.8, baseBottomBevelMM: 0.8,
   // Extra thickness on the outside of a fused base (see baseOuterExtraFor).
-  baseOuterWallExtraMM: 1.5,
+  baseOuterWallExtraMM: 1.7,
+  // Gap on each side between a cap and its recess wall (keyClearanceFor).
+  keyClearanceMM: 0.45,
   // Outline of a fused base: see BASE_SHAPES in baseShapes.js.
   baseShape: 'rect',
   keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
@@ -81,6 +83,9 @@ let logo = null;
 let explodeDistance = 20;
 let showSwitches = false; // "Show KeySwitch": only takes effect in exploded view
 let activeTheme = null;    // key into THEMES, or null for Custom (see themes.js)
+// "Same color for every cap": when on, every cap (including ones added
+// later) uses these two colours, and the per-cap colour boxes are hidden.
+let sameCapColor = { on: false, body: '#3b5bdb', legend: '#ffffff' };
 // Snapshots of the defaults, so bug reports can list only what the user
 // changed (a full design is too long to fit in a pre-filled email).
 const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
@@ -201,7 +206,9 @@ async function main() {
     const fileBase = 'logo_' + (logo.name || 'clicker').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
     const combined = new Mesh();
     combined.append(r.base);
-    const objects = [{ mesh: r.base, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }];
+    // The base goes in as its parts (base + keyring loop, or floor slab +
+    // the rest), grouped into one object: see buildThreeMF.
+    const objects = r.baseParts.map((p) => ({ mesh: p.mesh, colorHex: settings.baseColorHex, name: p.name, group: 'base', translation: [0, 0, 0] }));
     const body = r.capBody.flippedForPrint(H);
     combined.append(body, capX, 0, 0);
     objects.push({ mesh: body, colorHex: settings.logoCapColorHex, name: 'logo_cap_body', group: 'logo_cap', translation: [capX, 0, 0] });
@@ -349,6 +356,7 @@ async function main() {
   // Custom). Called whenever the caps list changes, so added caps continue
   // the theme's pattern and deleting one keeps it in step.
   function applyTheme() {
+    if (sameCapColor.on) caps.forEach((cap) => { cap.bodyColorHex = sameCapColor.body; cap.legendColorHex = sameCapColor.legend; });
     if (!activeTheme) return;
     settings.baseColorHex = THEMES[activeTheme].base;
     document.getElementById('baseColor').value = settings.baseColorHex;
@@ -430,6 +438,7 @@ async function main() {
       const swatches = document.createElement('div');
       swatches.className = 'swatches';
       swatches.append(colorInput(cap.bodyColorHex, (v) => { cap.bodyColorHex = v; leaveTheme(); rebuild(); }), document.createTextNode(' '), colorInput(cap.legendColorHex, (v) => { cap.legendColorHex = v; leaveTheme(); rebuild(); }));
+      if (sameCapColor.on) swatches.hidden = true;
 
       line2.append(styleToggle, legendSel, swatches);
       row.append(line1, line2);
@@ -529,6 +538,29 @@ async function main() {
     quickInsertEl.appendChild(btn);
   }
 
+  // ---------- Same color for every cap ----------
+  const sameToggle = document.getElementById('sameCapColor');
+  const sameRow = document.getElementById('sameCapColors');
+  const allBody = document.getElementById('allCapBody'), allLegend = document.getElementById('allCapLegend');
+  function setSameCapColor(on) {
+    sameCapColor.on = on;
+    sameToggle.checked = on;
+    sameRow.hidden = !on;
+    if (on) {
+      // Start from the first cap's colours, so ticking it changes nothing
+      // until a colour is picked.
+      if (caps[0]) { sameCapColor.body = caps[0].bodyColorHex; sameCapColor.legend = caps[0].legendColorHex; }
+      allBody.value = sameCapColor.body; allLegend.value = sameCapColor.legend;
+      leaveTheme();
+      applyTheme();
+    }
+    renderCapList();
+    rebuild();
+  }
+  sameToggle.addEventListener('change', () => setSameCapColor(sameToggle.checked));
+  allBody.addEventListener('input', () => { sameCapColor.body = allBody.value; applyTheme(); rebuild(); });
+  allLegend.addEventListener('input', () => { sameCapColor.legend = allLegend.value; applyTheme(); rebuild(); });
+
   // ---------- Global shape & size ----------
   document.getElementById('shapeSelect').addEventListener('change', (e) => {
     shape = e.target.value;
@@ -558,6 +590,7 @@ async function main() {
   document.getElementById('emojiOneColor').addEventListener('change', (e) => { settings.emojiOneColor = e.target.checked; rebuild(); });
   bindSlider('baseFootprint', 'baseFootprintMM', 'mm');
   bindSlider('baseOuterWall', 'baseOuterWallExtraMM', 'mm');
+  bindSlider('keyClearance', 'keyClearanceMM', 'mm', 2);
   bindSlider('baseThickness', 'baseThicknessMM', 'mm');
   bindSlider('plateHole', 'plateHoleMM', 'mm', 2);
   bindSlider('clearanceHeight', 'clearanceHeightMM', 'mm');
@@ -578,6 +611,8 @@ async function main() {
   document.getElementById('basePatternToggle').addEventListener('change', (e) => { settings.basePattern = e.target.checked; rebuild(); });
   document.getElementById('themeSelect').addEventListener('change', (e) => {
     activeTheme = e.target.value || null;
+    // A theme colours each cap itself, so it turns "same color" off.
+    if (activeTheme && sameCapColor.on) setSameCapColor(false);
     // Picking a theme also decides the base's pattern: on, in the theme's
     // own pattern and colours, for patterned themes (camo, cow); off for the
     // others (Custom leaves it as it is).
@@ -702,9 +737,12 @@ async function main() {
     // The 3MF gets the base with its camo marks as per-triangle colours;
     // the STL (no colour) keeps the plain base.
     const camo = camoForBase(baseMesh);
-    const threeMFObjects = [camo
-      ? { mesh: camo.mesh, triangleColors: camo.triangleColors, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }
-      : { mesh: baseMesh, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }];
+    // Without camo marks the base goes in as its parts (base + keyring
+    // loop, or floor slab + the rest), grouped into one object: see
+    // buildThreeMF.
+    const threeMFObjects = camo
+      ? [{ mesh: camo.mesh, triangleColors: camo.triangleColors, colorHex: settings.baseColorHex, name: 'base', translation: [0, 0, 0] }]
+      : buildBaseParts(caps, settings).map((p) => ({ mesh: p.mesh, colorHex: settings.baseColorHex, name: p.name, group: 'base', translation: [0, 0, 0] }));
 
     caps.forEach((cap, i) => {
       const { body, legendParts } = buildKeycap(cap, settings);

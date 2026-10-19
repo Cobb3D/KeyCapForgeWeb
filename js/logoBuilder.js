@@ -24,7 +24,7 @@ import { Mesh, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon } 
 import { roundedRect, regularPolygon } from './shapeProfiles.js';
 import { rasterizeLegend } from './textVoxel.js';
 import { stemBoss, stemBossRadius, STEM_BOSS_SIDES } from './keycapBuilder.js';
-import { baseStackFor, keyringFeature } from './baseBuilder.js';
+import { baseStackFor, keyringFeature, switchShaftTop } from './baseBuilder.js';
 import { logoOutlines } from './logoImport.js';
 import { vectorLogo } from './logoVector.js';
 
@@ -79,7 +79,7 @@ export function buildLogoClicker(logoCanvas, settings, opts) {
   return {
     capBody: body,
     capParts,
-    base: buildLogoBase(outlines, settings),
+    ...(() => { const b = buildLogoBase(outlines, settings); return { base: b.mesh, baseParts: b.parts }; })(),
     outlines,
     traced: !!vec,
   };
@@ -170,6 +170,11 @@ function buildRim(fp, O, sx, sy, z0, z1) {
 
 // The base, following the logo: outer wall, top, recess, plate, switch
 // space, floor, and the keyring lug.
+// The logo clicker's base, as { mesh, parts }: parts are the base and the
+// keyring loop, or, with no loop, the bottom half of the floor and the rest (two
+// parts so Bambu Studio's colour import assigns it a filament rather than
+// painting it; see buildThreeMF). The switch shaft has the plate undercut
+// only where the clips go (switchShaftTop, shared with the letter bases).
 function buildLogoBase(outlines, settings) {
   const T = settings.baseThicknessMM;
   const { recessFloorZ, plateZ, floorZ } = baseStackFor(settings);
@@ -177,20 +182,39 @@ function buildLogoBase(outlines, settings) {
   const N = 64;
   const plateHole = resamplePolygon(roundedRect(settings.plateHoleMM, settings.plateHoleMM, 0.4), N);
   const clearanceHole = resamplePolygon(roundedRect(settings.clearanceMM, settings.clearanceMM, 0.6), N);
+  const hasLug = settings.keyringStyle !== 'none';
+
+  const upper = new Mesh();
+  const lower = hasLug ? upper : new Mesh();
+  addFlatFace(lower, B, 0, true);                                  // bottom
+  addFlatFace(upper, clearanceHole, floorZ, false);                // floor
+  if (hasLug) {
+    upper.append(loftShell(B, B, 0, T));                           // outer wall
+  } else {
+    // cut halfway up the solid floor, below the switch shaft
+    const zs = floorZ / 2;
+    lower.append(loftShell(B, B, 0, zs));
+    addFlatFace(lower, B, zs, false);                              // slab's top
+    addFlatFace(upper, B, zs, true);                               // upper part's bottom
+    upper.append(loftShell(B, B, zs, T));
+  }
+  upper.append(ringFaceBetween(B, R, T, false));                   // top
+  upper.append(loftShell(R, R, recessFloorZ, T, true));            // recess wall
+  upper.append(ringFaceBetween(R, plateHole, recessFloorZ, false)); // recess floor
+  upper.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
+  upper.append(switchShaftTop(clearanceHole, plateHole, 0, 0, floorZ, plateZ));
 
   const mesh = new Mesh();
-  addFlatFace(mesh, B, 0, true);                                   // bottom
-  mesh.append(loftShell(B, B, 0, T));                              // outer wall
-  mesh.append(ringFaceBetween(B, R, T, false));                    // top
-  mesh.append(loftShell(R, R, recessFloorZ, T, true));             // recess wall
-  mesh.append(ringFaceBetween(R, plateHole, recessFloorZ, false)); // recess floor
-  mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
-  mesh.append(ringFace(clearanceHole, plateHole, plateZ, true));   // plate underside
-  mesh.append(loftShell(clearanceHole, clearanceHole, floorZ, plateZ, true));
-  addFlatFace(mesh, clearanceHole, floorZ, false);                 // floor
-
-  if (settings.keyringStyle !== 'none') mesh.append(logoKeyringLug(B, settings));
-  return mesh;
+  const parts = [];
+  if (hasLug) {
+    const lug = logoKeyringLug(B, settings);
+    mesh.append(upper); mesh.append(lug);
+    parts.push({ mesh: upper, name: 'base' }, { mesh: lug, name: 'keyring' });
+  } else {
+    mesh.append(lower); mesh.append(upper);
+    parts.push({ mesh: lower, name: 'base_floor' }, { mesh: upper, name: 'base' });
+  }
+  return { mesh, parts };
 }
 
 // The keyring lug, centred on the stem's line on the chosen side. Worked

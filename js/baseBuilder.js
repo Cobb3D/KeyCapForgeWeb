@@ -54,7 +54,14 @@ export function baseStackFor(settings) {
 // base's outer edge). These drifting out of sync is exactly how the lug
 // ended up able to intersect the recess after the recess feature was
 // added later without this clamp being updated to match.
-const RECESS_CLEARANCE_MM = 0.6;
+// The gap on each side between a cap and its recess wall is the Key
+// clearance setting (keyClearanceMM): 0.3mm until 10/18/2026, when printed
+// caps sometimes rubbed the walls; now 0.45mm by default.
+export const DEFAULT_KEY_CLEARANCE_MM = 0.45;
+export function keyClearanceFor(settings) {
+  return Math.max(0, settings.keyClearanceMM ?? DEFAULT_KEY_CLEARANCE_MM);
+}
+const recessClearance = (settings) => 2 * keyClearanceFor(settings);
 
 // The switch's top housing is 15.6mm square where it sits on the plate.
 // The recess has to let the whole switch pass down through it to clip into
@@ -63,7 +70,7 @@ const SWITCH_HOUSING_MM = 15.6;
 const SWITCH_POCKET_CLEARANCE_MM = 0.3;
 
 // The recess outline for one cap, centred on the origin: the cap's own
-// shape (plus RECESS_CLEARANCE_MM), combined with a square the switch
+// shape (plus the key clearance on each side), combined with a square the switch
 // housing fits through. For a square cap the square already fits inside
 // the cap's shape, so the cap outline is returned exactly as before. For
 // every other shape it didn't: a round cap's recess is 18.6mm across, but
@@ -78,7 +85,7 @@ const SWITCH_POCKET_CLEARANCE_MM = 0.3;
 // they cross: between two neighbouring samples one outline is outermost
 // the whole way, along one of its own straight edges.
 export function recessOutlineFor(shape, settings) {
-  const capOutline = resamplePolygon(profileFor(shape, settings.capWidthMM + RECESS_CLEARANCE_MM, settings.cornerRadiusMM), RESAMPLE_N);
+  const capOutline = resamplePolygon(profileFor(shape, settings.capWidthMM + recessClearance(settings), settings.cornerRadiusMM), RESAMPLE_N);
   const pocketSize = SWITCH_HOUSING_MM + 2 * SWITCH_POCKET_CLEARANCE_MM;
   const pocket = resamplePolygon(roundedRect(pocketSize, pocketSize, 0.5), RESAMPLE_N);
 
@@ -186,7 +193,7 @@ function shapedOutlineFor(cells, settings) {
   if (!settings.joinedBase || shape === 'rect' || cells.length === 0) return null;
   const keyring = settings.keyringStyle !== 'none' ? { holeR: settings.keyringHoleMM / 2, outerR: settings.keyringOuterMM / 2 } : null;
   const key = JSON.stringify([shape, cells, settings.baseFootprintMM, settings.baseOuterWallExtraMM, settings.capWidthMM, settings.cornerRadiusMM,
-    settings.verticalLayout, settings.keyringSide, keyring, settings.joinGapMM]);
+    settings.verticalLayout, settings.keyringSide, keyring, settings.joinGapMM, keyClearanceFor(settings)]);
   if (shapedCache.key === key) return shapedCache.value;
   const vertical = !!settings.verticalLayout;
   const xs = cells.map((c) => c.cx), ys = cells.map((c) => c.cy);
@@ -240,6 +247,20 @@ function rayExit(polys, mid, dir) {
 }
 
 export function buildBase(caps, settings) {
+  return buildBaseInternal(caps, settings, false).mesh;
+}
+
+// The base as separate parts for the 3MF: [{ mesh, name }]. A fused base
+// with a keyring loop is the block and the loop; without a loop (or with
+// the tag's built-in hole) the block comes as its floor slab and the rest;
+// separate (unfused) bases are one part per key, plus the loop. See
+// buildThreeMF for why the base needs to be more than one part.
+export function buildBaseParts(caps, settings) {
+  return buildBaseInternal(caps, settings, true).parts;
+}
+
+function buildBaseInternal(caps, settings, wantParts) {
+  const parts = [];
   const count = caps.length;
   const centers = capCenters(count, settings);
   const footprint = settings.baseFootprintMM;
@@ -278,14 +299,20 @@ export function buildBase(caps, settings) {
     // A shaped base that can't be built (never seen) falls back to the
     // rectangle, and that to the per-key blocks.
     shaped = shapedOutlineFor(cells, settings);
-    let block = shaped ? buildJoinedBlock(outer, cells, thickness, settings, shaped) : null;
-    if (!block) { shaped = null; block = buildJoinedBlock(outer, cells, thickness, settings) || buildBlock(outer, cells, thickness, settings); }
-    mesh.append(block);
+    // Split into floor slab + the rest only when there'll be no keyring
+    // loop to be the second part.
+    const split = wantParts && (settings.keyringStyle === 'none' || (shaped && settings.baseShape === 'tag'));
+    let block = shaped ? buildJoinedBlock(outer, cells, thickness, settings, shaped, split) : null;
+    if (!block) { shaped = null; block = buildJoinedBlock(outer, cells, thickness, settings, null, split) || buildBlock(outer, cells, thickness, settings); }
+    if (block instanceof Mesh) { mesh.append(block); parts.push({ mesh: block, name: 'base' }); }
+    else { mesh.append(block.lower); mesh.append(block.upper); parts.push({ mesh: block.lower, name: 'base_floor' }, { mesh: block.upper, name: 'base' }); }
   } else {
-    for (const cell of cells) {
+    cells.forEach((cell, k) => {
       const outer = resamplePolygon(roundedRect(footprint, footprint, Math.min(footprint * 0.08, 0.6)).translated(cell.cx, cell.cy), RESAMPLE_N);
-      mesh.append(buildBlock(outer, [cell], thickness, settings));
-    }
+      const block = buildBlock(outer, [cell], thickness, settings);
+      mesh.append(block);
+      parts.push({ mesh: block, name: `base_${k + 1}` });
+    });
   }
 
   // The tag shape has the keyring hole built in, so no loop.
@@ -311,7 +338,7 @@ export function buildBase(caps, settings) {
     const { recessDepth } = baseStackFor(settings);
     const lugReachesRecess = loopHeight > thickness - recessDepth - 0.01;
     const limitingHoleSize = lugReachesRecess
-      ? Math.max(settings.clearanceMM, settings.capWidthMM + RECESS_CLEARANCE_MM)
+      ? Math.max(settings.clearanceMM, settings.capWidthMM + recessClearance(settings))
       : settings.clearanceMM;
     const wallThickness = (footprint - limitingHoleSize) / 2 + extra;
     const safetyMargin = 0.3;
@@ -347,10 +374,12 @@ export function buildBase(caps, settings) {
       anchorY = mid[1] + dir[1] * (tOut + reach);
       neck = reach + shapedOverlap;
     }
-    mesh.append(keyringFeature(settings, neck).rotatedZ(rotation).translated(anchorX, anchorY, 0));
+    const lug = keyringFeature(settings, neck).rotatedZ(rotation).translated(anchorX, anchorY, 0);
+    mesh.append(lug);
+    parts.push({ mesh: lug, name: 'keyring' });
   }
 
-  return mesh;
+  return { mesh, parts };
 }
 
 // The switch shaft under the plate, from the floor up to the plate's
@@ -369,7 +398,7 @@ export function buildBase(caps, settings) {
 // inside the 8mm.
 const CLIP_HALF_MM = 4;
 const SHAFT_SLOPE_MM = 1.2;
-function switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ) {
+export function switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ) {
   const mesh = new Mesh();
   const C = clearanceHole.points, P = plateHole.points, n = Math.min(C.length, P.length);
   const clip = P.map(([x, y]) => {
@@ -412,7 +441,7 @@ function switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ) {
 //
 // Returns null if the top face can't be triangulated (never seen), so the
 // caller falls back to the per-key blocks.
-function buildJoinedBlock(outer, cells, thickness, settings, shaped = null) {
+function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, split = false) {
   let bottomBevel = baseBottomBevelFor(settings);
   const xs = outer.points.map((p) => p[0]), ys = outer.points.map((p) => p[1]);
   const xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
@@ -461,18 +490,54 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null) {
   const bottomTris = throughHoles.length ? triangulate(bottomRim.points, throughHoles.map((h) => [...h.points].reverse())) : null;
   if (throughHoles.length && !bottomTris) return null;
 
+  // split: build it as two solids that meet halfway up the solid floor
+  // (below the switch shafts, so the cut is a plain flat face with nothing
+  // but any keyring hole through it): the bottom slab and everything else,
+  // returned as { lower, upper }. They're separate parts of one object in
+  // the 3MF, so Bambu Studio's colour import can give the base a filament
+  // instead of painting it (see buildThreeMF).
+  const zs = floorZ / 2;
+  const doSplit = split && zs > 0.1;
+  // The outline at the cut: inside the bottom bevel it's between the rim
+  // and the wall (same points, so it lines up with both).
+  const rimAt = (z) => (z >= bottomBevel || bottomBevel <= 0.01 ? out
+    : new Polygon2D(bottomRim.points.map((p, k) => [p[0] + (out.points[k][0] - p[0]) * (z / bottomBevel), p[1] + (out.points[k][1] - p[1]) * (z / bottomBevel)])));
+  const cutRim = doSplit ? rimAt(zs) : null;
+  let cutTris = null;
+  if (doSplit) {
+    cutTris = triangulate(cutRim.points, throughHoles.map((h) => [...h.points].reverse()));
+    if (!cutTris) return null;
+  }
+
   const mesh = new Mesh();
-  if (bottomBevel > 0.01) mesh.append(loftShell(bottomRim, out, 0, bottomBevel));
-  mesh.append(loftShell(out, out, bottomBevel, thickness - topBevel));
+  const lower = doSplit ? new Mesh() : mesh;
+  if (doSplit && zs < bottomBevel) {
+    lower.append(loftShell(bottomRim, cutRim, 0, zs));
+    mesh.append(loftShell(cutRim, out, zs, bottomBevel));
+    mesh.append(loftShell(out, out, bottomBevel, thickness - topBevel));
+  } else {
+    if (bottomBevel > 0.01) lower.append(loftShell(bottomRim, out, 0, bottomBevel));
+    if (doSplit) { lower.append(loftShell(out, out, bottomBevel, zs)); mesh.append(loftShell(out, out, zs, thickness - topBevel)); }
+    else mesh.append(loftShell(out, out, bottomBevel, thickness - topBevel));
+  }
   if (topBevel > 0.01) mesh.append(loftShell(out, topRim, thickness - topBevel, thickness));
   for (const [a, b, c] of tris) mesh.addTriangle([a[0], a[1], thickness], [b[0], b[1], thickness], [c[0], c[1], thickness]);
   if (bottomTris) {
-    for (const [a, b, c] of bottomTris) mesh.addTriangle([a[0], a[1], 0], [c[0], c[1], 0], [b[0], b[1], 0]);
+    for (const [a, b, c] of bottomTris) lower.addTriangle([a[0], a[1], 0], [c[0], c[1], 0], [b[0], b[1], 0]);
   } else {
     const { points: bp, triangles: bt } = earClip(bottomRim);
-    for (const [a, b, c] of bt) mesh.addTriangle([bp[a][0], bp[a][1], 0], [bp[c][0], bp[c][1], 0], [bp[b][0], bp[b][1], 0]);
+    for (const [a, b, c] of bt) lower.addTriangle([bp[a][0], bp[a][1], 0], [bp[c][0], bp[c][1], 0], [bp[b][0], bp[b][1], 0]);
   }
-  for (const h of throughHoles) mesh.append(loftShell(h, h, 0, thickness, true));
+  if (doSplit) {
+    // the slab's top (facing up) and the upper part's bottom (facing down)
+    for (const [a, b, c] of cutTris) {
+      lower.addTriangle([a[0], a[1], zs], [b[0], b[1], zs], [c[0], c[1], zs]);
+      mesh.addTriangle([a[0], a[1], zs], [c[0], c[1], zs], [b[0], b[1], zs]);
+    }
+    for (const h of throughHoles) { lower.append(loftShell(h, h, 0, zs, true)); mesh.append(loftShell(h, h, zs, thickness, true)); }
+  } else {
+    for (const h of throughHoles) mesh.append(loftShell(h, h, 0, thickness, true));
+  }
 
   cells.forEach(({ cx, cy }, i) => {
     const recessOutline = recesses[i];
@@ -487,7 +552,7 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null) {
       mesh.addTriangle([points[a][0], points[a][1], floorZ], [points[b][0], points[b][1], floorZ], [points[c][0], points[c][1], floorZ]);
     }
   });
-  return mesh;
+  return doSplit ? { lower, upper: mesh } : mesh;
 }
 
 function buildBlock(outer, cells, thickness, settings) {

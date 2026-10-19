@@ -187,6 +187,9 @@ input[type="color"] {
 .checkbox input { accent-color: var(--ember); }
 
 .cap-list { display: flex; flex-direction: column; gap: 10px; }
+.same-cap-colors { gap: 8px; margin: 8px 0 10px; }
+.same-cap-colors[hidden] { display: none; }
+.same-cap-colors input[type="color"] { margin-right: 10px; }
 .cap-row {
   background: var(--panel-alt);
   border: 1px solid var(--line);

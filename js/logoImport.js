@@ -111,7 +111,8 @@ export const LOGO_FIT = {
   capSquareMM: 16.8,      // cap always covers this square around the stem:
                           // a 14mm hollow for the switch top + 1.4mm walls
   capSquareRadiusMM: 2.5,
-  clearanceMM: 0.3,       // gap between the cap and the base recess
+  clearanceMM: 0.45,      // gap between the cap and the base recess (the Key
+                          // clearance setting overrides it)
   switchPocketMM: 16.2,   // the switch housing (15.6mm) + 0.3mm each side
   baseWallMM: 2.5,        // base wall around the recess
 };
@@ -136,13 +137,13 @@ export function logoOutlines(fp, settings) {
   // A basic cap shape instead of the logo's outline (settings.logoShape):
   // the shape grows to hold the whole logo with the rim around it, centred
   // on the logo, with the stem at its centre.
-  const F0 = LOGO_FIT;
+  const F0 = { ...LOGO_FIT, clearanceMM: settings.keyClearanceMM ?? LOGO_FIT.clearanceMM };
   const shapePoly = settings.logoShape && settings.logoShape !== 'outline' ? fitShape(settings.logoShape, fp, cell, F0) : null;
   if (shapePoly) { sx = shapePoly.centre[0]; sy = shapePoly.centre[1]; }
 
   // Grid covering everything the outlines can reach: the logo grown by
   // rim + clearance + base wall, and the base square around the stem.
-  const F = LOGO_FIT;
+  const F = { ...LOGO_FIT, clearanceMM: settings.keyClearanceMM ?? LOGO_FIT.clearanceMM };
   // (+ CLOSE_MAX_MM: room for joining separate pieces of a logo, below)
   const reach = F.rimMM + F.clearanceMM + F.baseWallMM + 1 + CLOSE_MAX_MM;
   const squareReach = Math.max(F.capSquareMM / 2 + F.clearanceMM, F.switchPocketMM / 2) + F.baseWallMM + 1;
