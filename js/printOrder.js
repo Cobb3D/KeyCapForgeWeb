@@ -11,7 +11,7 @@
 //
 // Paste the web app's URL (it ends in /exec) between the quotes below. While
 // it's empty the Send to Print button stays hidden.
-const ORDER_ENDPOINT = '';
+const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzRwU7e1s26GmtUsS5WvcGJvqdC2Nn0pO-htCFf01xcl_iM5f_E_pw5Bk5qvYFe9JPA/exec';
 
 // Orders bigger than this aren't sent (Gmail's attachment limit is 25MB, and
 // the file grows by a third when encoded for sending).
