@@ -1,46 +1,31 @@
-// Three.js is loaded via an import map (declared in index.html), which is
-// the officially documented way to use it from a CDN without a bundler —
-// it guarantees the main module and its addons (like OrbitControls)
-// resolve to the exact same module instance. That matters because modern
-// Three.js addon files import Three itself via a bare specifier
-// (`import ... from 'three'`), which cannot resolve to any URL at all
-// without an import map — this was the actual cause of OrbitControls
-// failing to load from jsdelivr/unpkg here, not a network or CORS problem.
+// Three.js (release 0.160.0) is part of the app itself, in vendor/three/
+// (three.module.js, the OrbitControls add-on, and its MIT licence),
+// loaded through the import map in index.html. Nothing is fetched from
+// another site, so the 3D view doesn't depend on a CDN being up, and no
+// outside server can change the code the page runs. The import map
+// matters because three.js add-ons import Three itself as a bare
+// 'three', which only resolves through a map, and it keeps the add-on and
+// the app on the same copy of Three.
 //
-// esm.sh is kept as a fallback for if jsdelivr itself is ever unreachable:
-// it rewrites bare specifiers on the fly so it works without an import map
-// at all, but it can end up loading Three.js as two separate module
-// instances (one directly, one via its rewritten OrbitControls import),
-// which broke Three's internal rotation/quaternion sync with a stack
-// overflow when tried here — a real trade-off, not a hypothetical one, so
-// it's the fallback rather than the primary.
+// It used to load from jsDelivr, with esm.sh as a fallback. To update
+// Three.js, replace the two files with the same files from the new release
+// (build/three.module.js and examples/jsm/controls/OrbitControls.js in
+// the three.js repository) and test the 3D view.
 let cached = null;
 
 export async function ensureThreeLoaded() {
   if (cached) return cached;
   const note = (msg) => { console.info('KeyCapForge:', msg); if (window.showDiag) window.showDiag(msg); };
-
   try {
-    note('Trying import map (three + three/addons/…) …');
+    note('Loading Three.js …');
     const THREE = await import('three');
     const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
     cached = { THREE, OrbitControls };
-    note('✓ loaded via import map — ready');
+    note('✓ Three.js loaded — ready');
     return cached;
   } catch (e) {
-    note(`✗ import map approach failed: ${e.message || e}`);
-  }
-
-  try {
-    note('Trying esm.sh fallback …');
-    const THREE = await import('https://esm.sh/three@0.160.0');
-    const { OrbitControls } = await import('https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js');
-    cached = { THREE, OrbitControls };
-    note('✓ loaded via esm.sh — ready');
-    return cached;
-  } catch (e) {
-    note(`✗ esm.sh fallback failed: ${e.message || e}`);
-    throw new Error('Could not load Three.js via the import map or the esm.sh fallback: ' + (e.message || e));
+    note(`✗ Three.js failed to load: ${e.message || e}`);
+    throw new Error('Could not load Three.js from vendor/three/ (check that the vendor folder was uploaded): ' + (e.message || e));
   }
 }
 

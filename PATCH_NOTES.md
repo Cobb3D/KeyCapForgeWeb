@@ -7,6 +7,46 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/19/2026d
+
+- **Three.js is now part of the app** (vendor/three/: three.js 0.160.0,
+  the same version as before, its OrbitControls add-on, and its MIT
+  licence). The 3D view no longer loads code from jsDelivr or esm.sh, so it
+  doesn't depend on those sites being up, and no outside server can change
+  the code the page runs. Upload the new vendor folder with everything else.
+- The only outside site the app still uses is Google Fonts, for the
+  letter fonts.
+
+## 10/19/2026c
+
+- **Send to Print only emails genuine 3MF files.** The order script opens
+  each attachment and checks it's a real 3MF (a ZIP holding only a 3MF
+  model, its content-type and relationship files, and slicer settings, with
+  a real 3MF model inside). Anything else, like a program, a document, a
+  ZIP hiding other files or a renamed file, is refused. Attachments are
+  always named .3mf.
+- **Bot trap on the Send to Print form:** a hidden field that people never
+  see (bots fill it in) and a check that the form wasn't filled in under 3
+  seconds. Bot orders are dropped silently and don't count toward the
+  30-an-hour limit, so they can't block real orders.
+- **Re-deploy the script after updating it:** paste the new OrderEmail.gs
+  into your Apps Script project, then Deploy > Manage deployments > Edit >
+  Version: New version > Deploy (the URL stays the same).
+
+## 10/19/2026b
+
+- **Send to Print** (needs a one-time setup, see below): a button next to
+  Export opens a short form (name, email, notes). Send emails the design's
+  3MF (the same file Export makes) to Cobb3DPrinting@gmail.com, with the
+  customer's details, a summary of the design (keys, shapes and colors) and
+  the settings to recreate it. Replying to the email goes to the customer.
+- It works through a free Google Apps Script on the Cobb3D Google account
+  (google-apps-script/OrderEmail.gs), since a website can't send email with
+  an attachment by itself. Until its web app URL is pasted into
+  js/printOrder.js (ORDER_ENDPOINT), the button stays hidden. It refuses
+  anything that isn't a KeyCapForge order, files over 18MB, and more than
+  30 orders an hour.
+
 ## 10/19/2026a
 
 - **"Same color for every cap" checkbox** under Caps in this set. Tick it

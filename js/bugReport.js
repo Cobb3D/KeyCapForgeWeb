@@ -9,7 +9,7 @@
 
 // Bump this when publishing an update, so reports say which version they
 // came from.
-export const APP_VERSION = '10/19/2026a';
+export const APP_VERSION = '10/19/2026d';
 
 // The app's name as shown to users: the page title, the top bar, exported
 // files' metadata, and bug reports.

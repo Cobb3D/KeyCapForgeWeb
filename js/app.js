@@ -6,6 +6,7 @@ import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
 import { buildThreeMF, limitDistinctColors } from './threeMFExport.js';
 import { initBugReport, APP_NAME } from './bugReport.js';
+import { initPrintOrder } from './printOrder.js';
 import { initWhatsNew } from './whatsNew.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
@@ -222,7 +223,7 @@ async function main() {
     }
     if (exportFormat === '3mf' || exportFormat === 'both') {
       const limited = limitDistinctColors(objects, 4);
-      downloadBlob(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
+      deliver3mf(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
     }
   }
 
@@ -726,7 +727,8 @@ async function main() {
     return raw.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
-  document.getElementById('exportBtn').addEventListener('click', () => {
+  document.getElementById('exportBtn').addEventListener('click', () => runExport());
+  function runExport() {
     if (mode === 'logo') { exportLogo(); return; }
     const baseMesh = buildBase(caps, settings);
     const exportPositions = computeExportLayout();
@@ -803,9 +805,44 @@ async function main() {
       // <components> revert). See the STL branch above and
       // Mesh.welded() (mesh.js) for why this step is needed at all.
       const weldedObjects = limitedObjects.map((o) => ({ ...o, mesh: o.mesh.welded() }));
-      downloadBlob(buildThreeMF(weldedObjects, `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
+      deliver3mf(buildThreeMF(weldedObjects, `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
     }
-  });
+  }
+
+  // "Send to Print" (printOrder.js) needs the same 3MF the Export button
+  // makes, as a file rather than a download: while capture3mf is set, the
+  // export hands its 3MF to it instead of downloading (and skips the STL).
+  let capture3mf = null;
+  function deliver3mf(blob, name) {
+    if (capture3mf) capture3mf({ blob, name });
+    else downloadBlob(blob, name);
+  }
+  liveState.make3mf = () => {
+    let result = null;
+    const saved = exportFormat;
+    exportFormat = '3mf';
+    capture3mf = (r) => { result = r; };
+    try { runExport(); } finally { exportFormat = saved; capture3mf = null; }
+    return result; // null if there was nothing to export (no logo imported)
+  };
+  // What the order email says about the design.
+  liveState.orderInfo = () => {
+    const lines = [];
+    if (mode === 'logo') {
+      lines.push(`Logo clicker: ${logo ? logo.name : '(no logo)'}`, `Logo size: ${settings.logoSizeMM}mm, cap shape: ${settings.logoShape}`,
+        `Cap color ${settings.logoCapColorHex}, logo ${settings.logoOneColor ? 'one color ' + settings.logoLegendColorHex : 'in its own colors'}`);
+    } else {
+      lines.push(`Keys: ${caps.map((c) => c.text || ' ').join('')} (${caps.length})`);
+      caps.forEach((c, i) => lines.push(`  ${i + 1}. "${c.text}" ${c.shape}, cap ${c.bodyColorHex}, letter ${c.colorfulEmoji && !settings.emojiOneColor ? 'emoji colors' : c.legendColorHex}`));
+      lines.push(`Base shape: ${settings.joinedBase ? settings.baseShape : 'separate bases'}${activeTheme ? ', theme: ' + activeTheme : ''}`);
+    }
+    lines.push(`Base color: ${settings.baseColorHex}`, `Keyring: ${settings.keyringStyle}`);
+    return {
+      title: mode === 'logo' ? 'logo clicker' : caps.map((c) => c.text).join(''),
+      summary: lines.join('\n'),
+      design: JSON.stringify({ mode, settings: changedFrom(settings, DEFAULT_SETTINGS), caps: mode === 'logo' ? undefined : caps.map((cap) => ({ text: cap.text, ...changedFrom(cap, DEFAULT_CAP) })) }),
+    };
+  };
 
   // ---------- Logo clicker controls ----------
   for (const b of document.querySelectorAll('#modeToggle button')) b.addEventListener('click', () => setMode(b.dataset.mode));
@@ -857,6 +894,10 @@ async function main() {
 // fails to start.
 initWhatsNew();
 
+initPrintOrder({
+  make3mf: () => liveState.make3mf && liveState.make3mf(),
+  orderInfo: () => liveState.orderInfo && liveState.orderInfo(),
+});
 initBugReport(() => {
   const checked = (id) => !!(document.getElementById(id) && document.getElementById(id).checked);
   return {

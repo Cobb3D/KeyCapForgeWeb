@@ -11,8 +11,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
   }
 }
 </script>
@@ -63,7 +63,7 @@
   // seconds, something's wrong even if no error event fired.
   setTimeout(() => {
     if (!window.__kcfLoaded) {
-      showDiag('KeyCapForge never finished loading (no error event fired). Most likely cause: the Three.js CDN import failed silently — check your network connection, or whether jsdelivr.net is reachable/blocked.');
+      showDiag('KeyCapForge never finished loading (no error event fired). Most likely cause: Three.js did not load. Check that the vendor/three folder was uploaded along with the rest of the app.');
     }
   }, 4000);
 </script>
@@ -83,6 +83,7 @@
         <button class="fmt" data-fmt="both">Both</button>
       </div>
       <button class="btn primary" id="exportBtn">Export</button>
+      <button class="btn primary" id="printOrderBtn" hidden title="Email this design to Cobb3D to be printed">Send to Print</button>
     </div>
   </header>
 
@@ -305,6 +306,27 @@
         <button type="button" class="btn ghost" id="bugCopy">Copy Report</button>
         <button type="button" class="btn ghost" id="bugGithub">Open on GitHub</button>
         <button type="button" class="btn primary" id="bugEmail">Email Report</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="printOrderDialog" class="bug-dialog">
+    <form id="printOrderForm" class="bug-form">
+      <h2>Send to Print</h2>
+      <p class="hint">Sends this design's print file (3MF) and the details below to Cobb3D by email. You'll get a reply at your email address.</p>
+      <label for="orderName">Your name</label>
+      <input type="text" id="orderName" required maxlength="100" autocomplete="name">
+      <label for="orderEmail">Your email</label>
+      <input type="email" id="orderEmail" required maxlength="200" autocomplete="email">
+      <div class="order-trap" aria-hidden="true">
+        <label for="orderWebsite">Website (leave this empty)</label>
+        <input type="text" id="orderWebsite" name="website" tabindex="-1" autocomplete="off">
+      </div>
+      <label for="orderNotes">Notes (quantity, colors, anything else)</label>
+      <textarea id="orderNotes" rows="4" maxlength="4000" placeholder="e.g. 2 of these, and can the base be glow-in-the-dark?"></textarea>
+      <p class="order-note" id="orderNote" aria-live="polite"></p>
+      <div class="bug-actions">
+        <button type="button" class="btn ghost" id="orderCancel">Close</button>
+        <button type="submit" class="btn primary" id="orderSend">Send</button>
       </div>
     </form>
   </dialog>

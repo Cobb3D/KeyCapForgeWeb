@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/19/2026a**
+**Version 10/19/2026d**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-19-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-19-2026d.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2113,3 +2113,48 @@ first thing to check.
   body and legend colours to those two, so added caps follow, and the
   per-cap swatches are hidden. Turning it on starts from the first cap's
   colours and switches the theme to Custom; picking a theme turns it off.
+
+- **Send to Print (order by email).** `js/printOrder.js` adds a "Send to
+  Print" button and form (name, email, notes). It builds the same 3MF as
+  Export (`liveState.make3mf()` in app.js runs the export with a capture
+  hook, `deliver3mf`, instead of downloading), base64-encodes it, and POSTs
+  it as text/plain JSON (a "simple" request, no CORS preflight) with
+  `liveState.orderInfo()` (a design summary and the changed settings) to a
+  Google Apps Script web app. That script, `google-apps-script/OrderEmail.gs`,
+  runs on the Cobb3D Google account and emails Cobb3DPrinting@gmail.com
+  with the file attached and Reply-To set to the customer (MailApp: about
+  100 emails/day on a personal account, 25MB of attachments). It checks the
+  request is a KeyCapForge order, caps the file at 18MB, and allows 30
+  orders an hour (CacheService). Setup: follow the steps at the top of
+  OrderEmail.gs, then paste the web app URL (ending in /exec) into
+  `ORDER_ENDPOINT` in js/printOrder.js; while that's empty the button is
+  hidden. Tested with a stand-in server and stand-ins for Google's services:
+  the button stays hidden with no URL, the form needs a name and email, the
+  order arrives with a valid 3MF (5.5MB for the default 4-key design) and
+  the right subject, recipient and Reply-To, errors show a message, junk
+  and over-limit requests are refused. Not yet tested on a live Google
+  deployment.
+
+- **Send to Print hardening.** OrderEmail.gs `check3mf()` refuses anything
+  that isn't a ZIP whose entries are only `[Content_Types].xml`,
+  `_rels/.rels`, `3D/3dmodel.model` and `Metadata/*.config`, with an XML
+  3MF model inside (at most 12 entries); the attachment name is forced to
+  end in .3mf. Bot trap: a visually hidden, untabbable "website" field
+  (`.order-trap`, positioned off-screen rather than display:none) and the
+  time the form was open (`elapsedMs`); if the field is filled or the time
+  is under 3 seconds or missing, the script replies ok and sends nothing,
+  before the hourly counter, so bots can't use up the limit. Tested with
+  stand-ins for Google's services: a real order from the app goes through;
+  a filled trap field, a 0.8s form, a direct request without timing, a
+  program, a ZIP hiding a program, and a ZIP with a fake model are all
+  stopped.
+
+- **Three.js self-hosted.** vendor/three/three.module.js (r160 =
+  npm 0.160.0, sha256 76dea815…a495) and
+  vendor/three/addons/controls/OrbitControls.js (sha256 5a44a9e8…7b064),
+  copied from the mrdoob/three.js repository at tag r160, with its LICENSE.
+  The import map in index.html points `three` and `three/addons/` at them;
+  the jsDelivr URLs and the esm.sh fallback in scene.js are gone. Tested
+  in a real browser with every outside site blocked: Three.js loads, the
+  preview renders, and the full app test (letters, logo, exports) passes.
+  The only outside requests left are Google Fonts.
