@@ -66,6 +66,11 @@ export class Viewport {
 
     this.modelGroup = new THREE.Group();
     this.scene.add(this.modelGroup);
+    // The see-through print bed (setPrintBed). Kept outside modelGroup so
+    // it never affects framing, Reset View or the view modes.
+    this.bedGroup = new THREE.Group();
+    this.bedGroup.visible = false;
+    this.scene.add(this.bedGroup);
 
     this._initScaleBar();
 
@@ -265,6 +270,44 @@ export class Viewport {
     this.modelGroup.clear();
     this.modelGroup.add(object3D);
     this._applyViewModes();
+    this._placeBed();
+  }
+
+  // A see-through print bed under the model, for a sense of scale: a faint
+  // plate with a 10mm grid and a brighter outline, at the plate's real size
+  // (bed = { w, d } in mm, or null for none), centred under the model.
+  // Preview only.
+  setPrintBed(bed) {
+    const THREE = this.THREE;
+    this.bedGroup.clear();
+    this._bed = bed && bed.w ? bed : null;
+    if (!this._bed) { this.bedGroup.visible = false; return; }
+    const { w, d } = this._bed;
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ color: 0x9fb3c8, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide })
+    );
+    const grid = [];
+    for (let x = -w / 2 + 10; x < w / 2 - 0.01; x += 10) grid.push(x, -d / 2, 0, x, d / 2, 0);
+    for (let y = -d / 2 + 10; y < d / 2 - 0.01; y += 10) grid.push(-w / 2, y, 0, w / 2, y, 0);
+    const gridGeo = new THREE.BufferGeometry();
+    gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(grid, 3));
+    const gridLines = new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: 0x9fb3c8, transparent: true, opacity: 0.1, depthWrite: false }));
+    const edgeGeo = new THREE.BufferGeometry();
+    edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute([-w / 2, -d / 2, 0, w / 2, -d / 2, 0, w / 2, d / 2, 0, -w / 2, d / 2, 0], 3));
+    const outline = new THREE.LineLoop(edgeGeo, new THREE.LineBasicMaterial({ color: 0xcfe0f0, transparent: true, opacity: 0.55, depthWrite: false }));
+    for (const o of [plate, gridLines, outline]) { o.renderOrder = -1; this.bedGroup.add(o); }
+    this._placeBed();
+    this._applyViewModes();
+  }
+
+  _placeBed() {
+    if (!this._bed) return;
+    const box = new this.THREE.Box3().setFromObject(this.modelGroup);
+    const c = box.isEmpty() ? new this.THREE.Vector3() : box.getCenter(new this.THREE.Vector3());
+    // Just under z = 0, where the model sits, so it doesn't flicker
+    // against the base's bottom face.
+    this.bedGroup.position.set(c.x, c.y, -0.05);
   }
 
   // Frames the model like Reset View, but from a given direction (a vector
@@ -306,6 +349,8 @@ export class Viewport {
     if (vm.cutAxis === 'y') this._cutPlane.set(new THREE.Vector3(0, 1, 0), -vm.cutOffset);  // keeps y >= offset
     else this._cutPlane.set(new THREE.Vector3(-1, 0, 0), vm.cutOffset);                       // keeps x <= offset
     this.renderer.clippingPlanes = vm.crossSection ? [this._cutPlane] : [];
+    // The bed would be cut in half by the section, so it's hidden then.
+    this.bedGroup.visible = !!this._bed && !vm.crossSection;
 
     const meshes = [];
     this.modelGroup.traverse((o) => { if (o.isMesh && !o.userData.viewDecoration) meshes.push(o); });

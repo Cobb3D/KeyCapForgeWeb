@@ -9,9 +9,10 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  'New "Same color for every cap" checkbox under Caps in this set: pick one cap color and one letter color for the whole set, including caps you add later',
-  'More room around each key in the base (0.45mm per side) so caps don\'t rub the pocket walls; adjust it with the Key clearance slider',
-  '3MF files bring your colors into Bambu Studio and OrcaSlicer: use Color match to map them to your AMS, and every part stays changeable in the slicer',
+  'New Print bed picker above the 3D view: pick your Bambu Lab printer to see its bed under your keychain, and a check that the exported parts fit on it',
+  'New Send to Print button next to Export: send your design straight to Cobb3D to be printed, with your name, email and any notes. You\'ll get a reply by email',
+  'New "Same color for every cap" checkbox under Caps in this set',
+  'More room around each key in the base (Key clearance slider)',
 ]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';

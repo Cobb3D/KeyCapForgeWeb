@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/19/2026d**
+**Version 10/20/2026d**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-19-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-20-2026d.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2158,3 +2158,54 @@ first thing to check.
   in a real browser with every outside site blocked: Three.js loads, the
   preview renders, and the full app test (letters, logo, exports) passes.
   The only outside requests left are Google Fonts.
+
+- **Send to Print endpoint.** ORDER_ENDPOINT in js/printOrder.js is the
+  Cobb3D Apps Script deployment:
+  https://script.google.com/macros/s/AKfycbzRwU7e1s26GmtUsS5WvcGJvqdC2Nn0pO-htCFf01xcl_iM5f_E_pw5Bk5qvYFe9JPA/exec
+  Keep it when building new releases. Updating the script: Deploy > Manage
+  deployments > Edit > Version: New version keeps this URL; a brand-new
+  deployment gets a new URL, which then has to go here.
+
+- **Print bed outline.** js/printBeds.js lists Bambu Lab beds (printable X
+  × Y from Bambu Lab's specs, checked October 2026; dual-nozzle limits as a
+  note). `Viewport.setPrintBed()` (scene.js) draws the bed in its own group
+  outside modelGroup (so framing and view modes ignore it): a 7%-opacity
+  plate, a 10mm grid and an outline, at z = -0.05, centred under the
+  model, hidden in Cross Section. app.js fills the "Print bed" select,
+  remembers the choice in localStorage (try/catch), and after each rebuild
+  computes the export footprint (base mesh bounds plus the caps at their
+  export positions, or the logo base plus the cap beside it) for the fit
+  check (`fitsOnBed`, either orientation, 4mm spare).
+
+- **Maker tools / base plate.** A `letters-only` panel (#makerPanel in
+  index.html) shown only when localStorage 'keycapforge.maker' is set:
+  visiting with `?maker` sets it, `?maker=off` or the "Hide maker tools"
+  link clears it. Open it at https://cobb3d.github.io/KeyCapForgeWeb/?maker
+  . `buildBasePlate(from, to)` in app.js makes stand-in caps for each count
+  and builds each base with the live settings (`buildBaseParts`, or
+  `camoBase` for camo, one painted object), named `base_<n>keys`, laid
+  side by side with a 6mm gap (across X for vertical layouts, down Y for
+  horizontal), near ends aligned, centred on the origin. `deliverPlate`
+  limits to 4 colors, welds, and writes KeyCapForge_bases_<from>-<to>keys.3mf
+  with buildThreeMF, so every base keeps 2+ parts and filament assignment.
+
+
+- **Base plate is plain only.** `buildBasePlate` ignores `basePattern`
+  (no camoBase call): themed camo/cow bases are print-to-order and come
+  from the normal Export. Tested with the pattern on: 6 objects, no
+  painted triangles.
+
+- **Caps plate on several plates.** `buildCapsPlate(letters, copies,
+  plates)` shares full sets evenly over 1–4 beds (grid at 3mm gaps, 5mm
+  edge, 60mm back-right tower corner free per bed), placing beds where
+  Bambu Studio's plate grid puts them (1.2 bed widths apart, columns as in
+  PartPlate.hpp compute_colum_count). Each letter is one assembly object
+  placed by several build items (`instances` on export objects in
+  buildThreeMF), so Bambu loads one object per letter with N instances.
+  `buildThreeMFCompressed` (async) writes the same entries deflated with
+  CompressionStream('deflate-raw') (ZipWriter now supports method 8); used
+  for the caps plate only. Bambu Studio ignores <plate> data and centres a
+  non-project 3MF (Plater.cpp: load_config is false with no project
+  config, then center_instances_around_point), so multi-plate files need
+  Arrange, which creates plates (ArrangeJob.cpp). Tested: 208 caps, 26
+  objects x 8 instances, 2 parts each, 0 open edges, 5.1 MB.

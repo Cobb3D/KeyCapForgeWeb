@@ -4,9 +4,10 @@ import { buildBase, buildBaseParts, capCenters, maxSafeRecessDepth, baseExtentsF
 import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
-import { buildThreeMF, limitDistinctColors } from './threeMFExport.js';
+import { buildThreeMF, buildThreeMFCompressed, limitDistinctColors } from './threeMFExport.js';
 import { initBugReport, APP_NAME } from './bugReport.js';
 import { initPrintOrder } from './printOrder.js';
+import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
 import { initWhatsNew } from './whatsNew.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
@@ -124,6 +125,56 @@ async function main() {
   const viewport = new Viewport(document.getElementById('canvasHost'), THREE, OrbitControls);
   liveState.viewport = viewport;
 
+  // ---------- Print bed (see-through outline in the 3D view) ----------
+  // The choice is remembered in this browser only (a per-visitor
+  // convenience; it never affects the exported file).
+  const BED_KEY = 'keycapforge.printBed';
+  const bedSelect = document.getElementById('printBedSelect');
+  const bedFitEl = document.getElementById('bedFit');
+  let printBed = null;
+  for (const b of PRINT_BEDS) {
+    const o = document.createElement('option');
+    o.value = b.id;
+    o.textContent = b.w ? `${b.name} (${b.w} × ${b.d} mm)` : b.name;
+    bedSelect.appendChild(o);
+  }
+  function setPrintBed(id) {
+    printBed = bedById(id);
+    bedSelect.value = printBed.id;
+    viewport.setPrintBed(printBed.w ? printBed : null);
+    updateBedFit();
+  }
+  let savedBed = null;
+  try { savedBed = localStorage.getItem(BED_KEY); } catch (e) { savedBed = null; }
+  bedSelect.addEventListener('change', () => {
+    setPrintBed(bedSelect.value);
+    try { localStorage.setItem(BED_KEY, bedSelect.value); } catch (e) { /* storage blocked: just not remembered */ }
+  });
+  // The parts' footprint as exported (the base, with the caps laid out
+  // beside it), set by rebuild()/rebuildLogo().
+  let exportFootprint = null;
+  function updateBedFit() {
+    if (!bedFitEl) return;
+    if (!printBed || !printBed.w || !exportFootprint) { bedFitEl.textContent = ''; bedFitEl.className = 'bed-fit'; return; }
+    const { w, h } = exportFootprint;
+    const fits = fitsOnBed(printBed, w, h);
+    bedFitEl.className = 'bed-fit ' + (fits ? 'ok' : 'warn');
+    bedFitEl.textContent = fits ? `✓ Fits (parts take ${Math.ceil(w)} × ${Math.ceil(h)} mm)` : `⚠ Too big: parts take ${Math.ceil(w)} × ${Math.ceil(h)} mm`;
+    bedFitEl.title = (fits ? 'The exported parts (base, and the caps laid out beside it) fit on this bed.' : 'The exported parts (base, and the caps laid out beside it) need more room than this bed has. Print the caps and base as separate plates, or use fewer keys.')
+      + (printBed.note ? ` ${printBed.name} ${printBed.note}.` : '');
+  }
+  const bboxOf = (mesh, dx = 0, dy = 0) => {
+    const v = mesh.vertices; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < v.length; i += 3) { x0 = Math.min(x0, v[i] + dx); x1 = Math.max(x1, v[i] + dx); y0 = Math.min(y0, v[i + 1] + dy); y1 = Math.max(y1, v[i + 1] + dy); }
+    return { x0, x1, y0, y1 };
+  };
+  const unionBox = (a, b) => ({ x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1) });
+  function setExportFootprint(box) {
+    exportFootprint = box && isFinite(box.x0) ? { w: box.x1 - box.x0, h: box.y1 - box.y0 } : null;
+    updateBedFit();
+  }
+  setPrintBed(savedBed);
+
   // Pushes the Cross Section / X-Ray checkbox state to the viewport. Looks
   // the elements up itself so it's safe to call from rebuild(), which first
   // runs before the toolbar's event wiring further down.
@@ -194,6 +245,11 @@ async function main() {
     viewport.setModel(group);
     applyViewModes();
     if (r) viewport.frameToModel();
+    if (r) {
+      const xs = (poly) => poly.points.map((p) => p[0]);
+      const capX = Math.max(...xs(r.outlines.base)) - Math.min(...xs(r.outlines.cap)) + 4; // as in exportLogo
+      setExportFootprint(unionBox(bboxOf(r.base), bboxOf(r.capBody, capX, 0)));
+    } else setExportFootprint(null);
     updateRecessDepthHint();
   }
 
@@ -298,6 +354,14 @@ async function main() {
     viewport.setModel(group);
     applyViewModes();
     viewport.frameToModel();
+    {
+      // Footprint as exported: the base plus each cap where the export
+      // lays it out.
+      let box = bboxOf(baseMesh);
+      const half = settings.capWidthMM / 2;
+      for (const p of computeExportLayout()) box = unionBox(box, { x0: p.x - half, x1: p.x + half, y0: p.y - half, y1: p.y + half });
+      setExportFootprint(caps.length ? box : null);
+    }
 
     renderCapCount();
     updateCornerRadiusHint();
@@ -843,6 +907,195 @@ async function main() {
       design: JSON.stringify({ mode, settings: changedFrom(settings, DEFAULT_SETTINGS), caps: mode === 'logo' ? undefined : caps.map((cap) => ({ text: cap.text, ...changedFrom(cap, DEFAULT_CAP) })) }),
     };
   };
+
+  // ---------- Maker tools (only with ?maker) ----------
+  // For Cobb3D's own batch printing: one 3MF with a base for each key count
+  // (2 to 7 by default) laid out on one plate, from the current base
+  // settings. The panel shows when the site is opened with ?maker on the
+  // address, and stays on in that browser until "Hide maker tools" (or
+  // ?maker=off). It's hidden, not secret: anyone who adds ?maker sees it,
+  // and it only exports files.
+  {
+    const MAKER_KEY = 'keycapforge.maker';
+    const q = new URLSearchParams(location.search).get('maker');
+    let on = false;
+    try {
+      if (q === 'off') localStorage.removeItem(MAKER_KEY);
+      else if (q !== null) localStorage.setItem(MAKER_KEY, '1');
+      on = localStorage.getItem(MAKER_KEY) === '1';
+    } catch (e) { on = q !== null && q !== 'off'; }
+    const panel = document.getElementById('makerPanel');
+    panel.hidden = !on;
+    document.getElementById('makerHide').addEventListener('click', (e) => {
+      e.preventDefault();
+      try { localStorage.removeItem(MAKER_KEY); } catch (err) { /* nothing to forget */ }
+      panel.hidden = true;
+    });
+    const note = document.getElementById('makerNote');
+    document.getElementById('makerPlateBtn').addEventListener('click', () => {
+      let from = Math.round(Number(document.getElementById('makerFrom').value) || 2);
+      let to = Math.round(Number(document.getElementById('makerTo').value) || 7);
+      from = Math.max(1, Math.min(12, from)); to = Math.max(1, Math.min(12, to));
+      if (from > to) [from, to] = [to, from];
+      const plate = buildBasePlate(from, to);
+      deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys.3mf`);
+      const fit = printBed && printBed.w ? (fitsOnBed(printBed, plate.w, plate.h) ? `fits on the ${printBed.name}` : `too big for the ${printBed.name}, try a smaller range`) : '';
+      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}.`;
+    });
+  }
+
+  // The bases for `from`..`to` keys, side by side (across the row
+  // direction, 6mm apart), centred on the origin, as 3MF objects. Each
+  // base is its own object, in parts like the normal export (buildBaseParts),
+  // plain even when a camo or cow theme is on.
+  function buildBasePlate(from, to) {
+    const GAP = 6;
+    const vertical = !!settings.verticalLayout;
+    const items = [];
+    for (let n = from; n <= to; n++) {
+      const fakeCaps = Array.from({ length: n }, () => ({ shape }));
+      // Always plain bases: themed (camo / cow) bases are print-to-order
+      // and come from the normal Export, never from the plate.
+      const parts = buildBaseParts(fakeCaps, settings).map((p) => ({ mesh: p.mesh, name: `base_${n}keys_${p.name}` }));
+      let box = null;
+      for (const p of parts) box = box ? unionBox(box, bboxOf(p.mesh)) : bboxOf(p.mesh);
+      items.push({ n, parts, box });
+    }
+    // Side by side: across X for a vertical row, down Y for a horizontal one.
+    // Each base's near end lined up, so the plate is tidy.
+    const objects = [];
+    let cursor = 0, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const it of items) {
+      const { box } = it;
+      const tx = vertical ? cursor - box.x0 : -box.x0;
+      const ty = vertical ? -box.y0 : -(cursor + (box.y1 - box.y0)) - box.y0;
+      cursor += (vertical ? box.x1 - box.x0 : box.y1 - box.y0) + GAP;
+      x0 = Math.min(x0, box.x0 + tx); x1 = Math.max(x1, box.x1 + tx); y0 = Math.min(y0, box.y0 + ty); y1 = Math.max(y1, box.y1 + ty);
+      for (const p of it.parts) objects.push({ ...p, colorHex: settings.baseColorHex, group: `base_${it.n}keys`, translation: [tx, ty, 0] });
+    }
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    for (const o of objects) o.translation = [o.translation[0] - cx, o.translation[1] - cy, 0];
+    return { objects, w: x1 - x0, h: y1 - y0 };
+  }
+  function deliverPlate(plate, name) {
+    const limited = limitDistinctColors(plate.objects, 4);
+    downloadBlob(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), name);
+  }
+  liveState.buildBasePlate = buildBasePlate;
+
+  // Letter caps plate: full sets of `letters` (A..Z) on `plates` print
+  // beds, `copies` of each letter in all (or as many as fit), shared out as
+  // evenly as possible so each bed holds whole sets and can be printed on
+  // its own. Every cap is a copy of the first cap in the set (shape, font,
+  // legend style, colors) with its letter changed, oriented for printing
+  // like the normal export (face down, except embossed). The back-right
+  // corner of each bed is kept free for the prime tower.
+  //
+  // Each letter is ONE object (body + legend parts) placed as many times as
+  // needed (3MF build items sharing the object), so its mesh is in the file
+  // once and the slicer shows "A" with all its copies as instances. Beds
+  // after the first sit where Bambu Studio puts its plate 2, 3, 4 (1.2 bed
+  // widths apart, in its grid). Bambu Studio only keeps plates in its own
+  // project files, though, so on opening it moves everything together;
+  // Arrange (A) then fills plate 1 and adds the extra plates itself.
+  const TOWER_MM = 60; // free square in the back-right corner
+  function buildCapsPlate(lettersRaw, copiesWanted, platesWanted = 1) {
+    const letters = [...String(lettersRaw || '').toUpperCase().replace(/\s+/g, '')];
+    if (!letters.length) return null;
+    const plates = Math.max(1, Math.min(4, Math.round(platesWanted) || 1));
+    const template = caps[0] || makeCap('A');
+    const bed = printBed && printBed.w ? printBed : bedById(DEFAULT_PRINT_BED);
+    const GAP = 3, EDGE = 5;
+    const shouldFlip = template.legendStyle !== 'embossed';
+    const orient = (mesh) => (shouldFlip ? mesh.flippedForPrint(settings.capHeightMM) : mesh);
+    const built = new Map();
+    let cw = 0, ch = 0;
+    for (const L of new Set(letters)) {
+      const cap = { ...template, text: L, colorfulEmoji: false };
+      const { body, legendParts } = buildKeycap(cap, settings);
+      const b = orient(body);
+      const parts = [{ mesh: b, colorHex: cap.bodyColorHex, kind: 'body' }]
+        .concat(legendParts.map((part) => ({ mesh: orient(part.mesh), colorHex: cap.legendColorHex, kind: 'legend' })));
+      const box = bboxOf(b);
+      cw = Math.max(cw, box.x1 - box.x0); ch = Math.max(ch, box.y1 - box.y0);
+      built.set(L, { parts, cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2, spots: [] });
+    }
+    const pitchX = cw + GAP, pitchY = ch + GAP;
+    const cols = Math.max(1, Math.floor((bed.w - 2 * EDGE + GAP) / pitchX));
+    const rows = Math.max(1, Math.floor((bed.d - 2 * EDGE + GAP) / pitchY));
+    const W = cols * pitchX - GAP, H = rows * pitchY - GAP;
+    // Cells on one bed (front-left first, row by row) outside the tower
+    // corner, relative to the bed's centre.
+    const cells = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = -W / 2 + c * pitchX + cw / 2, y = -H / 2 + r * pitchY + ch / 2;
+        const inTower = x + cw / 2 > W / 2 - TOWER_MM && y + ch / 2 > H / 2 - TOWER_MM;
+        if (!inTower) cells.push({ x, y });
+      }
+    }
+    const setsPerBed = Math.floor(cells.length / letters.length);
+    const maxCopies = setsPerBed * plates;
+    const base = { objects: [], w: W, h: H, placed: 0, copies: 0, maxCopies, setsPerBed, perPlate: cells.length, bed, plates, used: 0, sets: [] };
+    if (setsPerBed < 1) return base;
+    const copies = copiesWanted ? Math.min(copiesWanted, maxCopies) : maxCopies;
+    // Sets per bed: as even as possible, fullest beds first.
+    const sets = Array.from({ length: plates }, (_, i) => Math.floor(copies / plates) + (i < copies % plates ? 1 : 0)).filter((n) => n > 0);
+    // Bambu Studio's plate grid: columns = ceil-ish sqrt of the count,
+    // each plate 1.2 bed widths/depths from the last, rows going toward -Y.
+    const plateCols = (n) => { const v = Math.sqrt(n), r = Math.round(v); return v > r ? r + 1 : r; };
+    const pc = plateCols(sets.length);
+    let placed = 0;
+    sets.forEach((n, pi) => {
+      const ox = (pi % pc) * bed.w * 1.2, oy = -Math.floor(pi / pc) * bed.d * 1.2;
+      let k = 0;
+      for (let s = 0; s < n; s++) {
+        for (const L of letters) {
+          const cell = cells[k++];
+          const it = built.get(L);
+          it.spots.push([ox + cell.x - it.cx, oy + cell.y - it.cy, 0]);
+          placed++;
+        }
+      }
+    });
+    const objects = [];
+    for (const [L, it] of built) {
+      if (!it.spots.length) continue;
+      const group = `cap_${L}`;
+      it.parts.forEach((p, j) => objects.push({ mesh: p.mesh, colorHex: p.colorHex, name: p.kind === 'body' ? `${group}_body` : `${group}_legend_${j - 1}`, group, translation: it.spots[0], instances: it.spots }));
+    }
+    return { ...base, objects, placed, copies, used: sets.length, sets };
+  }
+  liveState.buildCapsPlate = buildCapsPlate;
+  {
+    const note = document.getElementById('makerCapsNote');
+    const btn = document.getElementById('makerCapsBtn');
+    btn.addEventListener('click', async () => {
+      const letters = document.getElementById('makerLetters').value;
+      const want = Math.round(Number(document.getElementById('makerCopies').value) || 0);
+      const platesWanted = Math.round(Number(document.getElementById('makerPlates').value) || 1);
+      btn.disabled = true;
+      note.textContent = 'Building the caps…';
+      await new Promise((r) => setTimeout(r, 30)); // let the note show
+      try {
+        const plate = buildCapsPlate(letters, want > 0 ? Math.min(99, want) : 0, platesWanted);
+        if (!plate) { note.textContent = 'Type the letters to put on the plate first.'; return; }
+        if (!plate.placed) { note.textContent = `Not even one set fits: the ${plate.bed.name} bed has room for ${plate.perPlate} caps. Use fewer letters.`; return; }
+        const set = [...new Set(String(letters).toUpperCase().replace(/\s+/g, ''))].length;
+        const limited = limitDistinctColors(plate.objects, 4);
+        const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
+        const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+        downloadBlob(blob, `KeyCapForge_caps_${plate.copies}x_${plate.used}plate${plate.used === 1 ? '' : 's'}.3mf`);
+        const perBed = plate.sets.map((n, i) => `plate ${i + 1}: ${plural(n, 'set')} (${n * set} caps)`).join(', ');
+        const room = plate.copies < plate.maxCopies ? ` There's room for up to ${plate.setsPerBed} sets per plate (${plate.maxCopies} of each letter on ${plural(plate.plates, 'plate')}).` : ` That's as many as fit: ${plural(plate.setsPerBed, 'set')} per plate.`;
+        const capped = want > plate.maxCopies ? ` (You asked for ${want}; only ${plate.maxCopies} fit.)` : '';
+        const arrange = plate.used > 1 ? ' In Bambu Studio, press Arrange (A) after opening and it puts them on separate plates.' : '';
+        note.textContent = `Exported ${plate.placed} caps, ${plate.copies} of each letter, for the ${plate.bed.name}: ${perBed}.${capped}${room} ${(blob.size / 1048576).toFixed(1)} MB.${arrange}`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
 
   // ---------- Logo clicker controls ----------
   for (const b of document.querySelectorAll('#modeToggle button')) b.addEventListener('click', () => setMode(b.dataset.mode));

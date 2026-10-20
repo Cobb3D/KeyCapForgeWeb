@@ -257,6 +257,35 @@
         <p class="hint">The ring loop takes every bit of pulling and impact force on the whole keychain — kept thick and overlapped into the base on purpose.</p>
       </section>
 
+      <section class="panel letters-only" id="makerPanel" hidden>
+        <h2>Maker tools</h2>
+        <p class="hint">Only shown in this browser, because the site was opened with ?maker on the end of the address.</p>
+        <div class="row maker-range">
+          <label>Bases for</label>
+          <input type="number" id="makerFrom" min="1" max="12" value="2"> to
+          <input type="number" id="makerTo" min="1" max="12" value="7"> keys
+        </div>
+        <button class="btn primary" id="makerPlateBtn" type="button">Export base plate (3MF)</button>
+        <p class="hint" id="makerNote">One 3MF with one base of each size, side by side on one plate, using the current base settings (shape, base color, cap shape, keyring, layout). Bases only, no caps, and always plain: camo and cow patterns are left off.</p>
+        <h3 class="maker-sub">Letter caps plate</h3>
+        <div class="row maker-range">
+          <label>Letters</label>
+          <input type="text" id="makerLetters" value="ABCDEFGHIJKLMNOPQRSTUVWXYZ" maxlength="60" spellcheck="false">
+        </div>
+        <div class="row maker-range">
+          <label>Plates</label>
+          <input type="number" id="makerPlates" min="1" max="4" value="2">
+        </div>
+        <div class="row maker-range">
+          <label>Copies of each</label>
+          <input type="number" id="makerCopies" min="1" max="99" placeholder="max">
+          <span>(empty = fill the plates)</span>
+        </div>
+        <button class="btn primary" id="makerCapsBtn" type="button">Export caps plate (3MF)</button>
+        <p class="hint" id="makerCapsNote">One 3MF with full sets of the letters, shared evenly over the plates, sized for the print bed picked above the view (each plate can be printed on its own). Uses the first cap's shape, font, legend style and colors. The back-right corner of each plate is left free for the prime tower.</p>
+        <a href="#" id="makerHide" class="maker-hide">Hide maker tools in this browser</a>
+      </section>
+
       <footer class="sidebar-footer">KeyCapForge Beta Pre Release · Cobb3D · <a href="#" id="whatsNewLink">What's new</a></footer>
     </aside>
 
@@ -273,6 +302,11 @@
         </div>
         <input type="range" id="sectionSlider" min="-12" max="12" step="0.1" value="0" disabled title="Move the cut (0 = through the middle of the keycaps)">
         <button class="btn ghost" id="resetViewBtn">Reset View</button>
+        <div class="toggle-stack bed-picker">
+          <label class="bed-label" for="printBedSelect">Print bed</label>
+          <select id="printBedSelect" title="Shows your printer's bed under the model, and checks the exported parts fit on it"></select>
+          <span class="bed-fit" id="bedFit"></span>
+        </div>
       </div>
       <div id="canvasHost">
         <p class="viewport-hint"><span class="hint-mouse">Drag to orbit · right-drag to pan · scroll to zoom</span><span class="hint-touch">Drag to orbit · pinch to zoom · two-finger drag to pan</span></p>

@@ -9,27 +9,31 @@ class ZipWriter {
     this.offset = 0;
   }
 
-  addFile(name, bytes) {
+  // `stored` is what's written (the bytes themselves, or their deflate
+  // when method is 8); crc and size are always of the original bytes.
+  addFile(name, bytes, deflated = null) {
     const nameBytes = new TextEncoder().encode(name);
     const crc = crc32(bytes);
+    const method = deflated ? 8 : 0;
+    const stored = deflated || bytes;
     const header = new Uint8Array(30 + nameBytes.length);
     const dv = new DataView(header.buffer);
     dv.setUint32(0, 0x04034b50, true);
     dv.setUint16(4, 20, true); // version needed
     dv.setUint16(6, 0, true); // flags
-    dv.setUint16(8, 0, true); // method = stored
+    dv.setUint16(8, method, true); // 0 = stored, 8 = deflate
     dv.setUint16(10, 0, true); // mod time
     dv.setUint16(12, 0, true); // mod date
     dv.setUint32(14, crc, true);
-    dv.setUint32(18, bytes.length, true);
+    dv.setUint32(18, stored.length, true);
     dv.setUint32(22, bytes.length, true);
     dv.setUint16(26, nameBytes.length, true);
     dv.setUint16(28, 0, true); // extra length
     header.set(nameBytes, 30);
 
-    this.chunks.push(header, bytes);
-    this.entries.push({ name, nameBytes, crc, size: bytes.length, offset: this.offset });
-    this.offset += header.length + bytes.length;
+    this.chunks.push(header, stored);
+    this.entries.push({ name, nameBytes, crc, method, csize: stored.length, size: bytes.length, offset: this.offset });
+    this.offset += header.length + stored.length;
   }
 
   finalize() {
@@ -42,11 +46,11 @@ class ZipWriter {
       dv.setUint16(4, 20, true);
       dv.setUint16(6, 20, true);
       dv.setUint16(8, 0, true);
-      dv.setUint16(10, 0, true);
+      dv.setUint16(10, e.method, true);
       dv.setUint16(12, 0, true);
       dv.setUint16(14, 0, true);
       dv.setUint32(16, e.crc, true);
-      dv.setUint32(20, e.size, true);
+      dv.setUint32(20, e.csize, true);
       dv.setUint32(24, e.size, true);
       dv.setUint16(28, e.nameBytes.length, true);
       dv.setUint16(30, 0, true);
@@ -177,7 +181,7 @@ function crc32(bytes) {
 // Either way each part ends up on a filament, so changing its filament, or
 // a filament's colour, in the slicer works as for any other part. The camo
 // base's marks are per-triangle colours, so that one part is painted.
-export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
+export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = {}) {
   const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
   let colorGroupXML = '';
@@ -214,7 +218,7 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
     // gets a filament per mesh object (the cap and its letter stay
     // separate objects there).
     prusaXML += ` <object id="${id}" instances_count="1">\n  ${meta('name', name, 'object')}\n  ${meta('extruder', pIndex + 1, 'object')}\n  <volume firstid="0" lastid="${triCount - 1}">\n   ${meta('name', name, 'volume')}\n  </volume>\n </object>\n`;
-    parts.push({ id, name, filament: pIndex + 1, group: obj.group, translation: obj.translation || [0, 0, 0] });
+    parts.push({ id, name, filament: pIndex + 1, group: obj.group, translation: obj.translation || [0, 0, 0], instances: obj.instances });
   }
 
   // Pass 2: what goes on the plate. Parts that share a `group` (a cap's
@@ -235,8 +239,11 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D') {
     groups.get(key).push(part);
   }
   for (const [key, members] of groups) {
-    const t = members[0].translation;
-    const place = (objectid) => `<item objectid="${objectid}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2])}"/>\n`;
+    // `instances` (a list of positions) places the same object several
+    // times: the mesh is written once and the slicer loads one object with
+    // that many instances (used for the maker caps plate).
+    const spots = members[0].instances || [members[0].translation];
+    const place = (objectid) => spots.map((t) => `<item objectid="${objectid}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2] || 0)}"/>\n`).join('');
     if (members.length === 1) {
       const p = members[0];
       buildXML += place(p.id);
@@ -285,12 +292,37 @@ ${prusaXML}</config>
 <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
 </Relationships>`;
 
+  const enc = (t) => new TextEncoder().encode(t);
+  const entries = [
+    ['[Content_Types].xml', enc(contentTypes)],
+    ['_rels/.rels', enc(rels)],
+    ['3D/3dmodel.model', enc(modelXML)],
+    ['Metadata/model_settings.config', enc(bambuConfig)],
+    ['Metadata/Slic3r_PE_model.config', enc(prusaConfig)],
+  ];
+  if (opts.entriesOnly) return entries;
   const zip = new ZipWriter();
-  zip.addFile('[Content_Types].xml', new TextEncoder().encode(contentTypes));
-  zip.addFile('_rels/.rels', new TextEncoder().encode(rels));
-  zip.addFile('3D/3dmodel.model', new TextEncoder().encode(modelXML));
-  zip.addFile('Metadata/model_settings.config', new TextEncoder().encode(bambuConfig));
-  zip.addFile('Metadata/Slic3r_PE_model.config', new TextEncoder().encode(prusaConfig));
+  for (const [name, bytes] of entries) zip.addFile(name, bytes);
+  return zip.finalize();
+}
+
+// The same 3MF, compressed (deflate), for big files like the maker caps
+// plate: model XML shrinks to about a fifth. Uses the browser's
+// CompressionStream; without it (very old browsers) the file is just
+// stored uncompressed, as buildThreeMF does.
+export async function buildThreeMFCompressed(objects, appName = 'KeyCapForge by Cobb3D') {
+  const entries = buildThreeMF(objects, appName, { entriesOnly: true });
+  const zip = new ZipWriter();
+  for (const [name, bytes] of entries) {
+    let deflated = null;
+    if (typeof CompressionStream === 'function') {
+      try {
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        deflated = new Uint8Array(await new Response(stream).arrayBuffer());
+      } catch (e) { deflated = null; }
+    }
+    zip.addFile(name, bytes, deflated);
+  }
   return zip.finalize();
 }
 

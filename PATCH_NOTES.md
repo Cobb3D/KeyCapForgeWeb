@@ -7,6 +7,73 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/20/2026d
+
+- **Maker tools: caps plate over several plates.** New **Plates** box (1 to
+  4, starts at 2) next to Letters and Copies. "Export caps plate" makes one
+  3MF with full sets of the letters (A–Z by default) shared evenly over the
+  plates, so each plate can be printed on its own. Leave Copies empty to
+  fill the plates. On a P1S each plate holds 4 full A–Z sets (104 caps), so
+  2 plates make 8 of each letter (208 caps); 3 copies of each comes out as
+  2 sets on plate 1 and 1 on plate 2. The note says how much room is left.
+  Each plate keeps its back-right corner free for the prime tower.
+- **Bambu Studio and plates:** Bambu Studio keeps plates only in its own
+  project files, so a 3MF from anywhere else opens with everything moved
+  together. With more than one plate, press **Arrange (A)** after opening
+  and it fills plate 1 and adds the next plates itself.
+- **Much smaller file:** each letter is one object (cap + letter) with all
+  its copies as instances, and the file is compressed: 208 caps is about
+  5 MB (it would have been over 300 MB).
+
+## 10/20/2026c
+
+- **Base plate is always plain bases.** Themed bases (camo and cow
+  patterns) are print-to-order, so the Maker tools base plate now leaves
+  the pattern off even when one is switched on, and every base keeps its
+  filament editable in the slicer. Themed bases still come from the normal
+  Export.
+
+## 10/20/2026b
+
+- **Maker tools (just for Cobb3D, hidden from customers).** Open the site
+  once with `?maker` on the end (https://cobb3d.github.io/KeyCapForgeWeb/?maker)
+  and a Maker tools panel appears in the sidebar; your browser remembers it.
+  "Hide maker tools" (or `?maker=off`) turns it off again.
+- **Export base plate (3MF):** one click makes a single 3MF with one base
+  for each key count, 2 to 7 by default (any range from 1 to 12), using the
+  current base settings (shape, layout, walls, clearance, bevels, keyring,
+  colors). Each base is its own object named for its key count
+  (base_2keys ... base_7keys), with its filament editable in the slicer,
+  laid out side by side 6mm apart. With the default settings the plate is
+  about 177 × 162 mm and fits the P1S; the panel shows the size and whether
+  it fits the bed picked above the view. Camo bases come out painted, as in
+  a normal export.
+
+## 10/20/2026a
+
+- **See-through print bed in the 3D view.** A "Print bed" picker above the
+  view shows your printer's bed under the model (a faint plate with a 10mm
+  grid and an outline, to scale). Every current Bambu Lab printer is
+  listed: A1 mini (180 × 180 mm), A1 (256 × 256), A2L (330 × 320),
+  P1P / P1S (256 × 256), P2S (256 × 256), X1 / X1 Carbon / X1E (256 × 256),
+  X2D (256 × 256), H2S (340 × 320), H2D / H2D Pro (350 × 320) and H2C
+  (330 × 320), or none. It starts on P1P / P1S and remembers your choice in
+  your browser. It's hidden in Cross Section view, and never affects the
+  exported file.
+- **Fit check:** under the picker, whether the exported parts (the base,
+  with the caps laid out beside it) fit on that bed, with their size. On
+  the dual-nozzle printers (X2D, H2D, H2C) the hover text gives the smaller
+  area for printing with both nozzles.
+
+## 10/19/2026e
+
+- **Send to Print is switched on.** The Google Apps Script web app is
+  connected (ORDER_ENDPOINT in js/printOrder.js), so the Send to Print
+  button now shows next to Export and orders go to Cobb3DPrinting@gmail.com.
+- If the script is ever redeployed as a new deployment (instead of a new
+  version of the same one), its URL changes and must be updated in
+  js/printOrder.js.
+
 ## 10/19/2026d
 
 - **Three.js is now part of the app** (vendor/three/: three.js 0.160.0,
