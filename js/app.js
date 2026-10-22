@@ -9,6 +9,7 @@ import { initBugReport, APP_NAME } from './bugReport.js';
 import { initPrintOrder } from './printOrder.js';
 import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
 import { initWhatsNew } from './whatsNew.js';
+import { initCollapsiblePanels } from './collapsible.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
 import { loadLogoFile } from './logoImport.js';
@@ -937,10 +938,12 @@ async function main() {
       let to = Math.round(Number(document.getElementById('makerTo').value) || 7);
       from = Math.max(1, Math.min(12, from)); to = Math.max(1, Math.min(12, to));
       if (from > to) [from, to] = [to, from];
-      const plate = buildBasePlate(from, to);
-      deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys.3mf`);
+      const shapeSel = document.getElementById('makerBaseShape');
+      const shapeOverride = shapeSel ? shapeSel.value : '';
+      const plate = buildBasePlate(from, to, shapeOverride);
+      deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys${shapeOverride ? '_' + shapeOverride : ''}.3mf`);
       const fit = printBed && printBed.w ? (fitsOnBed(printBed, plate.w, plate.h) ? `fits on the ${printBed.name}` : `too big for the ${printBed.name}, try a smaller range`) : '';
-      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}.`;
+      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}.`;
     });
   }
 
@@ -948,7 +951,10 @@ async function main() {
   // direction, 6mm apart), centred on the origin, as 3MF objects. Each
   // base is its own object, in parts like the normal export (buildBaseParts),
   // plain even when a camo or cow theme is on.
-  function buildBasePlate(from, to) {
+  function buildBasePlate(from, to, shapeOverride = '') {
+    // A shape picked in Maker tools wins over Base & Fit's, and (since
+    // shapes are for fused bases) makes the bases fused.
+    const settings = shapeOverride ? { ...liveSettings(), baseShape: shapeOverride, joinedBase: true } : liveSettings();
     const GAP = 6;
     const vertical = !!settings.verticalLayout;
     const items = [];
@@ -981,6 +987,7 @@ async function main() {
     const limited = limitDistinctColors(plate.objects, 4);
     downloadBlob(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), name);
   }
+  function liveSettings() { return settings; }
   liveState.buildBasePlate = buildBasePlate;
 
   // Letter caps plate: full sets of `letters` (A..Z) on `plates` print
@@ -1145,6 +1152,7 @@ async function main() {
 // Set up before main() so reporting still works if the app fails to start.
 // Like the bug reporter, set up before main() so it shows even if the app
 // fails to start.
+initCollapsiblePanels();
 initWhatsNew();
 
 initPrintOrder({

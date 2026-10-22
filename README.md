@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/20/2026d**
+**Version 10/20/2026f**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-20-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-20-2026f.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2209,3 +2209,21 @@ first thing to check.
   config, then center_instances_around_point), so multi-plate files need
   Arrange, which creates plates (ArrangeJob.cpp). Tested: 208 caps, 26
   objects x 8 instances, 2 parts each, 0 open edges, 5.1 MB.
+
+- **Base plate shape.** #makerBaseShape (empty = use settings) is passed to
+  `buildBasePlate(from, to, shapeOverride)`, which builds from a copy of
+  settings with that baseShape and joinedBase: true, so the live design is
+  untouched. Tested all six shapes: 6 objects each, 0 open edges, all fit
+  a P1S.
+
+- **Fold-away sidebar** (js/collapsible.js, `initCollapsiblePanels()` run
+  before main()). Each `section.panel` title becomes a button with a +/−
+  sign that toggles `.collapsed` (hides every child but the header); a
+  `.count` beside the title moves into the button. Fine-tuning controls are
+  wrapped in `<div class="advanced">` in index.html (Shape & Size: all but
+  the cap shape; Legend: depth; Base & Fit: all but base color, shape,
+  fuse, layout; Keyring: lug size, hole), each with a "More settings"
+  button. State is saved in localStorage 'keycapforge.sidebarOpen' by
+  panel title (try/catch). Defaults: panels open except Maker tools, More
+  settings closed. Element ids are unchanged, so app.js didn't need
+  changes.

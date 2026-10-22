@@ -415,3 +415,23 @@ body:not(.mode-logo) .logo-only { display: none !important; }
 .maker-sub { font-size: 13px; margin: 14px 0 6px; color: var(--text); }
 #makerLetters { flex: 1; min-width: 0; background: var(--panel-alt); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 6px; font-family: inherit; letter-spacing: 1px; }
 #makerCapsBtn { width: 100%; margin: 4px 0 6px; }
+#makerBaseShape { flex: 1; min-width: 0; }
+
+/* Fold-away sidebar sections (collapsible.js) */
+.panel-toggle { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; cursor: pointer; font: inherit; color: inherit; }
+.panel-toggle:focus-visible { outline: 2px solid var(--accent, #f26b3a); outline-offset: 3px; border-radius: 4px; }
+.panel-sign { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--line); color: var(--text-dim); font-size: 14px; line-height: 1; flex: none; }
+.panel-toggle:hover .panel-sign { color: var(--text); border-color: var(--text-dim); }
+.panel-header h2 { flex: 1; }
+.panel-header { gap: 8px; align-items: center; }
+.panel.collapsed > :not(:first-child) { display: none !important; }
+.panel.collapsed > h2, .panel.collapsed > .panel-header { margin-bottom: 0; }
+.panel.collapsed { padding-top: 12px; padding-bottom: 12px; }
+.panel-title { margin-right: auto; }
+
+/* "More settings" inside a panel */
+.adv-toggle { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px; padding: 7px 0 2px; border-top: 1px dashed var(--line); cursor: pointer; font-size: 12px; color: var(--text-dim); }
+.adv-toggle:hover { color: var(--text); }
+.adv-toggle:focus-visible { outline: 2px solid var(--accent, #f26b3a); outline-offset: 3px; border-radius: 4px; }
+.advanced[hidden] { display: none !important; }
+.advanced { margin-top: 8px; }

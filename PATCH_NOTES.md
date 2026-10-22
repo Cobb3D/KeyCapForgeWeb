@@ -7,6 +7,28 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/20/2026f
+
+- **Shorter side menu.** Each section shows just the basics: mode, text and
+  symbols, theme, the caps, cap shape, legend size, base color, base shape,
+  fuse and layout, keyring style and side, and the logo settings. The
+  fine-tuning sliders (sizes, walls, bevels, clearances, legend depth, lug
+  size and hole) are under **More settings +** at the bottom of their
+  section; click it again (**Fewer settings −**) to hide them.
+- **Every section folds away** with the **−** button on its title, and
+  opens again with **+**. Maker tools starts folded.
+- Your browser remembers which sections and "More settings" you left open.
+
+## 10/20/2026e
+
+- **Maker tools: pick the base shape for the base plate.** New **Shape**
+  menu under "Bases for": rounded rectangle, soft corners, pill, bubbles,
+  chamfered ends or tag end, or "Same as Base & Fit" (the default). Picking
+  a shape makes the plate's bases fused in that shape without changing the
+  design you're working on. The file name ends with the shape
+  (KeyCapForge_bases_2-7keys_pill.3mf). Every shape's 2–7 key plate fits a
+  P1S (largest: bubbles, 195 × 165 mm).
+
 ## 10/20/2026d
 
 - **Maker tools: caps plate over several plates.** New **Plates** box (1 to
