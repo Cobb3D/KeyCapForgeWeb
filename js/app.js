@@ -10,6 +10,7 @@ import { initPrintOrder } from './printOrder.js';
 import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
 import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
+import { initPageTheme } from './pageTheme.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
 import { loadLogoFile } from './logoImport.js';
@@ -1153,6 +1154,11 @@ async function main() {
 // Like the bug reporter, set up before main() so it shows even if the app
 // fails to start.
 initCollapsiblePanels();
+// Light / dark look; the print bed outline is redrawn in the matching color.
+initPageTheme(() => {
+  const vp = liveState.viewport;
+  if (vp && vp._bed !== undefined) vp.setPrintBed(vp._bed);
+});
 initWhatsNew();
 
 initPrintOrder({

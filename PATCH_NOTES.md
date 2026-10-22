@@ -7,6 +7,25 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/22/2026b
+
+- **Blue instead of orange**, in both looks: the Export and Send to Print
+  buttons, the selected mode, sliders, checkboxes, the STL/3MF/Both
+  choice, hover outlines, the logo mark and badge, and the cap count. The
+  buttons now have white text. Dark look: #2f6fdb (lighter #6fa3ff for
+  blue text). Light look: a deeper #1f5fcc so it reads on white.
+
+## 10/22/2026a
+
+- **Light and dark looks for the whole page.** A light-bulb button at the
+  bottom right of the 3D view switches between them (the bulb lights up
+  in the light look). The light look uses warm light greys with the same
+  orange. The first time, the page follows the device's own light/dark
+  setting; after a click, the browser remembers the choice. Everything
+  follows it: the sidebar, toolbar, buttons, pop-ups, the 3D view's
+  background, the faint Cobb3D logo and the print bed outline. The
+  exported files don't change.
+
 ## 10/20/2026f
 
 - **Shorter side menu.** Each section shows just the basics: mode, text and

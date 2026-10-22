@@ -283,19 +283,22 @@ export class Viewport {
     this._bed = bed && bed.w ? bed : null;
     if (!this._bed) { this.bedGroup.visible = false; return; }
     const { w, d } = this._bed;
+    // Pale blue-grey lines on the dark page; slate on the light one.
+    const light = document.documentElement.dataset.theme === 'light';
+    const lineColor = light ? 0x4f6072 : 0x9fb3c8, edgeColor = light ? 0x3e4c5a : 0xcfe0f0;
     const plate = new THREE.Mesh(
       new THREE.PlaneGeometry(w, d),
-      new THREE.MeshBasicMaterial({ color: 0x9fb3c8, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: lineColor, transparent: true, opacity: light ? 0.06 : 0.07, depthWrite: false, side: THREE.DoubleSide })
     );
     const grid = [];
     for (let x = -w / 2 + 10; x < w / 2 - 0.01; x += 10) grid.push(x, -d / 2, 0, x, d / 2, 0);
     for (let y = -d / 2 + 10; y < d / 2 - 0.01; y += 10) grid.push(-w / 2, y, 0, w / 2, y, 0);
     const gridGeo = new THREE.BufferGeometry();
     gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(grid, 3));
-    const gridLines = new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: 0x9fb3c8, transparent: true, opacity: 0.1, depthWrite: false }));
+    const gridLines = new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: lineColor, transparent: true, opacity: light ? 0.16 : 0.1, depthWrite: false }));
     const edgeGeo = new THREE.BufferGeometry();
     edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute([-w / 2, -d / 2, 0, w / 2, -d / 2, 0, w / 2, d / 2, 0, -w / 2, d / 2, 0], 3));
-    const outline = new THREE.LineLoop(edgeGeo, new THREE.LineBasicMaterial({ color: 0xcfe0f0, transparent: true, opacity: 0.55, depthWrite: false }));
+    const outline = new THREE.LineLoop(edgeGeo, new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: light ? 0.6 : 0.55, depthWrite: false }));
     for (const o of [plate, gridLines, outline]) { o.renderOrder = -1; this.bedGroup.add(o); }
     this._placeBed();
     this._applyViewModes();

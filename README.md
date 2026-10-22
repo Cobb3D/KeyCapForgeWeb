@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/20/2026f**
+**Version 10/22/2026b**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-20-2026f.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-22-2026b.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2227,3 +2227,19 @@ first thing to check.
   panel title (try/catch). Defaults: panels open except Maker tools, More
   settings closed. Element ids are unchanged, so app.js didn't need
   changes.
+
+- **Light / dark page look.** style.css keeps every page color as a token
+  on :root (dark) and overrides them under :root[data-theme="light"]
+  (including --viewport-bg, --overlay-bg, --ok/--warn/--error, the logo's
+  opacity and filter, and color-scheme for form controls). A small inline
+  script in <head> sets data-theme before the first paint: the saved
+  choice (localStorage 'keycapforge.pageTheme') or the device's
+  prefers-color-scheme. js/pageTheme.js wires #pageThemeBtn (light-bulb
+  SVG, aria-pressed = light), follows the device setting until the visitor
+  picks, and calls back so app.js redraws the print bed outline
+  (scene.js setPrintBed picks slate lines on the light look).
+
+- **Blue accent.** The accent tokens keep their old names (--ember,
+  --ember-dim, --ember-hover, --on-ember) but are blue now; --accent-text
+  is a lighter blue for accent-colored text on the dark look. All accent
+  colors are those tokens, so changing them changes the whole page.

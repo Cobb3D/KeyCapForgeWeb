@@ -5,10 +5,50 @@
   --line: #38363e;
   --text: #eae7e1;
   --text-dim: #a29d97;
-  --ember: #e2622c;
-  --ember-dim: #7a3a1f;
+  --ember: #2f6fdb;
+  --ember-dim: #1d355c;
+  --accent-text: #6fa3ff;
+  --viewport-bg: #0f0e11;
+  --overlay-bg: rgba(15, 14, 17, 0.6);
+  --backdrop: rgba(0, 0, 0, 0.6);
+  --on-ember: #ffffff;
+  --ember-hover: #3d7ff0;
+  --ok: #51cf66;
+  --warn: #ffa94d;
+  --error: #ff6b6b;
+  --error-soft: #ff8a65;
+  --logo-opacity: 0.07;
+  --logo-filter: none;
+  color-scheme: dark;
   --mono: 'DM Mono', ui-monospace, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Light look (the light-bulb button; see js/pageTheme.js): warm light
+   greys with the same blue accent, a little deeper so it reads on white.
+   (The accent tokens are still named --ember from when it was orange.) */
+:root[data-theme="light"] {
+  --bg: #ece8e2;
+  --panel: #faf8f5;
+  --panel-alt: #f1ede7;
+  --line: #d9d3ca;
+  --text: #24211e;
+  --text-dim: #6b645d;
+  --ember: #1f5fcc;
+  --ember-dim: #d4e2f8;
+  --accent-text: #1a56bd;
+  --viewport-bg: #e3dfd8;
+  --overlay-bg: rgba(250, 248, 245, 0.8);
+  --backdrop: rgba(40, 32, 25, 0.35);
+  --on-ember: #ffffff;
+  --ember-hover: #1a52b3;
+  --ok: #2b8a3e;
+  --warn: #b85c06;
+  --error: #c92a2a;
+  --error-soft: #c2410c;
+  --logo-opacity: 0.09;
+  --logo-filter: grayscale(1) brightness(0.25);
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -46,14 +86,14 @@ button { font-family: inherit; }
 }
 
 .brand { display: flex; align-items: baseline; gap: 8px; }
-.brand-mark { color: var(--ember); font-size: 18px; }
+.brand-mark { color: var(--accent-text); font-size: 18px; }
 .brand-name { font-weight: 700; font-size: 15px; letter-spacing: 0.2px; }
 .brand-sub { color: var(--text-dim); font-size: 12px; }
 /* "Beta Pre Release" as a small tag after the name. */
 .brand-badge {
   display: inline-block; margin-left: 4px; padding: 1px 6px;
   border: 1px solid var(--ember); border-radius: 999px;
-  color: var(--ember); font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--accent-text); font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
   vertical-align: middle; white-space: nowrap;
 }
 
@@ -76,8 +116,8 @@ button { font-family: inherit; }
   cursor: pointer;
 }
 .btn:hover { border-color: var(--ember); }
-.btn.primary { background: var(--ember); border-color: var(--ember); color: #1a0f08; font-weight: 700; }
-.btn.primary:hover { background: #ee7038; }
+.btn.primary { background: var(--ember); border-color: var(--ember); color: var(--on-ember); font-weight: 700; }
+.btn.primary:hover { background: var(--ember-hover); border-color: var(--ember-hover); }
 .btn.ghost { background: transparent; }
 
 .layout {
@@ -101,10 +141,10 @@ button { font-family: inherit; }
 .panel h2 { margin: 0 0 10px; font-size: 12px; text-transform: none; color: var(--text); font-weight: 700; }
 .panel-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
 .panel-header h2 { margin: 0; }
-.count { color: var(--ember); font-family: var(--mono); font-size: 12px; }
+.count { color: var(--accent-text); font-family: var(--mono); font-size: 12px; }
 
 .hint { color: var(--text-dim); font-size: 11.5px; line-height: 1.5; margin: 8px 0 0; }
-.hint.warning { color: var(--ember); }
+.hint.warning { color: var(--accent-text); }
 
 .quick-insert {
   display: grid;
@@ -221,7 +261,7 @@ input[type="color"] {
   margin-left: auto;
   background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px; padding: 2px 6px;
 }
-.delete-cap:hover { color: var(--ember); }
+.delete-cap:hover { color: var(--accent-text); }
 
 .add-cap-btn {
   width: 100%;
@@ -237,7 +277,7 @@ input[type="color"] {
 
 .sidebar-footer { text-align: center; color: var(--text-dim); font-size: 11px; padding: 14px 0 4px; }
 
-.viewport { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: #0f0e11; }
+.viewport { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: var(--viewport-bg); }
 .viewport-toolbar {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 14px;
@@ -250,8 +290,8 @@ input[type="color"] {
 .bed-picker .bed-label { color: var(--text-dim); font-size: 12px; }
 .bed-picker select { padding: 4px 8px; font-size: 12px; }
 .bed-fit { font-size: 11px; color: var(--text-dim); min-height: 1em; }
-.bed-fit.ok { color: #51cf66; }
-.bed-fit.warn { color: #ffa94d; }
+.bed-fit.ok { color: var(--ok); }
+.bed-fit.warn { color: var(--warn); }
 .checkbox:has(input:disabled) { opacity: 0.45; }
 #canvasHost { flex: 1; min-height: 0; position: relative; }
 #canvasHost canvas { display: block; width: 100%; height: 100%; position: relative; z-index: 1; }
@@ -262,7 +302,8 @@ input[type="color"] {
   content: '';
   position: absolute; inset: 0; z-index: 0;
   background: url('assets/cobb3d-logo.png') center / min(60%, 700px) auto no-repeat;
-  opacity: 0.07;
+  opacity: var(--logo-opacity);
+  filter: var(--logo-filter);
   pointer-events: none;
 }
 .viewport-hint {
@@ -289,7 +330,7 @@ input[type="color"] {
   position: absolute; bottom: 12px; left: 12px;
   display: flex; align-items: center; gap: 6px;
   padding: 3px 8px;
-  background: rgba(15, 14, 17, 0.6);
+  background: var(--overlay-bg);
   border-radius: 4px;
   color: var(--text);
   font-family: var(--mono);
@@ -360,7 +401,7 @@ input[type="color"] {
   background: var(--panel, #1b1a1f);
   color: var(--text);
 }
-.bug-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.bug-dialog::backdrop { background: var(--backdrop); }
 .bug-form { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
 .bug-form h2 { margin: 0 0 4px; font-size: 16px; }
 .bug-form textarea {
@@ -378,8 +419,8 @@ input[type="color"] {
 @media (max-width: 820px) { .bug-form textarea { font-size: 16px; } }
 .bug-form input[type="text"], .bug-form input[type="email"] { width: 100%; }
 .order-note { margin: 0; font-size: 13px; color: var(--text-dim); min-height: 1em; }
-.order-note.ok { color: #51cf66; }
-.order-note.error { color: #ff6b6b; }
+.order-note.ok { color: var(--ok); }
+.order-note.error { color: var(--error); }
 #printOrderBtn[hidden] { display: none; }
 /* Bot trap: kept out of sight (but not display:none, which some bots skip) */
 .order-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
@@ -398,12 +439,12 @@ input[type="color"] {
   border: 0; font: inherit; cursor: pointer;
 }
 .mode-toggle button + button { border-left: 1px solid var(--line); }
-.mode-toggle button.active { background: var(--ember); color: #1a0f08; font-weight: 600; }
+.mode-toggle button.active { background: var(--ember); color: var(--on-ember); font-weight: 600; }
 body.mode-logo .letters-only { display: none !important; }
 body:not(.mode-logo) .logo-only { display: none !important; }
 .logo-import { width: 100%; margin-bottom: 4px; }
 #logoStatus.ok { color: var(--text); }
-#logoStatus.error { color: #ff8a65; }
+#logoStatus.error { color: var(--error-soft); }
 @media (max-width: 820px) { .mode-toggle button { padding: 10px; } }
 
 /* Maker tools (?maker) */
@@ -419,7 +460,7 @@ body:not(.mode-logo) .logo-only { display: none !important; }
 
 /* Fold-away sidebar sections (collapsible.js) */
 .panel-toggle { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; cursor: pointer; font: inherit; color: inherit; }
-.panel-toggle:focus-visible { outline: 2px solid var(--accent, #f26b3a); outline-offset: 3px; border-radius: 4px; }
+.panel-toggle:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 4px; }
 .panel-sign { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--line); color: var(--text-dim); font-size: 14px; line-height: 1; flex: none; }
 .panel-toggle:hover .panel-sign { color: var(--text); border-color: var(--text-dim); }
 .panel-header h2 { flex: 1; }
@@ -432,6 +473,25 @@ body:not(.mode-logo) .logo-only { display: none !important; }
 /* "More settings" inside a panel */
 .adv-toggle { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px; padding: 7px 0 2px; border-top: 1px dashed var(--line); cursor: pointer; font-size: 12px; color: var(--text-dim); }
 .adv-toggle:hover { color: var(--text); }
-.adv-toggle:focus-visible { outline: 2px solid var(--accent, #f26b3a); outline-offset: 3px; border-radius: 4px; }
+.adv-toggle:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 4px; }
 .advanced[hidden] { display: none !important; }
 .advanced { margin-top: 8px; }
+
+/* Light / dark switch: bottom right of the 3D view (js/pageTheme.js). The
+   bulb is lit in the light look. */
+.page-theme-btn {
+  position: absolute; right: 12px; bottom: 10px; z-index: 3;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--overlay-bg); color: var(--text-dim);
+  cursor: pointer;
+}
+.page-theme-btn:hover { color: var(--text); border-color: var(--ember); }
+.page-theme-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+.page-theme-btn svg { overflow: visible; }
+.page-theme-btn .bulb-glass { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.page-theme-btn .bulb-base, .page-theme-btn .bulb-rays { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.page-theme-btn .bulb-rays { opacity: 0; }
+.page-theme-btn[aria-pressed="true"] { color: var(--accent-text); }
+.page-theme-btn[aria-pressed="true"] .bulb-glass { fill: #ffd43b; stroke: #c98a00; }
+.page-theme-btn[aria-pressed="true"] .bulb-rays { opacity: 1; stroke: #e0a100; }
