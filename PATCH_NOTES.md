@@ -7,6 +7,12 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/23/2026b
+
+- **Cobb3D logo at the top left.** The hexagon next to the KeyCapForge
+  name is replaced by the printer from the Cobb3D logo, in the page's
+  blue, in both the light and dark looks.
+
 ## 10/23/2026a
 
 - **Soft corners is the default base shape** (it was Rounded rectangle).

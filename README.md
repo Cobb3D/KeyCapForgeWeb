@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/23/2026a**
+**Version 10/23/2026b**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026b.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2252,3 +2252,9 @@ first thing to check.
   base plate's "Same as Base & Fit" uses the live setting, so it follows.
   The `|| 'rect'` fallbacks in baseBuilder.js are for a missing setting and
   are unchanged.
+
+- **Cobb3D mark in the title bar.** assets/cobb3d-mark.png is the printer
+  icon cropped from assets/cobb3d-logo.png (white on transparent, 128 ×
+  128). `.brand-mark` in style.css uses it as a CSS mask filled with
+  --accent-text, so it follows the light/dark look and the accent color;
+  it replaces the ⬡ character in index.html.
