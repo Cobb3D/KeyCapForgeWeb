@@ -7,6 +7,12 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/23/2026d
+
+- **Browser tab icon:** the Cobb3D printer, in blue, on the page's tab and
+  bookmarks. Saved to an iPhone or iPad home screen, it's a white printer
+  on a blue square.
+
 ## 10/23/2026c
 
 - **Renamed "KeyCapForge Beta"** (was "KeyCapForge Beta Pre Release"): the

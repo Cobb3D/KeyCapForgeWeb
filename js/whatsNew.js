@@ -9,7 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  'KeyCapForge is now just "Beta" (no longer "Beta Pre Release"), with the Cobb3D printer logo next to the name at the top left',
+  'KeyCapForge is now just "Beta" (no longer "Beta Pre Release"), with the Cobb3D printer logo next to the name at the top left and on the browser tab',
   'Bases now start with Soft corners (bigger rounded corners). The other shapes are still in the Base shape menu under Base & Fit',
   'New blue look, and light and dark versions of the page: click the light bulb at the bottom right of the 3D view to switch. It starts on your device\'s setting and remembers your choice',
   'Shorter side menu: each section shows the basics (shape, colors, text, base shape, keyring), with the fine-tuning sliders under "More settings +". Fold any section away with its − button',

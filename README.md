@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/23/2026c**
+**Version 10/23/2026d**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026c.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026d.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2264,3 +2264,10 @@ first thing to check.
   metadata), the <title>, the .brand-badge and the sidebar footer in
   index.html. The Send to Print script doesn't check the name, so it
   needs no redeploy.
+
+- **Favicon.** assets/favicon-32.png and favicon-192.png are the printer
+  mark in the dark look's accent blue (#2f6fdb) on transparent, so they
+  read on light and dark browser tabs; assets/apple-touch-icon.png (180 ×
+  180) is the white mark on solid blue, since iOS fills transparency with
+  black. Linked in index.html's <head>. All made from the same crop of
+  assets/cobb3d-logo.png as cobb3d-mark.png.
