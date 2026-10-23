@@ -56,8 +56,9 @@ const settings = {
   baseOuterWallExtraMM: 1.7,
   // Gap on each side between a cap and its recess wall (keyClearanceFor).
   keyClearanceMM: 0.45,
-  // Outline of a fused base: see BASE_SHAPES in baseShapes.js.
-  baseShape: 'rect',
+  // Outline of a fused base: see BASE_SHAPES in baseShapes.js. Soft corners
+  // is the default (10/23/2026a); 'rect' was before.
+  baseShape: 'soft',
   keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
   baseColorHex: '#c92a2a', verticalLayout: true,
   // A pattern on the base (camo.js): camo blobs or cow patches, in

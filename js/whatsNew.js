@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Bases now start with Soft corners (bigger rounded corners). The other shapes are still in the Base shape menu under Base & Fit',
   'New blue look, and light and dark versions of the page: click the light bulb at the bottom right of the 3D view to switch. It starts on your device\'s setting and remembers your choice',
   'Shorter side menu: each section shows the basics (shape, colors, text, base shape, keyring), with the fine-tuning sliders under "More settings +". Fold any section away with its − button',
   'New Print bed picker above the 3D view: pick your Bambu Lab printer to see its bed under your keychain, and a check that the exported parts fit on it',

@@ -7,6 +7,14 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/23/2026a
+
+- **Soft corners is the default base shape** (it was Rounded rectangle).
+  New designs start with it; Rounded rectangle and the other shapes are
+  still in the Base shape menu. With 4 keys the base is about 89mm long
+  (was 87mm) and still fits every bed. In Maker tools, "Same as Base &
+  Fit" follows it too.
+
 ## 10/22/2026b
 
 - **Blue instead of orange**, in both looks: the Export and Send to Print

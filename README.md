@@ -1,6 +1,6 @@
 # KeyCapForge Beta Pre Release — Web
 
-**Version 10/22/2026b**
+**Version 10/23/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-22-2026b.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2243,3 +2243,12 @@ first thing to check.
   --ember-dim, --ember-hover, --on-ember) but are blue now; --accent-text
   is a lighter blue for accent-colored text on the dark look. All accent
   colors are those tokens, so changing them changes the whole page.
+
+- **Soft corners by default.** `settings.baseShape` in app.js now starts as
+  'soft' (was 'rect'), and the Base shape menu in index.html has Soft
+  corners selected. `DEFAULT_SETTINGS` is a snapshot of `settings`, so an
+  order's or bug report's changed settings now list `baseShape: "rect"`
+  when someone picks the rectangle, and leave it out for soft. The maker
+  base plate's "Same as Base & Fit" uses the live setting, so it follows.
+  The `|| 'rect'` fallbacks in baseBuilder.js are for a missing setting and
+  are unchanged.
