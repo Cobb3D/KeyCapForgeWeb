@@ -7,6 +7,18 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/23/2026e
+
+- **Print settings in the 3MF.** Every exported 3MF (Export, Send to Print
+  and both Maker tools plates) now opens with **gyroid infill at 12%** and
+  **3 wall loops**, instead of the slicer's default grid infill. Works in
+  Bambu Studio, OrcaSlicer and PrusaSlicer.
+- They're set on each object, so your printer, filament and process
+  presets aren't touched, and you can still change them per object in the
+  slicer (they show under the object in the object list).
+- In Bambu Studio, open the file (drag it in, or File > Open). File >
+  Import > "Import geometry only" leaves them off.
+
 ## 10/23/2026d
 
 - **Browser tab icon:** the Cobb3D printer, in blue, on the page's tab and

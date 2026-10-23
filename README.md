@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/23/2026d**
+**Version 10/23/2026e**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026e.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2271,3 +2271,20 @@ first thing to check.
   180) is the white mark on solid blue, since iOS fills transparency with
   black. Linked in index.html's <head>. All made from the same crop of
   assets/cobb3d-logo.png as cobb3d-mark.png.
+
+- **Print settings in 3MF exports.** `PRINT_SETTINGS` in
+  js/threeMFExport.js (infill pattern, density %, wall loops; currently
+  gyroid, 12, 3). buildThreeMF writes them on every object (not part):
+  sparse_infill_pattern / sparse_infill_density / wall_loops in
+  Metadata/model_settings.config (Bambu Studio, OrcaSlicer) and
+  fill_pattern / fill_density / perimeters in Slic3r_PE_model.config
+  (PrusaSlicer). Checked against Bambu Studio's source: bbs_3mf.cpp loads
+  every object metadata key other than name/module into the object's
+  config; Plater.cpp keeps it for a non-Bambu 3MF opened normally (it
+  only warns "load geometry data and color data only", which refers to
+  the project settings), and resets object config except the filament
+  when the file is imported as geometry only. The Application metadata
+  doesn't say PrusaSlicer, so Bambu uses its own loader, not the Prusa
+  one. Tested: a default export from the app has the three settings on
+  all 5 Bambu objects and all 10 Prusa objects. Not yet opened in the
+  slicer itself.

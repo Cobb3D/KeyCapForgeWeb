@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  '3MF files now open with gyroid infill at 12% and 3 walls in Bambu Studio, OrcaSlicer and PrusaSlicer, instead of the slicer\'s own grid infill. You can still change them per object in the slicer',
   'KeyCapForge is now just "Beta" (no longer "Beta Pre Release"), with the Cobb3D printer logo next to the name at the top left and on the browser tab',
   'Bases now start with Soft corners (bigger rounded corners). The other shapes are still in the Base shape menu under Base & Fit',
   'New blue look, and light and dark versions of the page: click the light bulb at the bottom right of the 3D view to switch. It starts on your device\'s setting and remembers your choice',

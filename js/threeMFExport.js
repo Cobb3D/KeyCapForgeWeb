@@ -181,6 +181,27 @@ function crc32(bytes) {
 // Either way each part ends up on a filament, so changing its filament, or
 // a filament's colour, in the slicer works as for any other part. The camo
 // base's marks are per-triangle colours, so that one part is painted.
+// Print settings written on every object, so the slicer opens the file with
+// them instead of its own defaults (Bambu Studio's is grid infill). They're
+// per-object overrides: the printer, filament and process presets are left
+// alone, and each one can still be changed in the slicer's object list.
+// Bambu Studio and OrcaSlicer (model_settings.config) and PrusaSlicer
+// (Slic3r_PE_model.config) use different names for the same settings.
+// Bambu Studio keeps them when the file is opened (File > Open or dragged
+// in); File > Import > "Import geometry only" drops them (Plater.cpp resets
+// object config except the filament when load_config is off).
+export const PRINT_SETTINGS = { infillPattern: 'gyroid', infillDensityPct: 12, wallLoops: 3 };
+const BAMBU_PRINT_KEYS = () => [
+  ['sparse_infill_pattern', PRINT_SETTINGS.infillPattern],
+  ['sparse_infill_density', `${PRINT_SETTINGS.infillDensityPct}%`],
+  ['wall_loops', PRINT_SETTINGS.wallLoops],
+];
+const PRUSA_PRINT_KEYS = () => [
+  ['fill_pattern', PRINT_SETTINGS.infillPattern],
+  ['fill_density', `${PRINT_SETTINGS.infillDensityPct}%`],
+  ['perimeters', PRINT_SETTINGS.wallLoops],
+];
+
 export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = {}) {
   const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
@@ -194,6 +215,8 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
   let bambuXML = '';
   let prusaXML = '';
   const meta = (key, value, type) => `<metadata${type ? ` type="${type}"` : ''} key="${key}" value="${value}"/>`;
+  const bambuPrint = BAMBU_PRINT_KEYS().map(([k, v]) => `\n    ${meta(k, v)}`).join('');
+  const prusaPrint = PRUSA_PRINT_KEYS().map(([k, v]) => `\n  ${meta(k, v, 'object')}`).join('');
   let nextId = 1;
   // Pass 1: every part as its own mesh object.
   const parts = [];
@@ -217,7 +240,7 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
     // PrusaSlicer loads each mesh of an assembly as its own object, so it
     // gets a filament per mesh object (the cap and its letter stay
     // separate objects there).
-    prusaXML += ` <object id="${id}" instances_count="1">\n  ${meta('name', name, 'object')}\n  ${meta('extruder', pIndex + 1, 'object')}\n  <volume firstid="0" lastid="${triCount - 1}">\n   ${meta('name', name, 'volume')}\n  </volume>\n </object>\n`;
+    prusaXML += ` <object id="${id}" instances_count="1">\n  ${meta('name', name, 'object')}\n  ${meta('extruder', pIndex + 1, 'object')}${prusaPrint}\n  <volume firstid="0" lastid="${triCount - 1}">\n   ${meta('name', name, 'volume')}\n  </volume>\n </object>\n`;
     parts.push({ id, name, filament: pIndex + 1, group: obj.group, translation: obj.translation || [0, 0, 0], instances: obj.instances });
   }
 
@@ -247,7 +270,7 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
     if (members.length === 1) {
       const p = members[0];
       buildXML += place(p.id);
-      bambuXML += `  <object id="${p.id}">\n    ${meta('name', p.name)}\n    ${meta('extruder', p.filament)}\n    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n  </object>\n`;
+      bambuXML += `  <object id="${p.id}">\n    ${meta('name', p.name)}\n    ${meta('extruder', p.filament)}${bambuPrint}\n    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n  </object>\n`;
       continue;
     }
     const id = nextId++;
@@ -257,7 +280,7 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
     const components = members.map((p) => `<component objectid="${p.id}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>`).join('\n');
     resourcesXML += `<object id="${id}" type="model" name="${name}"><components>\n${components}\n</components></object>\n`;
     buildXML += place(id);
-    bambuXML += `  <object id="${id}">\n    ${meta('name', name)}\n    ${meta('extruder', members[0].filament)}\n`;
+    bambuXML += `  <object id="${id}">\n    ${meta('name', name)}\n    ${meta('extruder', members[0].filament)}${bambuPrint}\n`;
     for (const p of members) bambuXML += `    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n`;
     bambuXML += `  </object>\n`;
   }
