@@ -9,11 +9,11 @@
 
 // Bump this when publishing an update, so reports say which version they
 // came from.
-export const APP_VERSION = '10/23/2026b';
+export const APP_VERSION = '10/23/2026c';
 
 // The app's name as shown to users: the page title, the top bar, exported
 // files' metadata, and bug reports.
-export const APP_NAME = 'KeyCapForge Beta Pre Release';
+export const APP_NAME = 'KeyCapForge Beta';
 
 // The GitHub repository reports go to, as "owner/repo". Left empty, it's
 // worked out from the page's own address on GitHub Pages

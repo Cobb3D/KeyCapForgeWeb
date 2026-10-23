@@ -7,6 +7,12 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/23/2026c
+
+- **Renamed "KeyCapForge Beta"** (was "KeyCapForge Beta Pre Release"): the
+  tag beside the name, the browser tab, the sidebar footer, bug report
+  emails, and the name written into exported STL and 3MF files.
+
 ## 10/23/2026b
 
 - **Cobb3D logo at the top left.** The hexagon next to the KeyCapForge

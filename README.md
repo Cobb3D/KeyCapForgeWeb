@@ -1,6 +1,6 @@
-# KeyCapForge Beta Pre Release — Web
+# KeyCapForge Beta — Web
 
-**Version 10/23/2026b**
+**Version 10/23/2026c**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026b.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026c.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2258,3 +2258,9 @@ first thing to check.
   128). `.brand-mark` in style.css uses it as a CSS mask filled with
   --accent-text, so it follows the light/dark look and the accent color;
   it replaces the ⬡ character in index.html.
+
+- **Renamed "KeyCapForge Beta".** `APP_NAME` in bugReport.js (bug report
+  subject and body, and the name in exported STL headers and 3MF
+  metadata), the <title>, the .brand-badge and the sidebar footer in
+  index.html. The Send to Print script doesn't check the name, so it
+  needs no redeploy.
