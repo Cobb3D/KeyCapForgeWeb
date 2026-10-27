@@ -7,6 +7,20 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/27/2026a
+
+- **IIID Max PLA+ colors.** Clicking any color box (cap, letters, base,
+  logo, and each cap in the list) opens a palette of the 37 IIID Max PLA+
+  colors. Hover a swatch to see its name; click to use it. **Custom
+  color…** opens the normal color picker for anything else. Hovering a
+  color box shows which filament it is.
+- **Send to Print orders name the filament** for every color ("IIID Max
+  Candy Red PLA+ (#a92a30)", or "custom"), with a **Colors needed** list at
+  the end, one line per spool.
+- The colors come from a HueForge IIID Max library, so a few (Fluorescent
+  Yellow, Vintage Rose, the metallics) may look a little different from
+  the real spool.
+
 ## 10/23/2026e
 
 - **Print settings in the 3MF.** Every exported 3MF (Export, Send to Print

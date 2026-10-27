@@ -10,6 +10,7 @@ import { initPrintOrder } from './printOrder.js';
 import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
 import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
+import { initFilamentPalette, describeColor } from './filaments.js';
 import { initPageTheme } from './pageTheme.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
@@ -897,13 +898,21 @@ async function main() {
     const lines = [];
     if (mode === 'logo') {
       lines.push(`Logo clicker: ${logo ? logo.name : '(no logo)'}`, `Logo size: ${settings.logoSizeMM}mm, cap shape: ${settings.logoShape}`,
-        `Cap color ${settings.logoCapColorHex}, logo ${settings.logoOneColor ? 'one color ' + settings.logoLegendColorHex : 'in its own colors'}`);
+        `Cap color ${describeColor(settings.logoCapColorHex)}, logo ${settings.logoOneColor ? 'one color ' + describeColor(settings.logoLegendColorHex) : 'in its own colors'}`);
     } else {
       lines.push(`Keys: ${caps.map((c) => c.text || ' ').join('')} (${caps.length})`);
-      caps.forEach((c, i) => lines.push(`  ${i + 1}. "${c.text}" ${c.shape}, cap ${c.bodyColorHex}, letter ${c.colorfulEmoji && !settings.emojiOneColor ? 'emoji colors' : c.legendColorHex}`));
+      caps.forEach((c, i) => lines.push(`  ${i + 1}. "${c.text}" ${c.shape}, cap ${describeColor(c.bodyColorHex)}, letter ${c.colorfulEmoji && !settings.emojiOneColor ? 'emoji colors' : describeColor(c.legendColorHex)}`));
       lines.push(`Base shape: ${settings.joinedBase ? settings.baseShape : 'separate bases'}${activeTheme ? ', theme: ' + activeTheme : ''}`);
     }
-    lines.push(`Base color: ${settings.baseColorHex}`, `Keyring: ${settings.keyringStyle}`);
+    lines.push(`Base color: ${describeColor(settings.baseColorHex)}`, `Keyring: ${settings.keyringStyle}`);
+    // Every colour the order uses, once each, so the spools to load are in
+    // one place (camo/cow marks and emoji colours aren't included).
+    const used = mode === 'logo'
+      ? [settings.logoCapColorHex, ...(settings.logoOneColor ? [settings.logoLegendColorHex] : [])]
+      : caps.flatMap((c) => [c.bodyColorHex, ...(c.colorfulEmoji && !settings.emojiOneColor ? [] : [c.legendColorHex])]);
+    used.push(settings.baseColorHex);
+    const colorsNeeded = [...new Set(used.map((h) => String(h).toLowerCase()))].map(describeColor);
+    lines.push('', `Colors needed (${colorsNeeded.length}):`, ...colorsNeeded.map((d) => `  - ${d}`));
     return {
       title: mode === 'logo' ? 'logo clicker' : caps.map((c) => c.text).join(''),
       summary: lines.join('\n'),
@@ -1155,6 +1164,8 @@ async function main() {
 // Like the bug reporter, set up before main() so it shows even if the app
 // fails to start.
 initCollapsiblePanels();
+// IIID Max PLA+ swatches for every colour box.
+initFilamentPalette();
 // Light / dark look; the print bed outline is redrawn in the matching color.
 initPageTheme(() => {
   const vp = liveState.viewport;

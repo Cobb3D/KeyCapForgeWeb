@@ -502,3 +502,41 @@ body:not(.mode-logo) .logo-only { display: none !important; }
 .page-theme-btn[aria-pressed="true"] { color: var(--accent-text); }
 .page-theme-btn[aria-pressed="true"] .bulb-glass { fill: #ffd43b; stroke: #c98a00; }
 .page-theme-btn[aria-pressed="true"] .bulb-rays { opacity: 1; stroke: #e0a100; }
+
+/* IIID Max filament palette (js/filaments.js): opens when a colour box is
+   clicked. */
+.filament-popover {
+  position: fixed; z-index: 50;
+  width: min(300px, calc(100vw - 16px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  padding: 10px;
+}
+.filament-popover[hidden] { display: none; }
+.filament-head {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--text-dim); margin-bottom: 8px;
+}
+.filament-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 6px;
+}
+.filament-swatch {
+  aspect-ratio: 1; width: 100%; min-width: 0; padding: 0;
+  border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
+}
+.filament-swatch:hover { transform: scale(1.08); }
+.filament-swatch:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.filament-swatch.selected { outline: 2px solid var(--ember); outline-offset: 2px; }
+.filament-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 10px; font-size: 12px;
+}
+.filament-name { color: var(--text); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filament-custom {
+  flex: none; background: var(--panel-alt); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px;
+  font-size: 12px; cursor: pointer;
+}
+.filament-custom:hover { border-color: var(--ember); }

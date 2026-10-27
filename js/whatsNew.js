@@ -9,15 +9,10 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
-  '3MF files now open with gyroid infill at 12% and 3 walls in Bambu Studio, OrcaSlicer and PrusaSlicer, instead of the slicer\'s own grid infill. You can still change them per object in the slicer',
-  'KeyCapForge is now just "Beta" (no longer "Beta Pre Release"), with the Cobb3D printer logo next to the name at the top left and on the browser tab',
-  'Bases now start with Soft corners (bigger rounded corners). The other shapes are still in the Base shape menu under Base & Fit',
-  'New blue look, and light and dark versions of the page: click the light bulb at the bottom right of the 3D view to switch. It starts on your device\'s setting and remembers your choice',
-  'Shorter side menu: each section shows the basics (shape, colors, text, base shape, keyring), with the fine-tuning sliders under "More settings +". Fold any section away with its − button',
-  'New Print bed picker above the 3D view: pick your Bambu Lab printer to see its bed under your keychain, and a check that the exported parts fit on it',
-  'New Send to Print button next to Export: send your design straight to Cobb3D to be printed, with your name, email and any notes. You\'ll get a reply by email',
-  'New "Same color for every cap" checkbox under Caps in this set',
-  'More room around each key in the base (Key clearance slider)',
+  'Click any color box to pick from the IIID Max PLA+ colors (hover a swatch to see its name), or choose Custom color… for anything else',
+  'Send to Print orders now name the filament for each color',
+  '3MF files open with gyroid infill at 12% and 3 walls in Bambu Studio, OrcaSlicer and PrusaSlicer',
+  'KeyCapForge is now just "Beta", with the Cobb3D printer logo at the top left and on the browser tab',
 ]
 
 const SEEN_KEY = 'keycapforge.whatsNewSeen';

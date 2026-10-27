@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/23/2026e**
+**Version 10/27/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-23-2026e.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-27-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2288,3 +2288,25 @@ first thing to check.
   one. Tested: a default export from the app has the three settings on
   all 5 Bambu objects and all 10 Prusa objects. Not yet opened in the
   slicer itself.
+
+
+- **IIID Max filament palette.** js/filaments.js holds FILAMENTS (name +
+  hex, the 37 PLA+ entries from a HueForge IIID Max library, IIIDMax.json;
+  its two PETG entries and one duplicate are left out, "Green Forest " is
+  trimmed), grouped by colour family. `initFilamentPalette()` (called next
+  to initCollapsiblePanels in app.js) listens at the document level, so
+  every input[type=color] gets it, including the cap list's: a click (or
+  Enter/Space) opens a fixed-position pop-up of swatches instead of the
+  native picker; picking one sets the value and dispatches input and
+  change, so app.js's existing handlers run unchanged. "Custom color…"
+  calls showPicker() (falls back to click()) with a flag that lets that
+  one click through. Escape, an outside click, scroll or resize close it;
+  arrow keys move between swatches. The box's title names the filament
+  (set on pointerover/focus). `describeColor(hex)` gives "IIID Max <name>
+  PLA+ (#hex)" or "#hex (custom)"; orderInfo uses it for every colour and
+  ends with a "Colors needed" list (body, legend unless emoji colours,
+  base; logo cap and one-colour logo). Swapping brands later means
+  replacing FILAMENTS and FILAMENT_BRAND. Tested in Chromium, light and
+  dark: palette opens, swatch sets base and cap colours, Escape and
+  Custom color work, and a Send to Print order lists the right names.
+
