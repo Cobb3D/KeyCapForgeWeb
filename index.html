@@ -162,6 +162,43 @@
         <p class="hint">Picks every color for you: the base, each cap, and the letters. Change any color yourself and it switches back to Custom. The camo and Cow themes also add a pattern to the base (camo blobs or cow patches), which shows up in the 3MF (the STL has no color).</p>
       </section>
 
+      <section class="panel">
+        <h2>Base &amp; Fit</h2>
+        <div class="row"><label>Base color</label><input type="color" id="baseColor" value="#c92a2a"></div>
+        <div class="row letters-only">
+          <label>Base shape</label>
+          <select id="baseShape">
+            <option value="rect">Rounded rectangle</option>
+            <option value="soft" selected>Soft corners</option>
+            <option value="pill">Pill (round ends)</option>
+            <option value="bubbles">Bubbles (follows each key)</option>
+            <option value="chamfer">Chamfered ends</option>
+            <option value="tag">Tag end (keyring hole built in)</option>
+          </select>
+        </div>
+        <p class="hint letters-only">For fused bases. Every shape keeps at least the same wall around each key as the rectangle; shapes with rounded or angled ends get a little longer so their corners don't cut in. The tag puts the keyring hole in the base itself, on the keyring's end, instead of adding a loop.</p>
+        <label class="checkbox letters-only"><input type="checkbox" id="joinedBase" checked> Fuse adjacent bases into one solid block</label>
+        <label class="checkbox letters-only"><input type="checkbox" id="verticalLayout" checked> Vertical layout (hangs top-to-bottom)</label>
+        <div class="advanced" data-adv="base">
+        <div class="slider-row letters-only"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
+        <div class="slider-row"><label>Key clearance</label><input type="range" id="keyClearance" min="0.3" max="1.5" step="0.05" value="0.45"><output>0.45mm</output></div>
+        <p class="hint">Gap on each side between a keycap and the wall of its pocket, so the cap can press down without rubbing. Raise it if caps catch on the walls; lower it if they wobble.</p>
+        <div class="slider-row letters-only"><label>Extra outer wall</label><input type="range" id="baseOuterWall" min="0" max="3" step="0.1" value="1.7"><output>1.7mm</output></div>
+        <p class="hint letters-only">Thickens the outside of a fused base without moving the keys apart. Thin outer walls can show faint lines on the outside where the walls between keys meet them; 1.7mm (about a 2.7mm wall beside each key) hides them.</p>
+        <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="24" step="0.1" value="17.4"><output>17.4mm</output></div>
+        <div class="slider-row"><label>Plate hole (MX clip)</label><input type="range" id="plateHole" min="13.6" max="14.4" step="0.01" value="14"><output>14.00mm</output></div>
+        <div class="slider-row"><label>Base floor</label><input type="range" id="floorThickness" min="0.6" max="4" step="0.1" value="2"><output>2.0mm</output></div>
+        <div class="slider-row"><label>Switch clearance</label><input type="range" id="clearanceHeight" min="3" max="8" step="0.1" value="5.5"><output>5.5mm</output></div>
+        <div class="slider-row"><label>Plate thickness</label><input type="range" id="plateThickness" min="1.0" max="2.2" step="0.05" value="1.5"><output>1.5mm</output></div>
+        <div class="slider-row"><label>Lower clearance</label><input type="range" id="clearance" min="15" max="18" step="0.05" value="15.8"><output>15.8mm</output></div>
+        <div class="slider-row"><label>Recess depth</label><input type="range" id="recessDepth" min="0.3" max="10" step="0.1" value="8.0"><output>8.0mm</output></div>
+        <div class="slider-row letters-only"><label>Base top bevel</label><input type="range" id="baseTopBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <div class="slider-row letters-only"><label>Base bottom bevel</label><input type="range" id="baseBottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
+        <p class="hint" id="recessDepthHint">Switch clearance is the empty void below the plate a real switch's lower housing travels into before its retention clips can engage — too shallow and the switch bottoms out before it snaps in. Recess depth (how deep each cap nests into the base) is purely cosmetic and always kept a safe distance from this mechanism regardless of how deep you go — it may get capped below what you set if there isn't enough room left over after the floor, switch clearance, and plate thickness are reserved. Base floor is the solid layer under the switch that its bottom rests on.</p>
+        <p class="hint">Real Cherry MX plate-mount spec: a 14mm clip hole in a ~1.5mm plate, closed on the bottom with a solid floor (Base floor, 2mm by default) that the bottom of the switch rests on.</p>
+        </div>
+      </section>
+
       <section class="panel letters-only">
         <div class="panel-header">
           <h2>Caps in this set</h2>
@@ -212,43 +249,6 @@
         <p class="hint letters-only">How much of the cap's top face the text can fill — text is scaled to fit both width and height, so a longer word shrinks automatically instead of overflowing.</p>
         <div class="advanced" data-adv="legend">
         <div class="slider-row"><label>Legend depth</label><input type="range" id="legendDepth" min="0.2" max="1.5" step="0.05" value="0.6"><output>0.6mm</output></div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Base &amp; Fit</h2>
-        <div class="row"><label>Base color</label><input type="color" id="baseColor" value="#c92a2a"></div>
-        <div class="row letters-only">
-          <label>Base shape</label>
-          <select id="baseShape">
-            <option value="rect">Rounded rectangle</option>
-            <option value="soft" selected>Soft corners</option>
-            <option value="pill">Pill (round ends)</option>
-            <option value="bubbles">Bubbles (follows each key)</option>
-            <option value="chamfer">Chamfered ends</option>
-            <option value="tag">Tag end (keyring hole built in)</option>
-          </select>
-        </div>
-        <p class="hint letters-only">For fused bases. Every shape keeps at least the same wall around each key as the rectangle; shapes with rounded or angled ends get a little longer so their corners don't cut in. The tag puts the keyring hole in the base itself, on the keyring's end, instead of adding a loop.</p>
-        <label class="checkbox letters-only"><input type="checkbox" id="joinedBase" checked> Fuse adjacent bases into one solid block</label>
-        <label class="checkbox letters-only"><input type="checkbox" id="verticalLayout" checked> Vertical layout (hangs top-to-bottom)</label>
-        <div class="advanced" data-adv="base">
-        <div class="slider-row letters-only"><label>Base footprint</label><input type="range" id="baseFootprint" min="16" max="24" step="0.1" value="21"><output>21.0mm</output></div>
-        <div class="slider-row"><label>Key clearance</label><input type="range" id="keyClearance" min="0.3" max="1.5" step="0.05" value="0.45"><output>0.45mm</output></div>
-        <p class="hint">Gap on each side between a keycap and the wall of its pocket, so the cap can press down without rubbing. Raise it if caps catch on the walls; lower it if they wobble.</p>
-        <div class="slider-row letters-only"><label>Extra outer wall</label><input type="range" id="baseOuterWall" min="0" max="3" step="0.1" value="1.7"><output>1.7mm</output></div>
-        <p class="hint letters-only">Thickens the outside of a fused base without moving the keys apart. Thin outer walls can show faint lines on the outside where the walls between keys meet them; 1.7mm (about a 2.7mm wall beside each key) hides them.</p>
-        <div class="slider-row"><label>Base thickness</label><input type="range" id="baseThickness" min="2" max="24" step="0.1" value="17.4"><output>17.4mm</output></div>
-        <div class="slider-row"><label>Plate hole (MX clip)</label><input type="range" id="plateHole" min="13.6" max="14.4" step="0.01" value="14"><output>14.00mm</output></div>
-        <div class="slider-row"><label>Base floor</label><input type="range" id="floorThickness" min="0.6" max="4" step="0.1" value="2"><output>2.0mm</output></div>
-        <div class="slider-row"><label>Switch clearance</label><input type="range" id="clearanceHeight" min="3" max="8" step="0.1" value="5.5"><output>5.5mm</output></div>
-        <div class="slider-row"><label>Plate thickness</label><input type="range" id="plateThickness" min="1.0" max="2.2" step="0.05" value="1.5"><output>1.5mm</output></div>
-        <div class="slider-row"><label>Lower clearance</label><input type="range" id="clearance" min="15" max="18" step="0.05" value="15.8"><output>15.8mm</output></div>
-        <div class="slider-row"><label>Recess depth</label><input type="range" id="recessDepth" min="0.3" max="10" step="0.1" value="8.0"><output>8.0mm</output></div>
-        <div class="slider-row letters-only"><label>Base top bevel</label><input type="range" id="baseTopBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
-        <div class="slider-row letters-only"><label>Base bottom bevel</label><input type="range" id="baseBottomBevel" min="0" max="2" step="0.05" value="0.8"><output>0.8mm</output></div>
-        <p class="hint" id="recessDepthHint">Switch clearance is the empty void below the plate a real switch's lower housing travels into before its retention clips can engage — too shallow and the switch bottoms out before it snaps in. Recess depth (how deep each cap nests into the base) is purely cosmetic and always kept a safe distance from this mechanism regardless of how deep you go — it may get capped below what you set if there isn't enough room left over after the floor, switch clearance, and plate thickness are reserved. Base floor is the solid layer under the switch that its bottom rests on.</p>
-        <p class="hint">Real Cherry MX plate-mount spec: a 14mm clip hole in a ~1.5mm plate, closed on the bottom with a solid floor (Base floor, 2mm by default) that the bottom of the switch rests on.</p>
         </div>
       </section>
 

@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Base & Fit is now near the top of the side menu, so you can pick the base color and shape before the caps',
   'Click any color box to pick from the IIID Max PLA+ colors (hover a swatch to see its name), or choose Custom color… for anything else',
   'Send to Print orders now name the filament for each color',
   '3MF files open with gyroid infill at 12% and 3 walls in Bambu Studio, OrcaSlicer and PrusaSlicer',

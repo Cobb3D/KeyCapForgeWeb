@@ -7,6 +7,13 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/27/2026b
+
+- **Base settings come first.** The Base & Fit section (base color, shape,
+  fuse and layout) moved up the side menu, right after Theme and before
+  Caps in this set, so the base can be picked before the keys. In Logo
+  clicker mode it's right after Logo. Keyring stays near the bottom.
+
 ## 10/27/2026a
 
 - **IIID Max PLA+ colors.** Clicking any color box (cap, letters, base,

@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/27/2026a**
+**Version 10/27/2026b**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-27-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-27-2026b.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2309,4 +2309,10 @@ first thing to check.
   replacing FILAMENTS and FILAMENT_BRAND. Tested in Chromium, light and
   dark: palette opens, swatch sets base and cap colours, Escape and
   Custom color work, and a Send to Print order lists the right names.
+
+- **Sidebar order.** In index.html the Base & Fit panel now comes after
+  Theme and before Caps in this set (letters: Mode, Text, Theme, Base &
+  Fit, Caps, Shape & Size, Legend, Keyring; logo: Mode, Logo, Base & Fit,
+  Shape & Size, Keyring). Only the markup moved: nothing in the JS depends
+  on panel order, and collapsible.js remembers folded panels by title.
 
