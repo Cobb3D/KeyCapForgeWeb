@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/27/2026b**
+**Version 10/27/2026c**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-27-2026b.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-27-2026c.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2315,4 +2315,23 @@ first thing to check.
   Fit, Caps, Shape & Size, Legend, Keyring; logo: Mode, Logo, Base & Fit,
   Shape & Size, Keyring). Only the markup moved: nothing in the JS depends
   on panel order, and collapsible.js remembers folded panels by title.
+
+- **Drag-to-reorder sidebar.** js/panelOrder.js, `initPanelOrder()` (run
+  right after initCollapsiblePanels in app.js, since it reads the
+  .panel-title spans that makes). Each panel's h2 gets a .panel-grip
+  button before the fold toggle. Pointer drag (mouse, touch, pen;
+  touch-action: none on the grip) moves the panel live past each shown
+  neighbour's midpoint; the listeners are on window, not a pointer capture
+  on the grip, because moving the panel in the DOM drops the capture. The
+  sidebar auto-scrolls within 48px of its edges, with overflow-anchor
+  turned off while dragging (.sidebar.reordering), or scroll anchoring
+  pulls the view back each time a panel moves. Arrow keys on a focused
+  grip move it one shown panel up or down. The order is saved in
+  localStorage 'keycapforge.sidebarOrder' as panel titles (hidden panels
+  included); on load, saved titles are applied and any panel not in the
+  list stays after the panel that precedes it in index.html, so new
+  panels show up sensibly. "Reset menu order" (added to the sidebar
+  footer) clears it. Tested in Chromium: mouse drag from the bottom to
+  near the top with auto-scroll, order kept after reload, arrow keys,
+  folding, logo mode, reset, and a touch drag at phone width.
 

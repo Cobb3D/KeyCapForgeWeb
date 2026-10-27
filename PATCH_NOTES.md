@@ -7,6 +7,16 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/27/2026c
+
+- **Drag to rearrange the side menu.** Each section title has a grip (⋮⋮)
+  on its left: drag it up or down to move the whole section, with a mouse
+  or a finger. Dragging near the top or bottom of the menu scrolls it. On
+  a keyboard, tab to the grip and use the up and down arrow keys.
+- Your browser remembers the order. **Reset menu order** at the bottom of
+  the menu puts the sections back in the standard order.
+- Folding sections with − / + works as before.
+
 ## 10/27/2026b
 
 - **Base settings come first.** The Base & Fit section (base color, shape,

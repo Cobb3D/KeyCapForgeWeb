@@ -540,3 +540,25 @@ body:not(.mode-logo) .logo-only { display: none !important; }
   font-size: 12px; cursor: pointer;
 }
 .filament-custom:hover { border-color: var(--ember); }
+
+/* Drag-to-reorder side menu (js/panelOrder.js): a grip left of each title. */
+.panel h2.has-grip { display: flex; align-items: center; gap: 6px; }
+.panel-grip {
+  all: unset; box-sizing: border-box; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 24px; margin-left: -6px; border-radius: 4px;
+  color: var(--text-dim); opacity: 0.55; cursor: grab;
+  touch-action: none; /* a finger drag moves the section, not the page */
+}
+.panel:hover .panel-grip, .panel-grip:focus-visible { opacity: 1; }
+.panel-grip:hover { color: var(--text); background: var(--panel-alt); }
+.panel-grip:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }
+.sidebar.reordering { overflow-anchor: none; }
+.sidebar.reordering, .sidebar.reordering * { cursor: grabbing !important; user-select: none; }
+.panel.dragging {
+  position: relative; z-index: 1;
+  background: var(--panel-alt);
+  outline: 2px solid var(--ember); outline-offset: -2px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.panel.dragging .panel-grip { opacity: 1; color: var(--accent-text); }

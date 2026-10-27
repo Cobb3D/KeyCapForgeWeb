@@ -10,6 +10,7 @@ import { initPrintOrder } from './printOrder.js';
 import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
 import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
+import { initPanelOrder } from './panelOrder.js';
 import { initFilamentPalette, describeColor } from './filaments.js';
 import { initPageTheme } from './pageTheme.js';
 import { THEMES, themeCapColors } from './themes.js';
@@ -1164,6 +1165,8 @@ async function main() {
 // Like the bug reporter, set up before main() so it shows even if the app
 // fails to start.
 initCollapsiblePanels();
+// Drag the grips to reorder the side menu (remembered in this browser).
+initPanelOrder();
 // IIID Max PLA+ swatches for every colour box.
 initFilamentPalette();
 // Light / dark look; the print bed outline is redrawn in the matching color.
