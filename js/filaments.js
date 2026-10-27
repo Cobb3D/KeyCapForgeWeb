@@ -1,80 +1,115 @@
-// IIID Max PLA+ colours, offered as swatches for every colour box on the
-// page. Clicking a colour box opens a palette of these instead of the
-// browser's own picker; "Custom color…" in the palette still opens the
-// browser's picker for any other colour.
+// Filament colour palette for every colour box on the page. Clicking a
+// colour box opens a pop-up with a Brand menu (IIID Max, Bambu Lab, Sunlu,
+// Polymaker) and that brand's PLA colours, grouped by product line;
+// "Custom color…" still opens the browser's own picker for anything else.
+// The brand last used is remembered in this browser.
 //
-// Source: a HueForge filament library for IIID Max (IIIDMax.json, October
-// 2026), PLA+ entries only (its two PETG entries are left out). The hex
-// values are what that library lists, not IIID Max's official colours, so a
-// few may want adjusting against a real spool. Order is by colour family.
-export const FILAMENT_BRAND = 'IIID Max';
-export const FILAMENT_TYPE = 'PLA+';
+// Sources:
+//  - IIID Max: a HueForge filament library (IIIDMax.json, October 2026),
+//    PLA+ entries only. The hex values are that library's, so a few may
+//    want adjusting against a real spool.
+//  - Bambu Lab, Sunlu, Polymaker: the Open Filament Database (MIT), via
+//    js/filamentData.js (generated; see vendor/open-filament-database/).
+//
+// Send to Print orders name the filament behind each colour (describeColor).
+// The design only stores a hex colour, and some filaments share one
+// (#ffffff is white in most lines), so each filament gets its own colour in
+// the app: the first with a hex (IIID Max first, then the database's order)
+// keeps it, and later ones are moved by the smallest step that's free (a
+// few channels off by at most 4 out of 255, which can't be seen). The order
+// still shows the database's hex.
 
-export const FILAMENTS = [
-  // Whites, greys, black
-  { name: 'Xtreme White', hex: '#ffffff' },
-  { name: 'White', hex: '#e4e8e7' },
-  { name: 'Clear', hex: '#cbcdcd' },
-  { name: 'Space Gray', hex: '#abb4ba' },
-  { name: 'Silver', hex: '#727571' },
-  { name: 'Night Gray', hex: '#21282a' },
-  { name: 'Black', hex: '#000000' },
-  // Creams, tans, browns
-  { name: 'Vanilla Cream', hex: '#c4cbb1' },
-  { name: 'Vintage Rose', hex: '#c1b4a9' },
-  { name: 'Tan', hex: '#d5c2a0' },
-  { name: 'Gold', hex: '#a08c59' },
-  { name: 'Coyote Brown', hex: '#906c3f' },
-  { name: 'Copper', hex: '#7d5246' },
-  { name: 'Brown', hex: '#61392a' },
-  // Reds, pinks, oranges, yellows
-  { name: 'Red', hex: '#a62f36' },
-  { name: 'Candy Red', hex: '#a92a30' },
-  { name: 'Pink', hex: '#bf3f62' },
-  { name: 'Light Pink', hex: '#dc9d9f' },
-  { name: 'Fuchsia', hex: '#ad578b' },
-  { name: 'Orange', hex: '#d34c36' },
-  { name: 'Burnt Orange', hex: '#b96023' },
-  { name: 'Fluorescent Orange', hex: '#ce712a' },
-  { name: 'Yellow', hex: '#eac322' },
-  // Greens
-  { name: 'Key Lime', hex: '#bdc846' },
-  { name: 'Fluorescent Yellow', hex: '#a6da6d' },
-  { name: 'Apple Green', hex: '#60b04e' },
-  { name: 'Fluorescent Green', hex: '#00a065' },
-  { name: 'Green Forest', hex: '#07592c' },
-  { name: 'Army Green', hex: '#54563f' },
-  // Blues, purples
-  { name: 'Teal', hex: '#0099a7' },
-  { name: 'Light Blue', hex: '#229bd5' },
-  { name: 'Baby Blue', hex: '#c3dee5' },
-  { name: 'Blue', hex: '#005ba9' },
-  { name: 'Navy Blue', hex: '#002043' },
-  { name: 'Violet', hex: '#6e5a95' },
-  { name: 'Mystic Purple', hex: '#734784' },
-];
+import { OFD_BRANDS } from './filamentData.js';
 
-const byHex = new Map(FILAMENTS.map((f) => [f.hex, f]));
+const IIID_MAX = {
+  id: 'iiidmax', name: 'IIID Max',
+  lines: [{
+    name: 'PLA+',
+    colors: [
+      // Whites, greys, black
+      ['Xtreme White', '#ffffff'], ['White', '#e4e8e7'], ['Clear', '#cbcdcd'], ['Space Gray', '#abb4ba'],
+      ['Silver', '#727571'], ['Night Gray', '#21282a'], ['Black', '#000000'],
+      // Creams, tans, browns
+      ['Vanilla Cream', '#c4cbb1'], ['Vintage Rose', '#c1b4a9'], ['Tan', '#d5c2a0'], ['Gold', '#a08c59'],
+      ['Coyote Brown', '#906c3f'], ['Copper', '#7d5246'], ['Brown', '#61392a'],
+      // Reds, pinks, oranges, yellows
+      ['Red', '#a62f36'], ['Candy Red', '#a92a30'], ['Pink', '#bf3f62'], ['Light Pink', '#dc9d9f'],
+      ['Fuchsia', '#ad578b'], ['Orange', '#d34c36'], ['Burnt Orange', '#b96023'],
+      ['Fluorescent Orange', '#ce712a'], ['Yellow', '#eac322'],
+      // Greens
+      ['Key Lime', '#bdc846'], ['Fluorescent Yellow', '#a6da6d'], ['Apple Green', '#60b04e'],
+      ['Fluorescent Green', '#00a065'], ['Green Forest', '#07592c'], ['Army Green', '#54563f'],
+      // Blues, purples
+      ['Teal', '#0099a7'], ['Light Blue', '#229bd5'], ['Baby Blue', '#c3dee5'], ['Blue', '#005ba9'],
+      ['Navy Blue', '#002043'], ['Violet', '#6e5a95'], ['Mystic Purple', '#734784'],
+    ],
+  }],
+};
 
-// The filament with exactly this colour, or null for a custom colour.
+export const BRANDS = [IIID_MAX, ...OFD_BRANDS];
+const DEFAULT_BRAND = 'iiidmax';
+const BRAND_KEY = 'keycapforge.filamentBrand';
+
+// Every filament as { brand, line, name, hexes, hex }: hexes are the
+// database's (several for a multi-colour filament), hex is the colour the
+// app uses for it, unique to this filament (see above).
+const toRGB = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const toHex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+// Steps of up to 4 on each channel, smallest first (biggest single-channel
+// change, then total change).
+const NUDGES = [];
+for (let r = -4; r <= 4; r++) for (let g = -4; g <= 4; g++) for (let b = -4; b <= 4; b++) {
+  if (r || g || b) NUDGES.push([r, g, b]);
+}
+const size = (n) => Math.max(...n.map(Math.abs)) * 100 + n.reduce((a, v) => a + Math.abs(v), 0);
+NUDGES.sort((a, b) => size(a) - size(b));
+export const ALL = [];
+const byHex = new Map();
+for (const brand of BRANDS) {
+  for (const line of brand.lines) {
+    for (const [name, h] of line.colors) {
+      const hexes = (Array.isArray(h) ? h : [h]).map((x) => x.toLowerCase());
+      let hex = hexes[0];
+      if (byHex.has(hex)) {
+        const rgb = toRGB(hex);
+        for (const n of NUDGES) {
+          const c = rgb.map((v, i) => v + n[i]);
+          if (c.some((v) => v < 0 || v > 255)) continue;
+          if (!byHex.has(toHex(c))) { hex = toHex(c); break; }
+        }
+      }
+      const f = { brand, line: line.name, name, hexes, hex };
+      if (!byHex.has(hex)) byHex.set(hex, f);
+      ALL.push(f);
+    }
+  }
+}
+
+// The filament for this colour, or null for a custom colour.
 export function filamentFor(hex) {
   return byHex.get(String(hex || '').toLowerCase()) || null;
 }
 
-// "IIID Max Candy Red PLA+ (#a92a30)" for a filament colour, else "#a92a30
-// (custom)". Used in Send to Print orders.
+const fullName = (f) => `${f.brand.name} ${f.line} ${f.name}`;
+
+// "Bambu Lab PLA Matte Charcoal (#000000)" for a filament colour, else
+// "#a92a30 (custom)". Used in Send to Print orders.
 export function describeColor(hex) {
   const f = filamentFor(hex);
-  return f ? `${FILAMENT_BRAND} ${f.name} ${FILAMENT_TYPE} (${f.hex})` : `${hex} (custom)`;
+  if (!f) return `${hex} (custom)`;
+  const shown = f.hexes.length > 1 ? `multi-color ${f.hexes.join(' / ')}` : f.hexes[0];
+  return `${fullName(f)} (${shown})`;
 }
 
 // ---------- Palette pop-up ----------
 
 let popover = null;
 let current = null; // the colour box the pop-up is open for
+let brandId = DEFAULT_BRAND;
+try { const saved = localStorage.getItem(BRAND_KEY); if (BRANDS.some((b) => b.id === saved)) brandId = saved; } catch (e) { /* default */ }
 
-function setValue(input, hex) {
-  input.value = hex;
+function setValue(input, f) {
+  input.value = f.hex;
   // The page's own handlers listen for 'input' (and some for 'change').
   input.dispatchEvent(new Event('input', { bubbles: true }));
   input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -83,41 +118,117 @@ function setValue(input, hex) {
 
 function labelInput(input) {
   const f = filamentFor(input.value);
-  input.title = f ? `${FILAMENT_BRAND} ${f.name}` : `Custom color ${input.value}`;
+  input.title = f ? fullName(f) : `Custom color ${input.value}`;
+}
+
+// A multi-colour filament's swatch shows each of its colours in a band.
+function swatchBackground(hexes) {
+  if (hexes.length === 1) return hexes[0];
+  const step = 100 / hexes.length;
+  return `linear-gradient(135deg, ${hexes.map((h, i) => `${h} ${i * step}%, ${h} ${(i + 1) * step}%`).join(', ')})`;
+}
+
+let nameEl, lineEl, bodyEl, brandSel;
+
+function showName(f) {
+  if (!nameEl) return;
+  if (f) {
+    nameEl.textContent = f.name;
+    nameEl.title = fullName(f) + (f.hexes.length > 1 ? ' (multi-color; the preview shows the first color)' : '');
+    nameEl.dataset.line = f.line;
+  } else {
+    const cur = current && filamentFor(current.value);
+    if (cur) { showName(cur); return; }
+    nameEl.textContent = 'Custom color';
+    nameEl.title = '';
+    nameEl.dataset.line = '';
+  }
+  lineEl.textContent = nameEl.dataset.line || '';
+}
+
+function renderBrand() {
+  const brand = BRANDS.find((b) => b.id === brandId) || BRANDS[0];
+  brandSel.value = brand.id;
+  const frag = document.createDocumentFragment();
+  const value = current ? String(current.value).toLowerCase() : '';
+  const picked = filamentFor(value);
+  for (const line of brand.lines) {
+    if (brand.lines.length > 1) {
+      const h = document.createElement('div');
+      h.className = 'filament-line';
+      h.textContent = `${line.name} (${line.colors.length})`;
+      frag.appendChild(h);
+    }
+    const grid = document.createElement('div');
+    grid.className = 'filament-grid';
+    for (const f of ALL) {
+      if (f.brand !== brand || f.line !== line.name) continue;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'filament-swatch';
+      b.style.background = swatchBackground(f.hexes);
+      b.title = f.hexes.length > 1 ? `${f.name} (multi-color)` : f.name;
+      b.setAttribute('aria-label', `${line.name} ${f.name}`);
+      if (picked === f) b.classList.add('selected');
+      b._filament = f;
+      grid.appendChild(b);
+    }
+    frag.appendChild(grid);
+  }
+  bodyEl.replaceChildren(frag);
+  bodyEl.scrollTop = 0;
 }
 
 function buildPopover() {
   const el = document.createElement('div');
   el.className = 'filament-popover';
   el.setAttribute('role', 'dialog');
-  el.setAttribute('aria-label', `${FILAMENT_BRAND} ${FILAMENT_TYPE} colors`);
+  el.setAttribute('aria-label', 'Filament colors');
   el.hidden = true;
 
   const head = document.createElement('div');
   head.className = 'filament-head';
-  head.textContent = `${FILAMENT_BRAND} ${FILAMENT_TYPE}`;
-
-  const grid = document.createElement('div');
-  grid.className = 'filament-grid';
-  for (const f of FILAMENTS) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'filament-swatch';
-    b.style.background = f.hex;
-    b.title = f.name;
-    b.setAttribute('aria-label', f.name);
-    b.dataset.hex = f.hex;
-    b.addEventListener('mouseenter', () => { nameEl.textContent = f.name; });
-    b.addEventListener('focus', () => { nameEl.textContent = f.name; });
-    b.addEventListener('click', () => { if (current) setValue(current, f.hex); close(); });
-    grid.appendChild(b);
+  const label = document.createElement('label');
+  label.textContent = 'Brand';
+  label.htmlFor = 'filamentBrand';
+  brandSel = document.createElement('select');
+  brandSel.id = 'filamentBrand';
+  for (const b of BRANDS) {
+    const count = b.lines.reduce((n, l) => n + l.colors.length, 0);
+    const o = document.createElement('option');
+    o.value = b.id;
+    o.textContent = `${b.name} PLA (${count})`;
+    brandSel.appendChild(o);
   }
-  grid.addEventListener('mouseleave', () => showCurrentName());
+  brandSel.addEventListener('change', () => {
+    brandId = brandSel.value;
+    try { localStorage.setItem(BRAND_KEY, brandId); } catch (e) { /* not remembered */ }
+    renderBrand();
+    position();
+  });
+  head.append(label, brandSel);
+
+  bodyEl = document.createElement('div');
+  bodyEl.className = 'filament-body';
+  bodyEl.addEventListener('mouseover', (e) => { const f = e.target._filament; if (f) showName(f); });
+  bodyEl.addEventListener('focusin', (e) => { const f = e.target._filament; if (f) showName(f); });
+  bodyEl.addEventListener('mouseleave', () => showName(null));
+  bodyEl.addEventListener('click', (e) => {
+    const f = e.target._filament;
+    if (!f) return;
+    if (current) setValue(current, f);
+    close();
+  });
 
   const foot = document.createElement('div');
   foot.className = 'filament-foot';
-  const nameEl = document.createElement('span');
+  const names = document.createElement('div');
+  names.className = 'filament-names';
+  nameEl = document.createElement('span');
   nameEl.className = 'filament-name';
+  lineEl = document.createElement('span');
+  lineEl.className = 'filament-line-name';
+  names.append(nameEl, lineEl);
   const custom = document.createElement('button');
   custom.type = 'button';
   custom.className = 'filament-custom';
@@ -136,41 +247,43 @@ function buildPopover() {
       setTimeout(() => { delete input.dataset.nativePicker; }, 0);
     }
   });
-  foot.append(nameEl, custom);
+  foot.append(names, custom);
 
-  el.append(head, grid, foot);
+  el.append(head, bodyEl, foot);
   document.body.appendChild(el);
-
-  function showCurrentName() {
-    const f = current && filamentFor(current.value);
-    nameEl.textContent = f ? f.name : 'Custom color';
-  }
-  el.showCurrentName = showCurrentName;
   return el;
 }
 
 function open(input) {
   if (!popover) popover = buildPopover();
   current = input;
-  const value = String(input.value).toLowerCase();
-  for (const b of popover.querySelectorAll('.filament-swatch')) {
-    b.classList.toggle('selected', b.dataset.hex === value);
-  }
-  popover.showCurrentName();
+  // Open on the brand of the box's current colour, if it's a filament.
+  const f = filamentFor(input.value);
+  if (f) brandId = f.brand.id;
+  renderBrand();
+  showName(null);
   popover.hidden = false;
+  position();
 
-  // Below the colour box, kept on screen.
-  const r = input.getBoundingClientRect();
-  const w = popover.offsetWidth, h = popover.offsetHeight;
+  const sel = bodyEl.querySelector('.filament-swatch.selected') || bodyEl.querySelector('.filament-swatch');
+  if (sel) {
+    sel.focus({ preventScroll: true });
+    sel.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+// Below the colour box, or above it if there's more room there, kept on
+// screen. Run again when the brand changes (the pop-up's height changes).
+function position() {
+  if (!current || !popover || popover.hidden) return;
+  const r = current.getBoundingClientRect();
   const margin = 8;
-  let left = Math.min(Math.max(margin, r.left), window.innerWidth - w - margin);
-  let top = r.bottom + 6;
-  if (top + h > window.innerHeight - margin) top = Math.max(margin, r.top - h - 6);
-  popover.style.left = `${left}px`;
-  popover.style.top = `${top}px`;
-
-  const sel = popover.querySelector('.filament-swatch.selected') || popover.querySelector('.filament-swatch');
-  sel.focus({ preventScroll: true });
+  const below = window.innerHeight - r.bottom - 6 - margin;
+  const above = r.top - 6 - margin;
+  popover.style.maxHeight = `${Math.min(460, Math.max(below, above))}px`;
+  const w = popover.offsetWidth, h = popover.offsetHeight;
+  popover.style.left = `${Math.min(Math.max(margin, r.left), window.innerWidth - w - margin)}px`;
+  popover.style.top = `${h <= below || below >= above ? r.bottom + 6 : r.top - 6 - h}px`;
 }
 
 function close() {
@@ -207,20 +320,24 @@ export function initFilamentPalette() {
     } else if (e.key === 'Escape' && popover && !popover.hidden) {
       e.preventDefault();
       close();
-    } else if (popover && !popover.hidden && popover.contains(e.target) && e.target.classList.contains('filament-swatch')) {
-      // Arrow keys move around the grid.
-      const swatches = [...popover.querySelectorAll('.filament-swatch')];
+    } else if (popover && !popover.hidden && e.target.classList && e.target.classList.contains('filament-swatch')) {
+      // Arrow keys move through the swatches (across product lines too).
+      const swatches = [...bodyEl.querySelectorAll('.filament-swatch')];
       const i = swatches.indexOf(e.target);
-      const cols = Math.round(popover.querySelector('.filament-grid').offsetWidth / e.target.offsetWidth) || 7;
+      const grid = e.target.parentElement;
+      const cols = Math.max(1, Math.round(grid.clientWidth / (e.target.offsetWidth + 6)));
       const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
       if (step) {
         e.preventDefault();
-        swatches[Math.min(swatches.length - 1, Math.max(0, i + step))].focus();
+        const next = swatches[Math.min(swatches.length - 1, Math.max(0, i + step))];
+        next.focus();
+        next.scrollIntoView({ block: 'nearest' });
       }
     }
   });
 
   window.addEventListener('resize', close);
+  // Scrolling the page closes it; scrolling inside it doesn't.
   document.addEventListener('scroll', (e) => { if (popover && !popover.contains(e.target)) close(); }, true);
 
   // Hover names on the colour boxes themselves, worked out when the pointer

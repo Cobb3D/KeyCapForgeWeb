@@ -10,8 +10,8 @@ import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
   'Arrange the side menu your way: drag the dots (⋮⋮) beside any section title to move it. Your order is remembered; "Reset menu order" at the bottom puts it back. Base & Fit now starts above the caps',
-  'Click any color box to pick from the IIID Max PLA+ colors (hover a swatch to see its name), or choose Custom color… for anything else',
-  'Send to Print orders now name the filament for each color',
+  'Pick filament colors by brand: click any color box and choose IIID Max, Bambu Lab, Sunlu or Polymaker from the Brand menu, with every PLA color they make, grouped by product line (PLA Basic, Matte, Silk...). Custom color… is still there for anything else',
+  'Send to Print orders name the brand, line and color for each part',
   '3MF files open with gyroid infill at 12% and 3 walls in Bambu Studio, OrcaSlicer and PrusaSlicer',
   'KeyCapForge is now just "Beta", with the Cobb3D printer logo at the top left and on the browser tab',
 ]

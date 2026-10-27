@@ -7,6 +7,22 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/27/2026d
+
+- **Brand menu in the color palette.** Click any color box, then pick a
+  brand: **IIID Max** (37 PLA+ colors), **Bambu Lab** (166), **Sunlu**
+  (381) or **Polymaker** (222). Each brand's PLA colors are grouped by
+  product line (PLA Basic, PLA Matte, Silk, Panchroma...), largest line
+  first. The palette opens on the brand of the color already in the box,
+  otherwise the brand you used last.
+- **Multi-color filaments** (dual-color silk, gradients, rainbow) show all
+  their colors on the swatch; the 3D view and the 3MF use the first one.
+- **Orders name the brand and line**, e.g. "Bambu Lab PLA Matte Charcoal
+  (#000000)".
+- Bambu Lab, Sunlu and Polymaker colors come from the open-source Open
+  Filament Database (MIT license). Their hex codes are the published or
+  community-entered ones, not measured from spools.
+
 ## 10/27/2026c
 
 - **Drag to rearrange the side menu.** Each section title has a grip (⋮⋮)
