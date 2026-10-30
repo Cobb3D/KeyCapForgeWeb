@@ -12,6 +12,8 @@ import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
 import { initPanelOrder } from './panelOrder.js';
 import { initFilamentPalette, describeColor } from './filaments.js';
+import { encodeDesign, decodeDesign, findDesignCode } from './designCode.js';
+import { CHANNEL, initChannel, storeOrigin } from './channel.js';
 import { initPageTheme } from './pageTheme.js';
 import { THEMES, themeCapColors } from './themes.js';
 import { camoBase, PATTERN_STYLES } from './camo.js';
@@ -639,9 +641,13 @@ async function main() {
     rebuild();
   });
 
+  // Every slider and the setting it drives, so a loaded design code can put
+  // the sliders back where the design had them (applyDesign).
+  const SLIDERS = [];
   function bindSlider(id, key, unit, decimals = 1) {
     const input = document.getElementById(id);
     const output = input.nextElementSibling;
+    SLIDERS.push({ input, output, key, unit, decimals });
     input.addEventListener('input', () => {
       settings[key] = parseFloat(input.value);
       output.textContent = `${settings[key].toFixed(decimals)}${unit}`;
@@ -895,8 +901,10 @@ async function main() {
     return result; // null if there was nothing to export (no logo imported)
   };
   // What the order email says about the design.
-  liveState.orderInfo = () => {
+  liveState.orderInfo = async () => {
     const lines = [];
+    const code = await liveState.designCode().catch(() => null);
+    if (code) lines.push(`Design code: ${code}`, '');
     if (mode === 'logo') {
       lines.push(`Logo clicker: ${logo ? logo.name : '(no logo)'}`, `Logo size: ${settings.logoSizeMM}mm, cap shape: ${settings.logoShape}`,
         `Cap color ${describeColor(settings.logoCapColorHex)}, logo ${settings.logoOneColor ? 'one color ' + describeColor(settings.logoLegendColorHex) : 'in its own colors'}`);
@@ -1116,6 +1124,180 @@ async function main() {
     });
   }
 
+  // ---------- Design codes (for Etsy orders) ----------
+  // "Copy design code" packs the current letter-caps design into a short
+  // code (js/designCode.js) that a buyer pastes into Etsy's personalization
+  // box; Maker tools > "Load a design code" (or ?design=<code> on the
+  // address) rebuilds it exactly.
+  const currentDesign = () => ({ settings, caps, theme: activeTheme, sameColor: sameCapColor.on });
+  liveState.designCode = () => (mode === 'letters' && caps.length ? encodeDesign(currentDesign()) : Promise.resolve(null));
+
+  // Puts a decoded design into the app and every control.
+  function applyDesign(d) {
+    const hasOption = (sel, v) => [...sel.options].some((o) => o.value === v);
+    const shapeSel = document.getElementById('shapeSelect');
+    const LEGEND_STYLES = ['embossed', 'engraved', 'shineThrough'];
+    if (mode !== 'letters') setMode('letters');
+    for (const [k, v] of Object.entries(d.settings)) if (k in settings) settings[k] = Array.isArray(v) ? [...v] : v;
+    // Menu settings must be values the menus have, or the default stays.
+    for (const [id, key] of [['baseShape', 'baseShape'], ['keyringStyle', 'keyringStyle'], ['keyringSide', 'keyringSide']]) {
+      const sel = document.getElementById(id);
+      if (!hasOption(sel, settings[key])) settings[key] = DEFAULT_SETTINGS[key];
+      sel.value = settings[key];
+    }
+    caps = d.caps.map((c) => {
+      const cap = { ...makeCap(c.text), ...c };
+      if (!hasOption(shapeSel, cap.shape)) cap.shape = 'square';
+      if (!LEGEND_STYLES.includes(cap.legendStyle)) cap.legendStyle = 'engraved';
+      return cap;
+    });
+    shape = caps[0] ? caps[0].shape : 'square';
+    shapeSel.value = shape;
+    activeTheme = d.theme && THEMES[d.theme] ? d.theme : null;
+    document.getElementById('themeSelect').value = activeTheme || '';
+    sameCapColor.on = d.sameColor;
+    if (caps[0]) { sameCapColor.body = caps[0].bodyColorHex; sameCapColor.legend = caps[0].legendColorHex; }
+    sameToggle.checked = sameCapColor.on;
+    sameRow.hidden = !sameCapColor.on;
+    allBody.value = sameCapColor.body; allLegend.value = sameCapColor.legend;
+    for (const s of SLIDERS) {
+      if (typeof settings[s.key] !== 'number') continue;
+      s.input.value = settings[s.key];
+      s.output.textContent = `${settings[s.key].toFixed(s.decimals)}${s.unit}`;
+    }
+    document.getElementById('emojiOneColor').checked = settings.emojiOneColor;
+    document.getElementById('basePatternToggle').checked = settings.basePattern;
+    document.getElementById('joinedBase').checked = settings.joinedBase;
+    document.getElementById('verticalLayout').checked = settings.verticalLayout;
+    document.getElementById('baseColor').value = settings.baseColorHex;
+    syncBaseShape();
+    syncWordFromCaps();
+    renderCapList();
+    rebuild();
+    viewport.frameToModel(true);
+  }
+  async function loadDesignCode(text) {
+    applyDesign(await decodeDesign(text));
+  }
+
+  {
+    const btn = document.getElementById('designCodeBtn');
+    const dialog = document.getElementById('designCodeDialog');
+    const box = document.getElementById('designCodeText');
+    const copyBtn = document.getElementById('designCodeCopy');
+    const note = document.getElementById('designCodeNote');
+    const copiedMsg = CHANNEL === 'etsy' ? 'Copied! Paste it into the Personalization box on the Etsy listing.'
+      : CHANNEL === 'store' ? 'Copied!' : 'Copied! On Etsy, paste it into the Personalization box on the listing.';
+    const copy = async () => {
+      box.focus();
+      box.select();
+      try {
+        await navigator.clipboard.writeText(box.value);
+        note.className = 'order-note ok';
+        note.textContent = copiedMsg;
+      } catch (e) {
+        // Clipboard blocked (some browsers, or not https): the code is
+        // selected, so Ctrl/Cmd+C or a long-press copies it.
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        note.className = ok ? 'order-note ok' : 'order-note';
+        note.textContent = ok ? copiedMsg : 'Select the code above and copy it (Ctrl+C, Cmd+C, or long-press).';
+      }
+    };
+    const intro = document.getElementById('designCodeIntro');
+    if (CHANNEL === 'store') intro.textContent = 'This code holds your whole design. Keep it if you want to come back to this design later.';
+    else if (CHANNEL === 'default') intro.innerHTML = 'This code holds your whole design. Ordering on Etsy? Paste it into the <strong>Personalization</strong> box on the listing, then check out as usual. Cobb3D uses it to rebuild your exact design.';
+    btn.addEventListener('click', async () => {
+      note.className = 'order-note';
+      document.getElementById('designCodeLoadNote').textContent = '';
+      if (mode !== 'letters') {
+        box.value = '';
+        copyBtn.disabled = true;
+        note.textContent = CHANNEL === 'etsy'
+          ? 'Design codes work for letter caps. A logo clicker needs its image: send your logo to Cobb3D in an Etsy message with your order.'
+          : 'Design codes work for letter caps. A logo clicker needs its image, so use Send to Print for logo designs.';
+        dialog.showModal();
+        return;
+      }
+      if (!caps.length) {
+        box.value = '';
+        copyBtn.disabled = true;
+        note.textContent = 'Type some letters first.';
+        dialog.showModal();
+        return;
+      }
+      copyBtn.disabled = false;
+      box.value = await encodeDesign(currentDesign());
+      document.getElementById('designCodeLength').textContent = `${box.value.length} characters`;
+      note.textContent = '';
+      dialog.showModal();
+      copy();
+    });
+    copyBtn.addEventListener('click', copy);
+    document.getElementById('designCodeClose').addEventListener('click', () => dialog.close());
+  }
+
+  // Open a design from a code (every mode; how Cobb3D rebuilds an order).
+  {
+    const input = document.getElementById('designCodeInput');
+    const note = document.getElementById('designCodeLoadNote');
+    const load = async () => {
+      note.className = 'order-note';
+      try {
+        await loadDesignCode(input.value);
+        note.className = 'order-note ok';
+        note.textContent = `Opened "${caps.map((c) => c.text).join('')}" (${caps.length} caps).`;
+        input.value = '';
+        // Show the opened design's own code above.
+        const box = document.getElementById('designCodeText');
+        box.value = await encodeDesign(currentDesign());
+        document.getElementById('designCodeLength').textContent = `${box.value.length} characters`;
+        document.getElementById('designCodeCopy').disabled = false;
+      } catch (err) {
+        note.className = 'order-note error';
+        note.textContent = `Couldn't open it: ${err.message}.`;
+      }
+    };
+    document.getElementById('designCodeLoad').addEventListener('click', load);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); load(); } });
+  }
+
+  // Store mode: "Add design to cart" hands the design to the store page
+  // around this app (window.parent), which adds it to the Square cart. The
+  // message: { type: 'keycapforge:add-to-cart', code, title, summary,
+  // caps, colors } (README.md has the store-page side).
+  {
+    const btn = document.getElementById('addToCartBtn');
+    btn.addEventListener('click', async () => {
+      if (mode !== 'letters' || !caps.length) {
+        document.getElementById('designCodeBtn').click();
+        return;
+      }
+      const origin = storeOrigin();
+      const info = await liveState.orderInfo();
+      const code = await encodeDesign(currentDesign());
+      if (!origin || window.parent === window) {
+        // Not inside a known store page: fall back to the code dialog.
+        document.getElementById('designCodeBtn').click();
+        setTimeout(() => {
+          const n = document.getElementById('designCodeNote');
+          n.className = 'order-note';
+          n.textContent = 'The store checkout isn\'t connected on this page yet. Copy this code and include it with your order.';
+        }, 50);
+        return;
+      }
+      window.parent.postMessage({
+        type: 'keycapforge:add-to-cart',
+        code,
+        title: caps.map((c) => c.text).join(''),
+        caps: caps.length,
+        summary: info.summary,
+      }, origin);
+      btn.textContent = 'Added ✓';
+      setTimeout(() => { btn.textContent = 'Add design to cart'; }, 2000);
+    });
+  }
+
   // ---------- Logo clicker controls ----------
   for (const b of document.querySelectorAll('#modeToggle button')) b.addEventListener('click', () => setMode(b.dataset.mode));
   const logoFile = document.getElementById('logoFile');
@@ -1152,6 +1334,13 @@ async function main() {
   // ---------- Initial render ----------
   renderCapList();
   rebuild();
+  // ?design=<code> on the address opens that design.
+  {
+    const q = new URLSearchParams(location.search).get('design');
+    if (q && findDesignCode(q)) {
+      try { await loadDesignCode(q); } catch (err) { console.warn('design code in the address:', err.message); }
+    }
+  }
   window.__kcfLoaded = true;
   // Canvas text rendering doesn't automatically wait for @font-face fonts
   // to finish loading the way normal DOM text does — without this, the
@@ -1164,6 +1353,8 @@ async function main() {
 // Set up before main() so reporting still works if the app fails to start.
 // Like the bug reporter, set up before main() so it shows even if the app
 // fails to start.
+// Etsy / store / default mode from the address (js/channel.js).
+initChannel();
 initCollapsiblePanels();
 // Drag the grips to reorder the side menu (remembered in this browser).
 initPanelOrder();

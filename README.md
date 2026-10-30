@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/27/2026d**
+**Version 10/30/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-27-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_10-30-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2358,4 +2358,75 @@ first thing to check.
   Chromium: brands, a Bambu/Sunlu/Polymaker/multi-colour pick each named
   correctly in a Send to Print order alongside an untouched IIID Max white,
   and the pop-up fits on desktop and phone with the largest brand.
+
+- **Design codes.** js/designCode.js. `encodeDesign({ settings, caps,
+  theme, sameColor })` -> "KCF1-<payload>-<check>": the design as compact
+  JSON with short keys (t = caps' text, a string when every cap is one
+  character; s = settings changed from the frozen V1_SETTINGS; d = cap
+  fields most caps share, where they differ from V1_CAP; c = per-cap
+  exceptions by index; th = theme; sc = same-color flag), deflate-raw
+  compressed (CompressionStream) when that's shorter ('z' prefix, else
+  'j' plain), base64url, then 3 base64url characters of an FNV-1a hash of
+  the payload. Colours are 6 hex digits, fonts an index into V1_FONTS.
+  The V1 defaults and short keys are frozen in that file, NOT read from
+  app.js, so old codes keep rebuilding the same design when app defaults
+  change; a new setting needs a new short key and its V1 default there.
+  `decodeDesign(text)` finds the first code in any text (findDesignCode:
+  "KCF1-" up to the next character outside base64url), checks the hash,
+  inflates, and validates every value (unknown keys ignored, wrong types
+  and bad colours fall back to the default, at most 24 caps). In app.js,
+  `applyDesign()` puts a decoded design into settings, caps, the theme
+  and same-colour state and every control (sliders via the SLIDERS list
+  bindSlider now keeps; menus only take values they have), then rebuilds.
+  The design code dialog (#designCodeDialog) copies with
+  navigator.clipboard (falls back to a selected box + execCommand), and
+  its "Open it here" section loads a code; ?design=<code> loads on
+  start-up. orderInfo is now async and puts "Design code: ..." first in
+  the Send to Print email. Tested in Chromium: a 9-cap design with an
+  emoji, Bambu/Sunlu/Polymaker colours, a heart cap with another font and
+  embossed legend, pill base, changed sliders, horizontal layout and left
+  keyring: code 192 characters; reopened in a fresh browser (pasted with
+  surrounding Etsy text) and from ?design=, the exported 3MF model is
+  byte-identical and the code re-encodes identically; a mistyped and a
+  missing code give clear errors.
+
+- **Site modes (Etsy / store / default).** js/channel.js decides from the
+  address: ?for=etsy -> 'etsy' (saved in localStorage
+  'keycapforge.channel'; ?for=web or ?for=default clears it); inside an
+  iframe or ?for=store -> 'store' (never saved); else the saved mode or
+  'default'. initChannel() (first thing at start-up) sets
+  body.channel-<mode>, shows #etsyNote in Etsy mode, makes Copy design
+  code the primary button there, and shows #addToCartBtn in store mode.
+  printOrder.js only shows Send to Print when SEND_TO_PRINT_ALLOWED
+  (default mode). etsy/index.html is the short link: it forwards to
+  ../?for=etsy (relative, keeping any other query), so it works at
+  cobb3d.github.io/KeyCapForgeWeb/etsy/ now and at <custom domain>/etsy/
+  later.
+
+  Store mode, "Add design to cart": posts to window.parent
+  { type: 'keycapforge:add-to-cart', code, title, caps, summary } with
+  targetOrigin set to the store's origin, which must be listed in
+  STORE_ORIGINS in js/channel.js (empty for now: then the button opens the
+  design code window instead). The store page embeds the app and listens:
+
+      <iframe src="https://<app address>/?for=store" style="width:100%;height:90vh;border:0" allow="clipboard-write"></iframe>
+      <script>
+        window.addEventListener('message', (e) => {
+          if (e.origin !== 'https://<app origin>') return;
+          if (!e.data || e.data.type !== 'keycapforge:add-to-cart') return;
+          // Add the keychain item to the Square cart here, with e.data.code
+          // as its personalization / note (how depends on the store setup).
+        });
+      </script>
+
+  Tested with a stand-in store page on another origin: the button shows,
+  Send to Print doesn't, and the page receives the message with the code.
+
+  Custom domain (design.cobb3dprinting.com): at the DNS host, add a CNAME
+  record "design" -> cobb3d.github.io; then in the repo, Settings > Pages >
+  Custom domain, enter design.cobb3dprinting.com and tick Enforce HTTPS
+  once offered. GitHub adds a CNAME file to the repo. Don't add that file
+  before the DNS record exists: GitHub Pages would start sending visitors
+  to a domain that doesn't answer yet. Everything in the app uses relative
+  paths, so it works at the domain's root unchanged.
 

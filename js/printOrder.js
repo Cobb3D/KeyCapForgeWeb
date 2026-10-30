@@ -11,6 +11,8 @@
 //
 // Paste the web app's URL (it ends in /exec) between the quotes below. While
 // it's empty the Send to Print button stays hidden.
+import { SEND_TO_PRINT_ALLOWED } from './channel.js';
+
 const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzRwU7e1s26GmtUsS5WvcGJvqdC2Nn0pO-htCFf01xcl_iM5f_E_pw5Bk5qvYFe9JPA/exec';
 
 // Orders bigger than this aren't sent (Gmail's attachment limit is 25MB, and
@@ -21,7 +23,9 @@ export function initPrintOrder({ make3mf, orderInfo }) {
   const btn = document.getElementById('printOrderBtn');
   const dialog = document.getElementById('printOrderDialog');
   if (!btn || !dialog) return;
-  if (!ORDER_ENDPOINT) { btn.hidden = true; return; }
+  // Hidden for Etsy and store visitors (js/channel.js), and until the
+  // endpoint is set.
+  if (!ORDER_ENDPOINT || !SEND_TO_PRINT_ALLOWED) { btn.hidden = true; return; }
   btn.hidden = false;
 
   const form = document.getElementById('printOrderForm');
@@ -66,7 +70,7 @@ export function initPrintOrder({ make3mf, orderInfo }) {
     note.className = 'order-note';
     note.textContent = 'Sending…';
     try {
-      const info = orderInfo() || {};
+      const info = (await orderInfo()) || {};
       const payload = {
         kind: 'keycapforge-print-order',
         name: nameEl.value.trim(),

@@ -95,12 +95,17 @@
         <button class="fmt" data-fmt="both">Both</button>
       </div>
       <button class="btn primary" id="exportBtn">Export</button>
+      <button class="btn ghost" id="designCodeBtn" title="Copy a short code for this design, or open a design from a code">Copy design code</button>
+      <button class="btn primary" id="addToCartBtn" hidden title="Add this design to your cart">Add design to cart</button>
       <button class="btn primary" id="printOrderBtn" hidden title="Email this design to Cobb3D to be printed">Send to Print</button>
     </div>
   </header>
 
   <main class="layout">
     <aside class="sidebar" id="sidebar">
+      <div class="channel-note" id="etsyNote" hidden>
+        <strong>Ordering on Etsy?</strong> Design your keychain, then click <strong>Copy design code</strong> and paste the code into the <strong>Personalization</strong> box on the Etsy listing.
+      </div>
 
       <section class="panel">
         <h2>Mode</h2>
@@ -382,6 +387,26 @@
       </div>
     </form>
   </dialog>
+  <dialog id="designCodeDialog" class="bug-dialog">
+    <div class="bug-form">
+      <h2>Your design code</h2>
+      <p class="hint" id="designCodeIntro">Ordering on Etsy? Paste this code into the <strong>Personalization</strong> box on the listing, then check out as usual. Cobb3D uses it to rebuild your exact design.</p>
+      <textarea id="designCodeText" class="design-code" rows="3" readonly spellcheck="false" aria-label="Design code"></textarea>
+      <p class="hint design-code-meta"><span id="designCodeLength"></span> · Any change to the design makes a new code, so copy it when you're finished.</p>
+      <p class="order-note" id="designCodeNote" aria-live="polite"></p>
+      <details class="design-code-load" id="designCodeLoadBox">
+        <summary>Have a design code? Open it here</summary>
+        <textarea id="designCodeInput" class="design-code" rows="3" spellcheck="false" autocomplete="off" aria-label="Design code to open" placeholder="Paste a code (KCF1-…). A whole Etsy personalization text is fine too."></textarea>
+        <p class="order-note" id="designCodeLoadNote" aria-live="polite"></p>
+        <div class="bug-actions"><button type="button" class="btn ghost" id="designCodeLoad">Open design</button></div>
+      </details>
+      <div class="bug-actions">
+        <button type="button" class="btn ghost" id="designCodeClose">Close</button>
+        <button type="button" class="btn primary" id="designCodeCopy">Copy again</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="printOrderDialog" class="bug-dialog">
     <form id="printOrderForm" class="bug-form">
       <h2>Send to Print</h2>

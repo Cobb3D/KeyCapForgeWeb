@@ -7,6 +7,37 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 10/30/2026a
+
+- **Copy design code.** A new button next to Export makes a short code for
+  the whole letter-caps design (letters, emoji, every cap's shape, font,
+  style and colors, the base, keyring and every slider), copies it, and
+  shows it. About 25 characters for an unchanged design, roughly 80 to 200
+  for a customised one. Etsy buyers paste it into the Personalization box
+  on the listing. Logo clicker designs can't be coded (the logo image is
+  too big); the button says so.
+- **Open a design from a code**, in every version of the site: in the
+  design code window, "Have a design code? Open it here". It finds the
+  code inside a whole pasted Etsy personalization text, catches codes that
+  were cut short or mistyped, and rebuilds the design exactly (tested: the
+  rebuilt design's 3MF is byte-for-byte the same). A link with
+  ?design=<code> on the end opens that design too.
+- **Send to Print emails include the design code** at the top.
+- **Three versions of the site, from one app**, picked by the address:
+  - **Etsy:** ?for=etsy, or the short link **/etsy/**
+    (https://cobb3d.github.io/KeyCapForgeWeb/etsy/). Copy design code is
+    the main button, a note at the top of the menu explains pasting it
+    into the Etsy Personalization box, and Send to Print is hidden. The
+    browser remembers it, so a reload or a later visit still shows the
+    Etsy version (?for=web switches back).
+  - **Your store:** inside your own store page (an embedded frame) or
+    ?for=store. Shows **Add design to cart**, which hands the design code
+    to the store page; Send to Print is hidden. The store page side still
+    has to be connected (README.md).
+  - **Everywhere else:** Send to Print as before, plus Copy design code.
+- On phones, the top buttons wrap onto a second row instead of running off
+  the screen.
+
 ## 10/27/2026d
 
 - **Brand menu in the color palette.** Click any color box, then pick a

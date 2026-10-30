@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- Short link for Etsy listings: /etsy/ forwards to the app in Etsy mode
+     (?for=etsy; see js/channel.js). Relative, so it works on the GitHub
+     Pages address and on a custom domain alike. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyCapForge for Etsy — by Cobb3D</title>
+<meta http-equiv="refresh" content="0; url=../?for=etsy">
+<link rel="canonical" href="../?for=etsy">
+<script>
+  // Keep anything else on the address (e.g. ?design=...) when forwarding.
+  var q = location.search.replace(/^\?/, '');
+  location.replace('../?for=etsy' + (q ? '&' + q : '') + location.hash);
+</script>
+<style>body{font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#17161a;color:#eae7e1;margin:0;padding:32px 16px;text-align:center}a{color:#6fa3ff}</style>
+</head>
+<body>
+<p>Opening KeyCapForge… <a href="../?for=etsy">Continue</a></p>
+</body>
+</html>
