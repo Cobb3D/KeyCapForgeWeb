@@ -26,7 +26,7 @@ const MAX_URL_LENGTH = 7000;
 
 // Where emailed reports go. Assembled at runtime rather than written out
 // whole, which keeps it away from the simplest spam address scrapers.
-const REPORT_EMAIL = ['Cobb3dPrinting', 'gmail.com'].join('@');
+export const REPORT_EMAIL = ['Cobb3dPrinting', 'gmail.com'].join('@');
 
 // Mail apps don't reliably accept pre-filled emails much longer than this,
 // so above it the design is left out of the email (and the full report is

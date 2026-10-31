@@ -6,7 +6,8 @@
  * sends the email from your own Gmail. It costs nothing. Personal Gmail
  * accounts can send about 100 emails a day this way.
  *
- * ONE-TIME SETUP (about 5 minutes), signed in as Cobb3DPrinting@gmail.com:
+ * ONE-TIME SETUP (about 5 minutes), signed in to the Google account that
+ * should receive the orders:
  *   1. Go to https://script.google.com and click "New project".
  *   2. Delete what's in the editor, paste in this whole file, and click
  *      Save. Name the project "KeyCapForge orders".
@@ -32,7 +33,9 @@
  * (pencil) > Version: New version > Deploy, so the same URL keeps working.
  */
 
-const ORDER_TO = 'Cobb3DPrinting@gmail.com';
+// Orders go to the account the script runs as (Deploy > Execute as: Me), so
+// no address has to be written here.
+const ORDER_TO = Session.getEffectiveUser().getEmail();
 const MAX_FILE_BYTES = 18 * 1024 * 1024;  // Gmail allows 25MB of attachments
 const MAX_ORDERS_PER_HOUR = 30;           // stops a flood of junk orders
 

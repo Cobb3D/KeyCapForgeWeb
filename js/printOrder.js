@@ -6,12 +6,13 @@
 // attachment, so the order goes to a small Google Apps Script web app
 // running on Cobb3D's own Google account (google-apps-script/OrderEmail.gs
 // in this folder; setup steps in its header and in README.md). That script
-// sends the email to Cobb3DPrinting@gmail.com, with the customer's address
+// sends the email to Cobb3D's order inbox, with the customer's address
 // as Reply-To.
 //
 // Paste the web app's URL (it ends in /exec) between the quotes below. While
 // it's empty the Send to Print button stays hidden.
 import { SEND_TO_PRINT_ALLOWED } from './channel.js';
+import { REPORT_EMAIL } from './bugReport.js';
 
 const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzRwU7e1s26GmtUsS5WvcGJvqdC2Nn0pO-htCFf01xcl_iM5f_E_pw5Bk5qvYFe9JPA/exec';
 
@@ -98,7 +99,7 @@ export function initPrintOrder({ make3mf, orderInfo }) {
       notesEl.value = '';
     } catch (err) {
       note.className = 'order-note error';
-      note.textContent = `Couldn't send it (${err.message}). Please try again, or use Export and email the file to Cobb3DPrinting@gmail.com.`;
+      note.textContent = `Couldn't send it (${err.message}). Please try again, or use Export and email the file to ${REPORT_EMAIL}.`;
       sendBtn.disabled = false;
     } finally {
       sending = false;

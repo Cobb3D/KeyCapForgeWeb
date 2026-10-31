@@ -2178,9 +2178,10 @@ first thing to check.
   check (`fitsOnBed`, either orientation, 4mm spare).
 
 - **Maker tools / base plate.** A `letters-only` panel (#makerPanel in
-  index.html), hidden from customers and shown only in browsers where
-  Cobb3D has switched it on (see the Maker tools section of app.js); the
-  "Hide maker tools" link switches it off again. `buildBasePlate(from, to)` in app.js makes stand-in caps for each count
+  index.html) shown only when localStorage 'keycapforge.maker' is set:
+  visiting with `?maker` sets it, `?maker=off` or the "Hide maker tools"
+  link clears it. Open it at https://cobb3d.github.io/KeyCapForgeWeb/?maker
+  . `buildBasePlate(from, to)` in app.js makes stand-in caps for each count
   and builds each base with the live settings (`buildBaseParts`, or
   `camoBase` for camo, one painted object), named `base_<n>keys`, laid
   side by side with a 6mm gap (across X for vertical layouts, down Y for
@@ -2428,4 +2429,14 @@ first thing to check.
   before the DNS record exists: GitHub Pages would start sending visitors
   to a domain that doesn't answer yet. Everything in the app uses relative
   paths, so it works at the domain's root unchanged.
+
+- **No email address written out in the repo.** google-apps-script/
+  OrderEmail.gs sends orders to `Session.getEffectiveUser().getEmail()`,
+  the account the web app runs as (Execute as: Me), instead of a typed-in
+  address; this takes effect the next time the script is updated in Apps
+  Script (Deploy > Manage deployments > Edit > New version), and the
+  deployment already running keeps working as it is until then. The
+  address customers see (the bug report dialog, and the Send to Print
+  error message, which now uses `REPORT_EMAIL` from bugReport.js) is
+  assembled when the page runs, so it isn't spelled out in the code.
 

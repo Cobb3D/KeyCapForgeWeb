@@ -226,7 +226,7 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 - **Send to Print is switched on.** The Google Apps Script web app is
   connected (ORDER_ENDPOINT in js/printOrder.js), so the Send to Print
-  button now shows next to Export and orders go to Cobb3DPrinting@gmail.com.
+  button now shows next to Export and orders go to Cobb3D's order inbox.
 - If the script is ever redeployed as a new deployment (instead of a new
   version of the same one), its URL changes and must be updated in
   js/printOrder.js.
@@ -261,7 +261,7 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 - **Send to Print** (needs a one-time setup, see below): a button next to
   Export opens a short form (name, email, notes). Send emails the design's
-  3MF (the same file Export makes) to Cobb3DPrinting@gmail.com, with the
+  3MF (the same file Export makes) to Cobb3D's order inbox, with the
   customer's details, a summary of the design (keys, shapes and colors) and
   the settings to recreate it. Replying to the email goes to the customer.
 - It works through a free Google Apps Script on the Cobb3D Google account
@@ -440,7 +440,7 @@ oldest first (README.md has the full details of each):
 - Fixed a ragged patch around the socket in Bambu Studio.
 - Switches fit every cap shape's recess.
 - Cross Section and X-Ray views.
-- Report a Bug button; reports go to Cobb3dPrinting@gmail.com.
+- Report a Bug button; reports go to Cobb3D by email.
 - Renamed "KeyCapForge Beta Pre Release" (9/28/2026).
 - Cobb3D logo in the 3D view's background.
 - Color themes, camo marks on the base (smooth edges; Woodland, Navy and
