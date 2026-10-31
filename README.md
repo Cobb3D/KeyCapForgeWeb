@@ -1245,7 +1245,7 @@ worked out:
   repo with the right title and label (4,452 characters with the design),
   Copy Report copied exactly the previewed text, and on a non-GitHub
   address the GitHub button was hidden. Fits a phone screen.
-- **Bug reports go to Cobb3dPrinting@gmail.com.** **Email Report** is now
+- **Bug reports go to Cobb3D by email.** **Email Report** is now
   the main button in the Report a Bug dialog: it opens the user's email app
   addressed to `REPORT_EMAIL` (bugReport.js; assembled at runtime rather
   than written out whole, to stay clear of the simplest spam scrapers),
@@ -2121,7 +2121,7 @@ first thing to check.
   it as text/plain JSON (a "simple" request, no CORS preflight) with
   `liveState.orderInfo()` (a design summary and the changed settings) to a
   Google Apps Script web app. That script, `google-apps-script/OrderEmail.gs`,
-  runs on the Cobb3D Google account and emails Cobb3DPrinting@gmail.com
+  runs on Cobb3D's Google account and emails Cobb3D's order inbox
   with the file attached and Reply-To set to the customer (MailApp: about
   100 emails/day on a personal account, 25MB of attachments). It checks the
   request is a KeyCapForge order, caps the file at 18MB, and allows 30
@@ -2159,12 +2159,12 @@ first thing to check.
   preview renders, and the full app test (letters, logo, exports) passes.
   The only outside requests left are Google Fonts.
 
-- **Send to Print endpoint.** ORDER_ENDPOINT in js/printOrder.js is the
-  Cobb3D Apps Script deployment:
-  https://script.google.com/macros/s/AKfycbzRwU7e1s26GmtUsS5WvcGJvqdC2Nn0pO-htCFf01xcl_iM5f_E_pw5Bk5qvYFe9JPA/exec
+- **Send to Print endpoint.** ORDER_ENDPOINT in js/printOrder.js holds the
+  web app address of Cobb3D's Apps Script deployment (not repeated here).
   Keep it when building new releases. Updating the script: Deploy > Manage
-  deployments > Edit > Version: New version keeps this URL; a brand-new
-  deployment gets a new URL, which then has to go here.
+  deployments > Edit > Version: New version keeps the same address; a
+  brand-new deployment gets a new one, which then has to go into
+  ORDER_ENDPOINT.
 
 - **Print bed outline.** js/printBeds.js lists Bambu Lab beds (printable X
   × Y from Bambu Lab's specs, checked October 2026; dual-nozzle limits as a
@@ -2178,10 +2178,9 @@ first thing to check.
   check (`fitsOnBed`, either orientation, 4mm spare).
 
 - **Maker tools / base plate.** A `letters-only` panel (#makerPanel in
-  index.html) shown only when localStorage 'keycapforge.maker' is set:
-  visiting with `?maker` sets it, `?maker=off` or the "Hide maker tools"
-  link clears it. Open it at https://cobb3d.github.io/KeyCapForgeWeb/?maker
-  . `buildBasePlate(from, to)` in app.js makes stand-in caps for each count
+  index.html), hidden from customers and shown only in browsers where
+  Cobb3D has switched it on (see the Maker tools section of app.js); the
+  "Hide maker tools" link switches it off again. `buildBasePlate(from, to)` in app.js makes stand-in caps for each count
   and builds each base with the live settings (`buildBaseParts`, or
   `camoBase` for camo, one painted object), named `base_<n>keys`, laid
   side by side with a 6mm gap (across X for vertical layouts, down Y for
