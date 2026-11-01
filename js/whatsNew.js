@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Maker tools are open to everyone: click "Maker tools" at the bottom of the menu for plates of bases and letter caps to print ahead of orders',
   'New Copy design code button: it gives you a short code for your whole design. Ordering on Etsy? Paste the code into the Personalization box on the listing and check out as usual',
   'Have a code already? Open the Copy design code window and use "Have a design code? Open it here" to bring the design back',
   'Pick filament colors by brand: IIID Max, Bambu Lab, Sunlu or Polymaker, every PLA color they make',

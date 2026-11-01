@@ -595,3 +595,6 @@ body:not(.mode-logo) .logo-only { display: none !important; }
 .design-code-load[open] summary { margin-bottom: 8px; }
 .design-code-load .bug-actions { margin-top: 6px; }
 .design-code-load textarea { width: 100%; box-sizing: border-box; }
+
+/* Maker tools only cover letter caps, so the footer link hides in logo mode. */
+.mode-logo .maker-show-wrap { display: none; }

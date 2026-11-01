@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 10/30/2026a**
+**Version 11/1/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_10-30-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-1-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2439,4 +2439,12 @@ first thing to check.
   address customers see (the bug report dialog, and the Send to Print
   error message, which now uses `REPORT_EMAIL` from bugReport.js) is
   assembled when the page runs, so it isn't spelled out in the code.
+
+- **Maker tools link.** #makerShow in the sidebar footer (inside
+  .maker-show-wrap, hidden in logo mode by CSS) sets localStorage
+  'keycapforge.maker' and shows the panel, unfolding it through its
+  .panel-toggle if collapsible.js has it folded, then scrolls to it; when
+  the panel is showing the link reads "Hide maker tools" and clears it.
+  ?maker / ?maker=off and the in-panel "Hide maker tools" link work as
+  before.
 

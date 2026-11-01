@@ -929,13 +929,13 @@ async function main() {
     };
   };
 
-  // ---------- Maker tools (only with ?maker) ----------
-  // For Cobb3D's own batch printing: one 3MF with a base for each key count
-  // (2 to 7 by default) laid out on one plate, from the current base
-  // settings. The panel shows when the site is opened with ?maker on the
-  // address, and stays on in that browser until "Hide maker tools" (or
-  // ?maker=off). It's hidden, not secret: anyone who adds ?maker sees it,
-  // and it only exports files.
+  // ---------- Maker tools ----------
+  // Batch printing: one 3MF with a base for each key count (2 to 7 by
+  // default) laid out on one plate, from the current base settings, and a
+  // caps plate. Open to anyone: the "Maker tools" link at the bottom of the
+  // menu (or ?maker on the address) shows the panel, and it stays on in
+  // that browser until "Hide maker tools" (or ?maker=off). It starts hidden
+  // only so customers aren't shown tools they don't need.
   {
     const MAKER_KEY = 'keycapforge.maker';
     const q = new URLSearchParams(location.search).get('maker');
@@ -946,11 +946,29 @@ async function main() {
       on = localStorage.getItem(MAKER_KEY) === '1';
     } catch (e) { on = q !== null && q !== 'off'; }
     const panel = document.getElementById('makerPanel');
-    panel.hidden = !on;
+    const showLink = document.getElementById('makerShow');
+    const setShown = (shown) => {
+      panel.hidden = !shown;
+      showLink.textContent = shown ? 'Hide maker tools' : 'Maker tools';
+    };
+    setShown(on);
     document.getElementById('makerHide').addEventListener('click', (e) => {
       e.preventDefault();
       try { localStorage.removeItem(MAKER_KEY); } catch (err) { /* nothing to forget */ }
-      panel.hidden = true;
+      setShown(false);
+    });
+    showLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!panel.hidden) {
+        try { localStorage.removeItem(MAKER_KEY); } catch (err) { /* nothing to forget */ }
+        setShown(false);
+        return;
+      }
+      try { localStorage.setItem(MAKER_KEY, '1'); } catch (err) { /* shown for this visit */ }
+      setShown(true);
+      // Unfold it (it starts folded) and bring it into view.
+      if (panel.classList.contains('collapsed')) panel.querySelector('.panel-toggle')?.click();
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     const note = document.getElementById('makerNote');
     document.getElementById('makerPlateBtn').addEventListener('click', () => {

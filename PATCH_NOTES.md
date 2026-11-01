@@ -7,6 +7,15 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/1/2026a
+
+- **Maker tools for everyone.** A **Maker tools** link at the bottom of the
+  side menu opens the panel (unfolded, scrolled into view) for anyone; the
+  browser remembers it, and the same link (now "Hide maker tools") or the
+  link inside the panel hides it again. `?maker` on the address still
+  works. The link is hidden in Logo clicker mode, since the maker plates
+  are for letter caps.
+
 ## 10/30/2026a
 
 - **Copy design code.** A new button next to Export makes a short code for
