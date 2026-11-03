@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/1/2026a**
+**Version 11/3/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-1-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-3-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2447,4 +2447,24 @@ first thing to check.
   the panel is showing the link reads "Hide maker tools" and clears it.
   ?maker / ?maker=off and the in-panel "Hide maker tools" link work as
   before.
+
+- **No colours in 3MF exports (Bambu Studio's newer import).** Bambu
+  Studio's current source (Plater.cpp, checked 11/3/2026) sends a
+  non-Bambu 3MF that has colour data (En3mfType::From_Other with
+  triangle colours) through standard_3mf_to_textured_meshes and a colour
+  matching dialog, and in that branch erases every object's and part's
+  "extruder" setting; the user's import ended with every part on
+  filament 1. Without colour data it takes the other branch: the
+  per-part extruders from model_settings.config are kept and
+  add_missing_filaments() adds filaments up to the highest one used.
+  buildThreeMF now writes the colour group and pid/pindex only when an
+  object has per-triangle colours (the camo/cow base); everything else
+  carries only its filament number. This replaces the "App colours into
+  the slicer, still editable" approach above (10/18/2026a). Tested: a
+  file with the colours stripped imported in the user's Bambu Studio with
+  the base, caps and letters on separate filaments; app exports checked
+  for no colour data and filaments 1-3 (letters), 1 (base plate), 1-2
+  (caps plate); a camo design still has its painted base. Next step for
+  patterned bases: write the marks as Bambu's own paint data instead of
+  colours, so those files skip the colour step too.
 

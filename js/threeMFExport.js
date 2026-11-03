@@ -155,32 +155,24 @@ function crc32(bytes) {
 // sits on the plate (already-baked absolute position, not a relative
 // offset — see computeExportLayout in app.js for where these come from).
 //
-// How colour gets into the slicer. Two things at once:
+// How colour gets into the slicer: a filament number per colour (1, 2, 3, 4
+// in the order the colours first appear: the base first) in the slicer's
+// own per-part settings: Metadata/model_settings.config for Bambu Studio
+// and OrcaSlicer (read from any 3MF; bbs_3mf.cpp), and
+// Metadata/Slic3r_PE_model.config for PrusaSlicer. Every object is made of
+// at least two parts (a cap's body and legend, the logo cap's body, rim and
+// logo, the base as base + keyring loop or floor slab + the rest), each on
+// its own filament, and the slicer adds filaments if the project has fewer.
+// The colours themselves aren't written into the file any more
+// (11/3/2026a): Bambu Studio's newer import sends any 3MF with colours
+// from another app through a colour-matching step that throws away those
+// per-part filament numbers, which put every part, letters included, on
+// filament 1. So the parts show in the colours of filaments 1-4 in the
+// slicer, and each one can be changed there as usual.
 //
-//  1. Each part's own colour, as a 3MF colour group with the colour set on
-//     the object (not on each triangle). Bambu Studio and OrcaSlicer then
-//     open their "Standard 3mf Import color" window: the file's colours
-//     start as the app's colours, and its "Color match" button maps each
-//     one to the closest filament already loaded (the AMS), or "Append"
-//     adds them as new filaments. On OK, an object made of SEVERAL parts,
-//     each one colour, gets each part assigned to a filament, with no paint
-//     (ObjColorPanel::apply_volume_filament_ids in Bambu Studio's
-//     ObjColorDialog.cpp). An object of just one part is painted instead,
-//     and paint overrides the part's filament (that's what made colours
-//     impossible to change in the slicer before), so every object here is
-//     made of at least two parts: a cap's body and legend, the logo cap's
-//     body, rim and logo, and the base as base + keyring loop or as floor
-//     slab + the rest (buildBaseParts). Anything without a colour would be
-//     painted with filament 1, so everything gets one.
-//  2. A filament number per colour (1, 2, 3, 4 in the order the colours
-//     first appear: the base first) in the slicer's own per-part settings:
-//     Metadata/model_settings.config for Bambu Studio and OrcaSlicer (read
-//     from any 3MF; bbs_3mf.cpp), and Metadata/Slic3r_PE_model.config for
-//     PrusaSlicer. That's what's used if the colour window is cancelled.
-//
-// Either way each part ends up on a filament, so changing its filament, or
-// a filament's colour, in the slicer works as for any other part. The camo
-// base's marks are per-triangle colours, so that one part is painted.
+// The camo/cow base is the exception: its marks are per-triangle colours,
+// so when a patterned base is exported, the colour group comes back with
+// those triangles painted (and the slicer's colour step runs for that file).
 // Print settings written on every object, so the slicer opens the file with
 // them instead of its own defaults (Bambu Studio's is grid infill). They're
 // per-object overrides: the printer, filament and process presets are left
@@ -205,8 +197,10 @@ const PRUSA_PRINT_KEYS = () => [
 export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = {}) {
   const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
+  // Colours go in the file only for per-triangle paint (the camo/cow base).
+  const writeColors = objects.some((o) => o.triangleColors && o.mesh && !o.mesh.isEmpty);
   let colorGroupXML = '';
-  distinctColors.forEach((hex) => {
+  if (writeColors) distinctColors.forEach((hex) => {
     colorGroupXML += `<m:color color="${hex.toUpperCase()}FF"/>\n`;
   });
 
@@ -235,7 +229,7 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
       const paint = obj.triangleColors ? ` pid="1" p1="${colorIndex.get(obj.triangleColors[t]) ?? pIndex}"` : '';
       trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}"${paint}/>\n`;
     }
-    const objectPaint = ` pid="1" pindex="${pIndex}"`;
+    const objectPaint = obj.triangleColors ? ` pid="1" pindex="${pIndex}"` : '';
     resourcesXML += `<object id="${id}" type="model" name="${name}"${objectPaint}><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
     // PrusaSlicer loads each mesh of an assembly as its own object, so it
     // gets a filament per mesh object (the cap and its letter stay
@@ -289,7 +283,7 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02">
 <metadata name="Application">${escapeXML(appName)}</metadata>
 <resources>
-${distinctColors.length ? `<m:colorgroup id="1">\n${colorGroupXML}</m:colorgroup>\n` : ''}${resourcesXML}</resources>
+${writeColors && distinctColors.length ? `<m:colorgroup id="1">\n${colorGroupXML}</m:colorgroup>\n` : ''}${resourcesXML}</resources>
 <build>
 ${buildXML}</build>
 </model>`;

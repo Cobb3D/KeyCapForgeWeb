@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Fixed for the latest Bambu Studio: 3MF files import with the letters on their own filament again (the update had put every part on filament 1). Set each filament to the color you want in Bambu Studio',
   'Maker tools are open to everyone: click "Maker tools" at the bottom of the menu for plates of bases and letter caps to print ahead of orders',
   'New Copy design code button: it gives you a short code for your whole design. Ordering on Etsy? Paste the code into the Personalization box on the listing and check out as usual',
   'Have a code already? Open the Copy design code window and use "Have a design code? Open it here" to bring the design back',

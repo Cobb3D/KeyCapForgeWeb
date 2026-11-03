@@ -7,6 +7,20 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/3/2026a
+
+- **Fix for the latest Bambu Studio: letters were lost.** Its new 3MF
+  import sends colored files from other apps through a color-matching step
+  that drops each part's filament, so the base, caps and letters all ended
+  up on filament 1. Exported 3MF files no longer carry the app's colors;
+  each part keeps its own filament (base 1, then caps and letters 2, 3,
+  4), and Bambu Studio adds filaments if the project has fewer. Set each
+  filament to the color you want (or pick from your AMS). Works the same
+  in older Bambu Studio, OrcaSlicer and PrusaSlicer. Covers Export, Send
+  to Print and both Maker tools plates.
+- Camo and cow bases still carry their pattern as colors, so a patterned
+  design still goes through Bambu Studio's color step for now.
+
 ## 11/1/2026a
 
 - **Maker tools for everyone.** A **Maker tools** link at the bottom of the
