@@ -7,6 +7,16 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/4/2026a
+
+- **Current IIID Max colors.** The IIID Max palette now comes from IIID
+  Max's own Filament Color Guide (3 Nov 2026), with their hex codes:
+  **High Speed PLA+** (55 colors) and **Classic PLA+** (14), in two groups
+  like the other brands. The old list (from a HueForge library) is gone,
+  so its discontinued colors (Candy Red, Key Lime, Navy Blue, Teal...)
+  are no longer offered; a design that still uses one shows it as a
+  custom color in orders.
+
 ## 11/3/2026a
 
 - **Fix for the latest Bambu Studio: letters were lost.** Its new 3MF

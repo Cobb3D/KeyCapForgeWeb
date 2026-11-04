@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/3/2026a**
+**Version 11/4/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-3-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-4-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2467,4 +2467,13 @@ first thing to check.
   (caps plate); a camo design still has its painted base. Next step for
   patterned bases: write the marks as Bambu's own paint data instead of
   colours, so those files skip the colour step too.
+
+- **IIID Max colours from IIID Max.** IIID_MAX in js/filaments.js now
+  holds IIID Max's Filament Color Guide (PDF from IIID Max, 3 Nov 2026):
+  High Speed PLA+ (55) and Classic PLA+ (14), names and hex codes as in
+  the guide, ordered by hue within each line, High Speed first. It
+  replaces the 37-colour HueForge list; anything not in the guide is
+  discontinued. Still first in the brand menu and in the hex-sharing
+  order, so its colours keep their exact hex (High Speed Black and Matte
+  Graphite share #28292a; Matte Graphite gets the next free colour).
 

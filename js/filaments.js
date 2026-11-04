@@ -5,9 +5,9 @@
 // The brand last used is remembered in this browser.
 //
 // Sources:
-//  - IIID Max: a HueForge filament library (IIIDMax.json, October 2026),
-//    PLA+ entries only. The hex values are that library's, so a few may
-//    want adjusting against a real spool.
+//  - IIID Max: IIID Max's Filament Color Guide (3 Nov 2026), sent by
+//    IIID Max: High Speed PLA+ (55) and Classic PLA+ (14), with their
+//    own hex codes. Colours not in it are no longer sold.
 //  - Bambu Lab, Sunlu, Polymaker: the Open Filament Database (MIT), via
 //    js/filamentData.js (generated; see vendor/open-filament-database/).
 //
@@ -23,27 +23,89 @@ import { OFD_BRANDS } from './filamentData.js';
 
 const IIID_MAX = {
   id: 'iiidmax', name: 'IIID Max',
-  lines: [{
-    name: 'PLA+',
-    colors: [
-      // Whites, greys, black
-      ['Xtreme White', '#ffffff'], ['White', '#e4e8e7'], ['Clear', '#cbcdcd'], ['Space Gray', '#abb4ba'],
-      ['Silver', '#727571'], ['Night Gray', '#21282a'], ['Black', '#000000'],
-      // Creams, tans, browns
-      ['Vanilla Cream', '#c4cbb1'], ['Vintage Rose', '#c1b4a9'], ['Tan', '#d5c2a0'], ['Gold', '#a08c59'],
-      ['Coyote Brown', '#906c3f'], ['Copper', '#7d5246'], ['Brown', '#61392a'],
-      // Reds, pinks, oranges, yellows
-      ['Red', '#a62f36'], ['Candy Red', '#a92a30'], ['Pink', '#bf3f62'], ['Light Pink', '#dc9d9f'],
-      ['Fuchsia', '#ad578b'], ['Orange', '#d34c36'], ['Burnt Orange', '#b96023'],
-      ['Fluorescent Orange', '#ce712a'], ['Yellow', '#eac322'],
-      // Greens
-      ['Key Lime', '#bdc846'], ['Fluorescent Yellow', '#a6da6d'], ['Apple Green', '#60b04e'],
-      ['Fluorescent Green', '#00a065'], ['Green Forest', '#07592c'], ['Army Green', '#54563f'],
-      // Blues, purples
-      ['Teal', '#0099a7'], ['Light Blue', '#229bd5'], ['Baby Blue', '#c3dee5'], ['Blue', '#005ba9'],
-      ['Navy Blue', '#002043'], ['Violet', '#6e5a95'], ['Mystic Purple', '#734784'],
-    ],
-  }],
+  // IIID Max's own Filament Color Guide (3 Nov 2026): everything they
+  // currently sell; colours not in it are discontinued. Ordered by hue.
+  lines: [
+    {
+      name: 'High Speed PLA+',
+      colors: [
+      ['Matte White', '#dddbd6'],
+      ['Crystal', '#cfceca'],
+      ['White', '#c2bfb9'],
+      ['Matte Cold Grey', '#b6b4b0'],
+      ['Dark Grey', '#9b9da0'],
+      ['Ebony Color', '#796e6c'],
+      ['Space Gray', '#6a6f71'],
+      ['Army Green', '#70755d'],
+      ['Chocolate', '#373535'],
+      ['Dark Green', '#36382c'],
+      ['Black', '#28292a'],
+      ['Matte Graphite', '#28292a'],
+      ['Matte Black', '#282828'],
+      ['Purplish Red', '#ef7387'],
+      ['Mahogany', '#bc8172'],
+      ['Matte Red', '#e04759'],
+      ['Fluo Orange', '#f24a32'],
+      ['Pink', '#d32d4a'],
+      ['Orange', '#d53e0c'],
+      ['Peach', '#994f45'],
+      ['Fluo Red', '#bb1a25'],
+      ['Red', '#8e282f'],
+      ['Burgundy', '#3a2a2a'],
+      ['Matte Oats', '#e5cea7'],
+      ['White Oak', '#c9bea1'],
+      ['Dove Grey', '#bcb2a2'],
+      ['Faux Wood', '#cd9c78'],
+      ['Matte Pumpkin', '#fdcc48'],
+      ['Frosty Desert Yellow', '#f0c351'],
+      ['Skin', '#cc9174'],
+      ['Vanilla', '#9d8466'],
+      ['Brown', '#925a46'],
+      ['Ochre', '#673724'],
+      ['Vintage Brass', '#4a3f21'],
+      ['Duvet Yellow', '#e1b825'],
+      ['Yellow', '#c9a81c'],
+      ['Matte Green Plum', '#cee68e'],
+      ['Scallion Green', '#68c74c'],
+      ['Fluo Green', '#2aa030'],
+      ['Pine Green', '#01ba85'],
+      ['Matte Glacier Blue', '#85b9be'],
+      ['Grayish Green', '#669698'],
+      ['Turquoise', '#42a6a5'],
+      ['Emerald', '#35736c'],
+      ['Light Blue', '#3da1c5'],
+      ['Blue', '#3b6abf'],
+      ['Fluo Blue', '#16368e'],
+      ['Deep Cyan', '#253148'],
+      ['Lavender', '#bbb1cb'],
+      ['Violet', '#6b5691'],
+      ['Matte Mystic Purple', '#4d445e'],
+      ['Matte Lavender', '#f5c0f0'],
+      ['Cream Pink', '#cfbbcb'],
+      ['Lotus Pink', '#cd778d'],
+      ['Light Pink', '#b16e99'],
+      ],
+    },
+    {
+      name: 'Classic PLA+',
+      colors: [
+      ['Marble', '#d9d8d7'],
+      ['Space Gray', '#c8cace'],
+      ['Silver', '#acacad'],
+      ['Matte Black', '#2a2b2e'],
+      ['Light Pink', '#f99eab'],
+      ['Sunset Orange', '#ea6b62'],
+      ['Matte Red', '#ee5765'],
+      ['Ivory', '#ede9e2'],
+      ['Yellow', '#fed83f'],
+      ['Forest Green', '#3f7964'],
+      ['Cool White', '#edeff2'],
+      ['Royal Blue', '#014aa9'],
+      ['Violet', '#c4b2f8'],
+      ['Raspberry', '#c55f7f'],
+      ],
+    }
+  ],
 };
 
 export const BRANDS = [IIID_MAX, ...OFD_BRANDS];
