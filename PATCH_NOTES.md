@@ -7,6 +7,16 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/6/2026f
+
+- Filament names no longer repeat the brand ("Polymaker PLA Pro White",
+  not "Polymaker Polymaker PLA Pro White") in the filament list and in
+  orders.
+- Checked logo clicker 3MF exports with a 3-color logo: base on filament
+  1, cap body and rim on 2, each logo color on its own filament (a logo
+  color that matches the base or cap shares its filament), and the list
+  after export says which color goes in each.
+
 ## 11/6/2026e
 
 - **All letters the same height, in every font.** Checked every capital

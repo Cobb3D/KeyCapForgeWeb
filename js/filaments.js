@@ -152,7 +152,12 @@ export function filamentFor(hex) {
   return byHex.get(String(hex || '').toLowerCase()) || null;
 }
 
-const fullName = (f) => `${f.brand.name} ${f.line} ${f.name}`;
+// Brand, line and colour; a line that already starts with the brand name
+// ("Polymaker PLA Pro") doesn't get it twice.
+const fullName = (f) => {
+  const line = f.line.toLowerCase().startsWith(f.brand.name.toLowerCase() + ' ') ? f.line : `${f.brand.name} ${f.line}`;
+  return `${line} ${f.name}`;
+};
 
 // A plain word for a colour ("white", "dark blue"...), for colours that
 // aren't a known filament.
