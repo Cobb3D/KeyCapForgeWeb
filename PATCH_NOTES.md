@@ -7,6 +7,15 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/6/2026c
+
+- **Caps plates: one file per plate.** With Plates set above 1, the caps
+  plate now downloads as separate files (…_plate1of2.3mf,
+  …_plate2of2.3mf), each laid out and centered for one bed. Bambu Studio
+  only keeps multiple plates in its own project files; it opened our
+  single file with every plate's caps on plate 1, hanging over the edge.
+  Your browser may ask once whether to allow several downloads.
+
 ## 11/6/2026b
 
 - **Filament list after every 3MF export.** A note on the 3D view (and,

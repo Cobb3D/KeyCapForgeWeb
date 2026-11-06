@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/6/2026b**
+**Version 11/6/2026c**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026b.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026c.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2525,4 +2525,13 @@ first thing to check.
   filament_colour) so colours load pre-set. Bambu Studio said "Invalid
   configuration file". Not pursued: it would be printer-specific and
   brittle across Bambu Studio versions.
+
+- **Caps plate: one 3MF per bed.** buildCapsPlate returns `plateObjects`
+  (one object list per bed, each centred on the bed's own origin) as well
+  as `objects` (all of them); the button builds and downloads one
+  compressed 3MF per bed, 700 ms apart. Earlier, beds after the first were
+  offset to where Bambu Studio's plates 2, 3, 4 sit, but a non-Bambu 3MF
+  is loaded onto plate 1 as one block, so they hung off the plate. Tested:
+  8x A-Z on 2 plates for the A1 = 2 files of 104 caps, each spanning
+  x -105..105, y -105..84 mm, parts on filaments 1 and 2.
 

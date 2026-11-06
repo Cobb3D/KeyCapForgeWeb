@@ -1092,11 +1092,7 @@ async function main() {
   // Each letter's meshes (body + legend) are in the file once; every copy
   // on the plate is its own object pointing at them (see buildThreeMF), so
   // each keeps its part names, filaments and print settings in Bambu
-  // Studio. Beds
-  // after the first sit where Bambu Studio puts its plate 2, 3, 4 (1.2 bed
-  // widths apart, in its grid). Bambu Studio only keeps plates in its own
-  // project files, though, so on opening it moves everything together;
-  // Arrange (A) then fills plate 1 and adds the extra plates itself.
+  // Studio. With more than one plate, each plate is its own file.
   const TOWER_MM = 60; // free square in the back-right corner
   function buildCapsPlate(lettersRaw, copiesWanted, platesWanted = 1) {
     const letters = [...String(lettersRaw || '').toUpperCase().replace(/\s+/g, '')];
@@ -1140,30 +1136,33 @@ async function main() {
     const copies = copiesWanted ? Math.min(copiesWanted, maxCopies) : maxCopies;
     // Sets per bed: as even as possible, fullest beds first.
     const sets = Array.from({ length: plates }, (_, i) => Math.floor(copies / plates) + (i < copies % plates ? 1 : 0)).filter((n) => n > 0);
-    // Bambu Studio's plate grid: columns = ceil-ish sqrt of the count,
-    // each plate 1.2 bed widths/depths from the last, rows going toward -Y.
-    const plateCols = (n) => { const v = Math.sqrt(n), r = Math.round(v); return v > r ? r + 1 : r; };
-    const pc = plateCols(sets.length);
+    // Each bed is its own set of objects, laid out around the bed's centre:
+    // the maker export writes one 3MF per bed. Bambu Studio keeps plates
+    // only in its own project files; a plain 3MF goes onto plate 1 as one
+    // block, so beds laid out side by side in one file ended up straddling
+    // the plate edge.
     let placed = 0;
-    sets.forEach((n, pi) => {
-      const ox = (pi % pc) * bed.w * 1.2, oy = -Math.floor(pi / pc) * bed.d * 1.2;
+    const plates_ = sets.map((n) => {
+      const spots = new Map();
       let k = 0;
       for (let s = 0; s < n; s++) {
         for (const L of letters) {
           const cell = cells[k++];
           const it = built.get(L);
-          it.spots.push([ox + cell.x - it.cx, oy + cell.y - it.cy, 0]);
+          if (!spots.has(L)) spots.set(L, []);
+          spots.get(L).push([cell.x - it.cx, cell.y - it.cy, 0]);
           placed++;
         }
       }
+      const objects = [];
+      for (const [L, list] of spots) {
+        const it = built.get(L);
+        const group = `cap_${L}`;
+        it.parts.forEach((p, j) => objects.push({ mesh: p.mesh, colorHex: p.colorHex, name: p.kind === 'body' ? `${group}_body` : `${group}_legend_${j - 1}`, group, translation: list[0], instances: list }));
+      }
+      return objects;
     });
-    const objects = [];
-    for (const [L, it] of built) {
-      if (!it.spots.length) continue;
-      const group = `cap_${L}`;
-      it.parts.forEach((p, j) => objects.push({ mesh: p.mesh, colorHex: p.colorHex, name: p.kind === 'body' ? `${group}_body` : `${group}_legend_${j - 1}`, group, translation: it.spots[0], instances: it.spots }));
-    }
-    return { ...base, objects, placed, copies, used: sets.length, sets };
+    return { ...base, objects: plates_.flat(), plateObjects: plates_, placed, copies, used: sets.length, sets };
   }
   liveState.buildCapsPlate = buildCapsPlate;
   {
@@ -1181,16 +1180,27 @@ async function main() {
         if (!plate) { note.textContent = 'Type the letters to put on the plate first.'; return; }
         if (!plate.placed) { note.textContent = `Not even one set fits: the ${plate.bed.name} bed has room for ${plate.perPlate} caps. Use fewer letters.`; return; }
         const set = [...new Set(String(letters).toUpperCase().replace(/\s+/g, ''))].length;
-        const limited = limitDistinctColors(plate.objects, 4);
-        const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
-        const capsFilaments = filamentList(limited);
+        // One 3MF per plate (see buildCapsPlate), downloaded one after the
+        // other. Every plate uses the same caps, so the colours (and
+        // filament numbers) are the same in each file.
         const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-        showFilamentNotice(limited);
-        downloadBlob(blob, `KeyCapForge_caps_${plate.copies}x_${plate.used}plate${plate.used === 1 ? '' : 's'}.3mf`);
+        let bytes = 0, capsFilaments = [];
+        for (let i = 0; i < plate.plateObjects.length; i++) {
+          note.textContent = plate.used > 1 ? `Building plate ${i + 1} of ${plate.used}…` : 'Building the caps…';
+          const limited = limitDistinctColors(plate.plateObjects[i], 4);
+          const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
+          bytes += blob.size;
+          if (i === 0) { capsFilaments = filamentList(limited); showFilamentNotice(limited); }
+          const name = plate.used === 1 ? `KeyCapForge_caps_${plate.copies}x_1plate.3mf` : `KeyCapForge_caps_${plate.copies}x_plate${i + 1}of${plate.used}.3mf`;
+          downloadBlob(blob, name);
+          // A short pause between downloads, so the browser takes each one.
+          if (i < plate.plateObjects.length - 1) await new Promise((r) => setTimeout(r, 700));
+        }
+        const blob = { size: bytes };
         const perBed = plate.sets.map((n, i) => `plate ${i + 1}: ${plural(n, 'set')} (${n * set} caps)`).join(', ');
         const room = plate.copies < plate.maxCopies ? ` There's room for up to ${plate.setsPerBed} sets per plate (${plate.maxCopies} of each letter on ${plural(plate.plates, 'plate')}).` : ` That's as many as fit: ${plural(plate.setsPerBed, 'set')} per plate.`;
         const capped = want > plate.maxCopies ? ` (You asked for ${want}; only ${plate.maxCopies} fit.)` : '';
-        const arrange = plate.used > 1 ? ' In Bambu Studio, press Arrange (A) after opening and it puts them on separate plates.' : '';
+        const arrange = plate.used > 1 ? ` Downloaded as ${plate.used} files, one per plate (…plate1of${plate.used}, …plate2of${plate.used}…); open each in its own Bambu Studio plate or project. If your browser asks whether to allow several downloads, say yes.` : '';
         note.textContent = `Exported ${plate.placed} caps, ${plate.copies} of each letter, for the ${plate.bed.name}: ${perBed}.${capped}${room} ${(blob.size / 1048576).toFixed(1)} MB.${arrange} In Bambu Studio set filament ${capsFilaments.join(', ')}.`;
       } finally {
         btn.disabled = false;
