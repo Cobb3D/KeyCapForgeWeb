@@ -35,7 +35,7 @@ const loggedCombos = new Set();
 // a thin edge band) for it to get its own filament; see the clustering.
 const IMAGE_MIN_INTERIOR = 0.3;
 
-export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, depth, colorful = false, stencil = false, image = null }) {
+export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null }) {
   if (!text && !image) return [];
 
   const RES = 12; // canvas px per mm — plenty for a legend a few mm tall
@@ -194,7 +194,11 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   // existing horizontal/vertical centering — which centers the drawn ink
   // within the whole canvas — is unaffected by this change, just correctly
   // scaled by it.
-  const scale = Math.min(targetWidth / (contentPxW / RES), targetHeight / (contentPxH / RES));
+  // maxWidth (when given) lets a wide glyph run wider than targetWidth
+  // before it has to shrink, so W and M come out as tall as the other
+  // letters instead of being scaled down to fit a square box.
+  const widthLimit = Math.max(targetWidth, maxWidth || 0);
+  const scale = Math.min(widthLimit / (contentPxW / RES), targetHeight / (contentPxH / RES));
   const meshWidth = (canvasW / RES) * scale;
   const meshHeight = (canvasH / RES) * scale;
 

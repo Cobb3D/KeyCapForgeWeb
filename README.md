@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/6/2026c**
+**Version 11/6/2026d**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026c.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026d.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2534,4 +2534,14 @@ first thing to check.
   is loaded onto plate 1 as one block, so they hung off the plate. Tested:
   8x A-Z on 2 plates for the A1 = 2 files of 104 caps, each spanning
   x -105..105, y -105..84 mm, parts on filaments 1 and 2.
+
+- **Wide letters on square caps.** rasterizeLegend (textVoxel.js) takes
+  an optional `maxWidth`: the scale is min(maxWidth / ink width,
+  targetHeight / ink height) instead of fitting the ink into a
+  targetWidth x targetHeight square. buildLegend (keycapBuilder.js) passes
+  maxWidth = min(1.5 x the legend box, flat top - 0.8mm) for square caps
+  (flat top = capTopWidthMM - 2 x the top bevel, as buildKeycap computes
+  it) and the box itself for every other shape. Measured at defaults
+  (Archivo Black, 0.62x): H 8.4 tall, M 10.7 x 8.4 (was 8.4 x 6.6), W
+  11.1 x 7.9 (was 8.4 x 5.9), O / I / b unchanged; round caps unchanged.
 

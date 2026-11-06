@@ -7,6 +7,18 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/6/2026d
+
+- **W and M no longer look small.** Every letter was sized to fit the
+  same square box, so wide letters were shrunk until their width fit and
+  came out shorter than the rest (W at about 70% of the height, M at
+  80%). On square caps a wide letter may now run wider than the box, up to
+  the flat part of the cap top (inside the bevel, with 0.4mm to spare
+  each side): at the default size M is full height and W is 94% (it's too
+  wide to go further without reaching the bevel). Round, hexagon,
+  pentagon, octagon, heart, flower and star caps are unchanged, since
+  their tops narrow toward the edges. Other letters are unchanged.
+
 ## 11/6/2026c
 
 - **Caps plates: one file per plate.** With Plates set above 1, the caps

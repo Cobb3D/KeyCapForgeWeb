@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'W and M are now as tall as the other letters on square caps (they used to be shrunk to fit a square box)',
   'Caps plates over more than one plate now download as one file per plate, each centered on its bed, instead of one file that landed off the plate in Bambu Studio',
   'After a 3MF export, the app lists which color goes in each filament (for example Cow: filament 1 white, filament 2 black), so you know what to set in Bambu Studio',
   'Maker tools: export a plate of themed bases (Cow, Woodland, Navy or Snow camo) from the new Theme menu',

@@ -247,6 +247,16 @@ function ringFaceBottomRim(outer, inner) {
 function buildLegend(cap, settings, topZ) {
   if (!cap.text) return { parts: [], footprint: null };
   const safeSize = settings.capTopWidthMM * settings.legendSizeFraction * legendFitFactor(cap.shape);
+  // On a square cap a wide letter (W, M) may run wider than the legend
+  // box, up to the flat part of the top (inside the top bevel) less 0.4mm
+  // each side, so it keeps (about) the same height as the other letters
+  // instead of being shrunk to fit a square. Other shapes narrow toward
+  // their edges, so they keep the square box.
+  const topBevel = Math.min(settings.topBevelMM, settings.capHeightMM * 0.3, settings.capTopWidthMM * 0.3);
+  const flatTop = settings.capTopWidthMM - 2 * topBevel;
+  const maxWidth = cap.shape === 'square' || !cap.shape
+    ? Math.min(safeSize * 1.5, flatTop - 0.8)
+    : safeSize;
   const depth = settings.legendDepthMM;
 
   let baseZ;
@@ -266,7 +276,7 @@ function buildLegend(cap, settings, topZ) {
     // Emoji normally keep up to 3 of their own colours; with the one-colour
     // emoji setting they become a single part in the cap's legend colour,
     // with their dark details cut out (see `stencil` in rasterizeLegend).
-    targetWidth: safeSize, targetHeight: safeSize, depth,
+    targetWidth: safeSize, targetHeight: safeSize, maxWidth, depth,
     colorful: !!cap.colorfulEmoji && !settings.emojiOneColor,
     stencil: !!cap.colorfulEmoji && !!settings.emojiOneColor,
   });
