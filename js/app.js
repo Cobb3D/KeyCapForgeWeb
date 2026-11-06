@@ -971,17 +971,31 @@ async function main() {
       panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     const note = document.getElementById('makerNote');
-    document.getElementById('makerPlateBtn').addEventListener('click', () => {
+    // Theme menu: Plain, then every theme with a base pattern (Cow, the camos).
+    {
+      const sel = document.getElementById('makerBasePattern');
+      for (const [id, t] of Object.entries(THEMES)) {
+        if (!t.pattern) continue;
+        const o = document.createElement('option');
+        o.value = id;
+        o.textContent = t.name;
+        sel.appendChild(o);
+      }
+    }
+    document.getElementById('makerPlateBtn').addEventListener('click', async () => {
       let from = Math.round(Number(document.getElementById('makerFrom').value) || 2);
       let to = Math.round(Number(document.getElementById('makerTo').value) || 7);
       from = Math.max(1, Math.min(12, from)); to = Math.max(1, Math.min(12, to));
       if (from > to) [from, to] = [to, from];
       const shapeSel = document.getElementById('makerBaseShape');
       const shapeOverride = shapeSel ? shapeSel.value : '';
-      const plate = buildBasePlate(from, to, shapeOverride);
-      deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys${shapeOverride ? '_' + shapeOverride : ''}.3mf`);
+      const themeId = document.getElementById('makerBasePattern').value;
+      const plate = buildBasePlate(from, to, shapeOverride, themeId);
+      note.textContent = 'Building the plate…';
+      const blob = await deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys${shapeOverride ? '_' + shapeOverride : ''}${themeId ? '_' + themeId : ''}.3mf`);
       const fit = printBed && printBed.w ? (fitsOnBed(printBed, plate.w, plate.h) ? `fits on the ${printBed.name}` : `too big for the ${printBed.name}, try a smaller range`) : '';
-      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}.`;
+      const themeName = themeId ? `, ${THEMES[themeId].name} theme` : '';
+      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}${themeName}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}. ${(blob.size / 1048576).toFixed(1)} MB.`;
     });
   }
 
@@ -989,18 +1003,32 @@ async function main() {
   // direction, 6mm apart), centred on the origin, as 3MF objects. Each
   // base is its own object, in parts like the normal export (buildBaseParts),
   // plain even when a camo or cow theme is on.
-  function buildBasePlate(from, to, shapeOverride = '') {
+  function buildBasePlate(from, to, shapeOverride = '', themeId = '') {
     // A shape picked in Maker tools wins over Base & Fit's, and (since
     // shapes are for fused bases) makes the bases fused.
-    const settings = shapeOverride ? { ...liveSettings(), baseShape: shapeOverride, joinedBase: true } : liveSettings();
+    let settings = shapeOverride ? { ...liveSettings(), baseShape: shapeOverride, joinedBase: true } : liveSettings();
+    // A patterned theme (Cow, the camos) picked in Maker tools: its base
+    // colour, with its marks painted on each base (camo.js), as the normal
+    // Export does for a patterned design.
+    const theme = themeId && THEMES[themeId] && THEMES[themeId].pattern ? THEMES[themeId] : null;
+    if (theme) settings = { ...settings, baseColorHex: theme.base };
     const GAP = 6;
     const vertical = !!settings.verticalLayout;
     const items = [];
     for (let n = from; n <= to; n++) {
       const fakeCaps = Array.from({ length: n }, () => ({ shape }));
-      // Always plain bases: themed (camo / cow) bases are print-to-order
-      // and come from the normal Export, never from the plate.
-      const parts = buildBaseParts(fakeCaps, settings).map((p) => ({ mesh: p.mesh, name: `base_${n}keys_${p.name}` }));
+      let parts;
+      if (theme) {
+        // One part, the whole base, with the pattern's triangle colours.
+        const camo = camoBase(buildBase(fakeCaps, settings), theme.base, theme.marks, {
+          centers: capCenters(n, settings),
+          halfFootprint: settings.baseFootprintMM / 2,
+          thickness: settings.baseThicknessMM,
+        }, PATTERN_STYLES[theme.pattern] || PATTERN_STYLES.camo);
+        parts = [{ mesh: camo.mesh, triangleColors: camo.triangleColors, name: `base_${n}keys_${themeId}` }];
+      } else {
+        parts = buildBaseParts(fakeCaps, settings).map((p) => ({ mesh: p.mesh, name: `base_${n}keys_${p.name}` }));
+      }
       let box = null;
       for (const p of parts) box = box ? unionBox(box, bboxOf(p.mesh)) : bboxOf(p.mesh);
       items.push({ n, parts, box });
@@ -1015,15 +1043,18 @@ async function main() {
       const ty = vertical ? -box.y0 : -(cursor + (box.y1 - box.y0)) - box.y0;
       cursor += (vertical ? box.x1 - box.x0 : box.y1 - box.y0) + GAP;
       x0 = Math.min(x0, box.x0 + tx); x1 = Math.max(x1, box.x1 + tx); y0 = Math.min(y0, box.y0 + ty); y1 = Math.max(y1, box.y1 + ty);
-      for (const p of it.parts) objects.push({ ...p, colorHex: settings.baseColorHex, group: `base_${it.n}keys`, translation: [tx, ty, 0] });
+      for (const p of it.parts) objects.push({ ...p, colorHex: settings.baseColorHex, group: theme ? undefined : `base_${it.n}keys`, translation: [tx, ty, 0] });
     }
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     for (const o of objects) o.translation = [o.translation[0] - cx, o.translation[1] - cy, 0];
     return { objects, w: x1 - x0, h: y1 - y0 };
   }
-  function deliverPlate(plate, name) {
+  // Compressed (themed bases are big: a Cow plate is ~70 MB uncompressed).
+  async function deliverPlate(plate, name) {
     const limited = limitDistinctColors(plate.objects, 4);
-    downloadBlob(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), name);
+    const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
+    downloadBlob(blob, name);
+    return blob;
   }
   function liveSettings() { return settings; }
   liveState.buildBasePlate = buildBasePlate;
@@ -1036,9 +1067,10 @@ async function main() {
   // like the normal export (face down, except embossed). The back-right
   // corner of each bed is kept free for the prime tower.
   //
-  // Each letter is ONE object (body + legend parts) placed as many times as
-  // needed (3MF build items sharing the object), so its mesh is in the file
-  // once and the slicer shows "A" with all its copies as instances. Beds
+  // Each letter's meshes (body + legend) are in the file once; every copy
+  // on the plate is its own object pointing at them (see buildThreeMF), so
+  // each keeps its part names, filaments and print settings in Bambu
+  // Studio. Beds
   // after the first sit where Bambu Studio puts its plate 2, 3, 4 (1.2 bed
   // widths apart, in its grid). Bambu Studio only keeps plates in its own
   // project files, though, so on opening it moves everything together;

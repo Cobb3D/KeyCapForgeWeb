@@ -9,6 +9,9 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Maker tools: export a plate of themed bases (Cow, Woodland, Navy or Snow camo) from the new Theme menu',
+  'Caps plates open correctly in Bambu Studio again: every cap keeps its letter on its own filament and stays on the plate',
+  'Camo and cow patterns now go into 3MF files as slicer paint, so patterned designs keep their letters on their own filament in the latest Bambu Studio',
   'Up-to-date IIID Max colors, straight from IIID Max: 55 High Speed PLA+ and 14 Classic PLA+ colors. Discontinued colors are gone',
   'Fixed for the latest Bambu Studio: 3MF files import with the letters on their own filament again (the update had put every part on filament 1). Set each filament to the color you want in Bambu Studio',
   'Maker tools are open to everyone: click "Maker tools" at the bottom of the menu for plates of bases and letter caps to print ahead of orders',

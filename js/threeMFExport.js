@@ -170,9 +170,10 @@ function crc32(bytes) {
 // filament 1. So the parts show in the colours of filaments 1-4 in the
 // slicer, and each one can be changed there as usual.
 //
-// The camo/cow base is the exception: its marks are per-triangle colours,
-// so when a patterned base is exported, the colour group comes back with
-// those triangles painted (and the slicer's colour step runs for that file).
+// The camo/cow base's marks are per-triangle colours; they go in as the
+// slicers' own paint data (paintCode below), so Bambu Studio loads them as
+// painting on that part (and, since the file has painting, skips its colour
+// step too). The marks are each painted with their colour's filament.
 // Print settings written on every object, so the slicer opens the file with
 // them instead of its own defaults (Bambu Studio's is grid infill). They're
 // per-object overrides: the printer, filament and process presets are left
@@ -197,12 +198,6 @@ const PRUSA_PRINT_KEYS = () => [
 export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = {}) {
   const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
-  // Colours go in the file only for per-triangle paint (the camo/cow base).
-  const writeColors = objects.some((o) => o.triangleColors && o.mesh && !o.mesh.isEmpty);
-  let colorGroupXML = '';
-  if (writeColors) distinctColors.forEach((hex) => {
-    colorGroupXML += `<m:color color="${hex.toUpperCase()}FF"/>\n`;
-  });
 
   let resourcesXML = '';
   let buildXML = '';
@@ -226,11 +221,19 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
     let trianglesXML = '';
     const triCount = obj.mesh.indices.length / 3;
     for (let i = 0, t = 0; i < obj.mesh.indices.length; i += 3, t++) {
-      const paint = obj.triangleColors ? ` pid="1" p1="${colorIndex.get(obj.triangleColors[t]) ?? pIndex}"` : '';
+      // Per-triangle colours (the camo/cow base) go in as the slicers'
+      // own paint: each mark triangle painted with its colour's filament.
+      let paint = '';
+      if (obj.triangleColors) {
+        const filament = (colorIndex.get(obj.triangleColors[t]) ?? pIndex) + 1;
+        if (filament !== pIndex + 1) {
+          const code = paintCode(filament);
+          paint = ` paint_color="${code}" slic3rpe:mmu_segmentation="${code}"`;
+        }
+      }
       trianglesXML += `<triangle v1="${obj.mesh.indices[i]}" v2="${obj.mesh.indices[i + 1]}" v3="${obj.mesh.indices[i + 2]}"${paint}/>\n`;
     }
-    const objectPaint = obj.triangleColors ? ` pid="1" pindex="${pIndex}"` : '';
-    resourcesXML += `<object id="${id}" type="model" name="${name}"${objectPaint}><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
+    resourcesXML += `<object id="${id}" type="model" name="${name}"><mesh><vertices>\n${verticesXML}</vertices><triangles>\n${trianglesXML}</triangles></mesh></object>\n`;
     // PrusaSlicer loads each mesh of an assembly as its own object, so it
     // gets a filament per mesh object (the cap and its letter stay
     // separate objects there).
@@ -256,34 +259,41 @@ export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = 
     groups.get(key).push(part);
   }
   for (const [key, members] of groups) {
-    // `instances` (a list of positions) places the same object several
-    // times: the mesh is written once and the slicer loads one object with
-    // that many instances (used for the maker caps plate).
+    // `instances` (a list of positions, used for the maker caps plate)
+    // places the same part(s) several times. Each placement is written as
+    // its OWN object whose components point at the shared meshes (stored
+    // once, so the file stays small), not as several <item>s of one object:
+    // Bambu Studio splits a non-Bambu 3MF's repeated items into separate
+    // objects itself and rebuilds their parts without the part settings, so
+    // every copy lost its names, filaments and print settings and some
+    // landed off the plate (bbs_3mf.cpp, "split as instance").
     const spots = members[0].instances || [members[0].translation];
-    const place = (objectid) => spots.map((t) => `<item objectid="${objectid}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2] || 0)}"/>\n`).join('');
-    if (members.length === 1) {
+    const item = (objectid, t) => `<item objectid="${objectid}" transform="1 0 0 0 1 0 0 0 1 ${fmt(t[0])} ${fmt(t[1])} ${fmt(t[2] || 0)}"/>\n`;
+    if (members.length === 1 && spots.length === 1) {
       const p = members[0];
-      buildXML += place(p.id);
+      buildXML += item(p.id, spots[0]);
       bambuXML += `  <object id="${p.id}">\n    ${meta('name', p.name)}\n    ${meta('extruder', p.filament)}${bambuPrint}\n    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n  </object>\n`;
       continue;
     }
-    const id = nextId++;
-    const name = escapeXML(String(key));
     // Parts in a group share one position, so their meshes line up with
     // identity component transforms and the group is placed as a whole.
     const components = members.map((p) => `<component objectid="${p.id}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>`).join('\n');
-    resourcesXML += `<object id="${id}" type="model" name="${name}"><components>\n${components}\n</components></object>\n`;
-    buildXML += place(id);
-    bambuXML += `  <object id="${id}">\n    ${meta('name', name)}\n    ${meta('extruder', members[0].filament)}${bambuPrint}\n`;
-    for (const p of members) bambuXML += `    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n`;
-    bambuXML += `  </object>\n`;
+    spots.forEach((t, k) => {
+      const id = nextId++;
+      const name = escapeXML(String(key)) + (spots.length > 1 ? `_${k + 1}` : '');
+      resourcesXML += `<object id="${id}" type="model" name="${name}"><components>\n${components}\n</components></object>\n`;
+      buildXML += item(id, t);
+      bambuXML += `  <object id="${id}">\n    ${meta('name', name)}\n    ${meta('extruder', members[0].filament)}${bambuPrint}\n`;
+      for (const p of members) bambuXML += `    <part id="${p.id}" subtype="normal_part">\n      ${meta('name', p.name)}\n      ${meta('extruder', p.filament)}\n    </part>\n`;
+      bambuXML += `  </object>\n`;
+    });
   }
 
   const modelXML = `<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02">
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:slic3rpe="http://schemas.slic3r.org/3mf/2017/06">
 <metadata name="Application">${escapeXML(appName)}</metadata>
 <resources>
-${writeColors && distinctColors.length ? `<m:colorgroup id="1">\n${colorGroupXML}</m:colorgroup>\n` : ''}${resourcesXML}</resources>
+${resourcesXML}</resources>
 <build>
 ${buildXML}</build>
 </model>`;
@@ -341,6 +351,23 @@ export async function buildThreeMFCompressed(objects, appName = 'KeyCapForge by 
     zip.addFile(name, bytes, deflated);
   }
   return zip.finalize();
+}
+
+// A whole (unsplit) triangle painted with `filament` (1-based), in the
+// paint format Bambu Studio / OrcaSlicer ("paint_color") and PrusaSlicer
+// ("slic3rpe:mmu_segmentation") read (TriangleSelector::deserialize):
+// 4-bit codes, read from the END of the hex string, low bit first. One code
+// for the triangle: low 2 bits = 0 (not split), high 2 bits = the state if
+// it's 1 or 2; 0b11 for 3 and up, followed by (state - 3) in further codes
+// (0b1111 meaning "15 more").
+export function paintCode(filament) {
+  if (filament <= 0) return '';
+  if (filament < 3) return (filament << 2).toString(16).toUpperCase();
+  const nibbles = [0xC];
+  let rest = filament - 3;
+  while (rest >= 15) { nibbles.push(0xF); rest -= 15; }
+  nibbles.push(rest);
+  return nibbles.reverse().map((n) => n.toString(16).toUpperCase()).join('');
 }
 
 function fmt(v) {

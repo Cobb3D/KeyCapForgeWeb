@@ -302,8 +302,14 @@
             <option value="tag">Tag end (keyring hole built in)</option>
           </select>
         </div>
+        <div class="row maker-range">
+          <label for="makerBasePattern">Theme</label>
+          <select id="makerBasePattern">
+            <option value="" selected>Plain (base color)</option>
+          </select>
+        </div>
         <button class="btn primary" id="makerPlateBtn" type="button">Export base plate (3MF)</button>
-        <p class="hint" id="makerNote">One 3MF with one base of each size, side by side on one plate, using the shape picked here and the current base settings (base color, cap shape, keyring, layout). Bases only, no caps, and always plain: camo and cow patterns are left off.</p>
+        <p class="hint" id="makerNote">One 3MF with one base of each size, side by side on one plate, using the shape and theme picked here and the current base settings (cap shape, keyring, layout). A themed base (like Cow) takes the theme's base color with its pattern painted on. Bases only, no caps.</p>
         <h3 class="maker-sub">Letter caps plate</h3>
         <div class="row maker-range">
           <label>Letters</label>

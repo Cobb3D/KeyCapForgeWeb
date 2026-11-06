@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/4/2026a**
+**Version 11/6/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-4-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2476,4 +2476,36 @@ first thing to check.
   discontinued. Still first in the brand menu and in the hex-sharing
   order, so its colours keep their exact hex (High Speed Black and Matte
   Graphite share #28292a; Matte Graphite gets the next free colour).
+
+- **Caps plate: one object per placed cap.** Bambu Studio's 3MF loader
+  (bbs_3mf.cpp, "found 3mf from other vendor, split as instance") splits a
+  non-Bambu object with several build items into separate objects and
+  rebuilds the new ones' volumes from bare ids, so their part names,
+  extruders and print overrides were lost (parts named cap_Z, cap_Z_2, all
+  on filament 1, blank infill) and some landed off the plate. buildThreeMF
+  now writes each spot in `instances` as its own assembly object
+  (name_1, name_2, ...) whose components point at the shared body/legend
+  mesh objects (Bambu loads those as shared meshes), each with its own
+  model_settings.config entry. Same file size. Tested: 4x A-Z on one plate
+  = 104 objects, all with parts body=1 / legend=2 and 12% gyroid.
+
+- **Paint data instead of colours for patterns.** Per-triangle colours
+  (camo/cow base) are written as `paint_color` (Bambu Studio, OrcaSlicer)
+  and `slic3rpe:mmu_segmentation` (PrusaSlicer) on each mark triangle:
+  `paintCode(filament)` in threeMFExport.js, the TriangleSelector format
+  (hex string read from the end, low bit first; a leaf code is state << 2
+  for states 1-2, 0b1100 then state-3 for 3+; 1="4", 2="8", 3="0C",
+  4="1C"). Background triangles stay unpainted (the part's own filament).
+  No colour group or pid is written any more, and since the model has
+  painting Bambu Studio skips standard_3mf_to_textured_meshes (the
+  `!has_painting()` check), keeping every part's filament. Checked by
+  decoding the exported paint with the same algorithm: cow marks on 2,
+  camo marks on 2/3/4, base on 1. Not yet opened in Bambu Studio.
+
+- **Themed base plates.** #makerBasePattern lists Plain plus every THEMES
+  entry with a `pattern`. buildBasePlate(from, to, shape, themeId) then
+  uses the theme's base colour and builds each base whole (buildBase)
+  through camoBase() with the theme's marks and style, as one painted
+  part per base (not grouped into parts). deliverPlate now uses
+  buildThreeMFCompressed (Cow plate 2-7 keys: 73 MB -> 10 MB).
 

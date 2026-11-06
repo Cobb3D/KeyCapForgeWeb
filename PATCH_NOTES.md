@@ -7,6 +7,29 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/6/2026a
+
+- **Caps plate fixed in Bambu Studio.** Opening a Maker tools caps plate
+  put every cap and letter on filament 1, left infill density blank, and
+  dropped some caps off the plate ("Outside"). Bambu Studio splits
+  repeated copies of an object in a 3MF from another app into separate
+  objects and loses their part settings on the way. Each cap on the plate
+  is now its own object (cap_A_1, cap_A_2, ...) with its body on filament
+  1, its letter on filament 2, and the infill and wall settings; the file
+  is the same size.
+- **Themed base plates.** Maker tools has a **Theme** menu for the base
+  plate: Plain (the base color) or a patterned theme: **Cow**, **Camo
+  (Woodland)**, **Camo (Navy)** or **Camo (Snow)**. Each base gets the
+  theme's base color with its pattern on, like a themed design's Export.
+  Base plates are now compressed (a Cow plate is about 10 MB).
+- **Patterns as slicer paint.** Camo and cow marks now go into the 3MF as
+  Bambu Studio / OrcaSlicer paint (and PrusaSlicer's), instead of colors:
+  the base is on filament 1 with the marks painted on filaments 2, 3, 4.
+  A patterned file no longer goes through Bambu Studio's new color step,
+  so a camo or cow design keeps its caps and letters on their own
+  filaments too. Set each filament's color in Bambu Studio (Cow: 1 white,
+  2 black).
+
 ## 11/4/2026a
 
 - **Current IIID Max colors.** The IIID Max palette now comes from IIID
