@@ -1,6 +1,6 @@
 import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon } from './mesh.js';
 import { profileFor, regularPolygon, legendFitFactor } from './shapeProfiles.js';
-import { rasterizeLegend } from './textVoxel.js';
+import { rasterizeLegend, glyphAspect } from './textVoxel.js';
 
 // The stem boss: the round post on the underside that holds the cross-
 // shaped socket. Its wall is stemBossWallMM thick, measured straight out
@@ -257,6 +257,17 @@ function buildLegend(cap, settings, topZ) {
   const maxWidth = cap.shape === 'square' || !cap.shape
     ? Math.min(safeSize * 1.5, flatTop - 0.8)
     : safeSize;
+  // Letters A-Z / a-z all get one height per font and case: the height the
+  // font's widest letters (M W / m w) can reach within maxWidth, so a W
+  // isn't shorter than an H. Symbols, digits, emoji and underlined letters
+  // keep fitting their own box.
+  let targetHeight = safeSize;
+  if (/^[A-Za-z]$/.test(cap.text) && !cap.isUnderline && !cap.colorfulEmoji) {
+    const font = { fontFamily: cap.fontFamily, bold: cap.isBold, italic: cap.isItalic };
+    const refs = cap.text === cap.text.toUpperCase() ? ['M', 'W'] : ['m', 'w'];
+    const widest = Math.max(...refs.map((r) => glyphAspect(r, font)));
+    if (widest > 0) targetHeight = Math.min(safeSize, maxWidth / widest);
+  }
   const depth = settings.legendDepthMM;
 
   let baseZ;
@@ -276,7 +287,7 @@ function buildLegend(cap, settings, topZ) {
     // Emoji normally keep up to 3 of their own colours; with the one-colour
     // emoji setting they become a single part in the cap's legend colour,
     // with their dark details cut out (see `stencil` in rasterizeLegend).
-    targetWidth: safeSize, targetHeight: safeSize, maxWidth, depth,
+    targetWidth: safeSize, targetHeight, maxWidth, depth,
     colorful: !!cap.colorfulEmoji && !settings.emojiOneColor,
     stencil: !!cap.colorfulEmoji && !!settings.emojiOneColor,
   });

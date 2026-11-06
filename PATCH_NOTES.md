@@ -7,6 +7,21 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/6/2026e
+
+- **All letters the same height, in every font.** Checked every capital
+  and lowercase letter in all 7 fonts. Anton, Bebas Neue, Oswald and
+  Fjalla One were already even; Archivo Black, Russo One and Roboto still
+  had short wide letters (W, and lowercase m and w). Now every letter A-Z
+  in a font is one height, and every letter a-z another: the height the
+  font's widest letters (M W, m w) can reach on the cap. At the default
+  size, capitals are 8.4mm in Anton, Bebas Neue, Oswald, Roboto and
+  Fjalla One, 7.8mm in Russo One and 7.7mm in Archivo Black (was 8.4mm
+  with a smaller W). Lowercase letters are shorter than capitals in the
+  wide fonts (6.2mm in Archivo Black, 6.5mm in Russo One, 7.8mm in
+  Roboto). Use Legend size to make them all bigger or smaller.
+  Symbols, numbers, emoji and underlined letters are unchanged.
+
 ## 11/6/2026d
 
 - **W and M no longer look small.** Every letter was sized to fit the

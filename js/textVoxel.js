@@ -35,6 +35,25 @@ const loggedCombos = new Set();
 // a thin edge band) for it to get its own filament; see the clustering.
 const IMAGE_MIN_INTERIOR = 0.3;
 
+// Width / height of the ink of `text` in this font, measured the same way
+// rasterizeLegend draws it (same weight and style rules). Cached.
+const aspectCache = new Map();
+export function glyphAspect(text, { fontFamily, bold, italic }) {
+  const weight = SINGLE_WEIGHT_FONTS.has(fontFamily) ? '400' : (bold ? '700' : '400');
+  const style = italic ? 'italic' : 'normal';
+  const key = `${text}|${fontFamily}|${weight}|${style}`;
+  if (aspectCache.has(key)) return aspectCache.get(key);
+  const c = document.createElement('canvas').getContext('2d');
+  c.font = `${style} ${weight} 200px "${fontFamily}"`;
+  const m = c.measureText(text);
+  const w = (m.actualBoundingBoxLeft ?? 0) + (m.actualBoundingBoxRight ?? m.width);
+  const h = (m.actualBoundingBoxAscent ?? 150) + (m.actualBoundingBoxDescent ?? 0);
+  const aspect = h > 0 ? w / h : 1;
+  // Only cache once the font has loaded, or a fallback font's shape sticks.
+  if (document.fonts.check(c.font)) aspectCache.set(key, aspect);
+  return aspect;
+}
+
 export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null }) {
   if (!text && !image) return [];
 

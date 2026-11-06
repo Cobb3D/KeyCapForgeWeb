@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/6/2026d**
+**Version 11/6/2026e**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026e.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2544,4 +2544,16 @@ first thing to check.
   it) and the box itself for every other shape. Measured at defaults
   (Archivo Black, 0.62x): H 8.4 tall, M 10.7 x 8.4 (was 8.4 x 6.6), W
   11.1 x 7.9 (was 8.4 x 5.9), O / I / b unchanged; round caps unchanged.
+
+- **One letter height per font.** textVoxel.js `glyphAspect(text, font)`
+  measures ink width / height with canvas measureText, using the same
+  weight and style rules as rasterizeLegend (cached once the font has
+  loaded). buildLegend: for a single A-Z / a-z (not underlined, not
+  emoji), targetHeight = min(legend box, maxWidth / the widest aspect of
+  M and W, or m and w), so every letter of that font and case gets the
+  same height. Measured at defaults with the real fonts (from
+  github.com/google/fonts) for A-Z and a-z on square caps: every font's
+  letters within 0.1mm of each other; capitals 8.4mm except Archivo
+  Black 7.7 and Russo One 7.8; lowercase 8.4 except Archivo Black 6.2,
+  Russo One 6.5, Roboto 7.8.
 
