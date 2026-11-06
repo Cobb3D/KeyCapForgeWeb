@@ -7,6 +7,21 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/6/2026b
+
+- **Filament list after every 3MF export.** A note on the 3D view (and,
+  for Maker tools plates, in the plate's note) lists what to load as each
+  filament: "Filament 1 = white (#f4f4f4), Filament 2 = black (#1b1b1b)",
+  or the filament's full name when it's one from the palette ("Bambu Lab
+  PLA Basic Jade White"). The file only says which filament each part and
+  pattern uses, so Bambu Studio opens it with whatever colors its
+  filaments already have; a pattern can look invisible until filament 2
+  is set to a different color from filament 1.
+- Tried and dropped: exporting as a Bambu Studio project so the colors
+  come in already set. Bambu Studio rejected the test file ("Invalid
+  configuration file"), and a project file would be tied to one printer
+  and to Bambu's settings format of the day.
+
 ## 11/6/2026a
 
 - **Caps plate fixed in Bambu Studio.** Opening a Maker tools caps plate

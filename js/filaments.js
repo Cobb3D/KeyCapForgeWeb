@@ -154,6 +154,30 @@ export function filamentFor(hex) {
 
 const fullName = (f) => `${f.brand.name} ${f.line} ${f.name}`;
 
+// A plain word for a colour ("white", "dark blue"...), for colours that
+// aren't a known filament.
+export function colorWord(hex) {
+  const h = String(hex).replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (d < 0.08 || (l > 0.92) || (l < 0.08)) return l > 0.85 ? 'white' : l < 0.15 ? 'black' : l > 0.6 ? 'light grey' : l < 0.35 ? 'dark grey' : 'grey';
+  let hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  hue = (hue * 60 + 360) % 360;
+  const names = [[15, 'red'], [40, 'orange'], [65, 'yellow'], [160, 'green'], [195, 'teal'], [250, 'blue'], [290, 'purple'], [335, 'pink'], [360, 'red']];
+  let name = names.find(([lim]) => hue < lim)[1];
+  if (name === 'orange' && l < 0.4) name = 'brown';
+  if (name === 'yellow' && l < 0.35) name = 'olive';
+  const shade = l < 0.3 ? 'dark ' : l > 0.72 ? 'light ' : '';
+  return shade + name;
+}
+
+// What to load as each filament, for the note after a 3MF export: the
+// filament's name, or a plain colour word, with its hex.
+export function filamentLabel(hex) {
+  const f = filamentFor(hex);
+  return f ? `${fullName(f)} (${f.hexes[0]})` : `${colorWord(hex)} (${String(hex).toLowerCase()})`;
+}
+
 // "Bambu Lab PLA Matte Charcoal (#000000)" for a filament colour, else
 // "#a92a30 (custom)". Used in Send to Print orders.
 export function describeColor(hex) {

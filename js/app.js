@@ -4,14 +4,14 @@ import { buildBase, buildBaseParts, capCenters, maxSafeRecessDepth, baseExtentsF
 import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
 import { meshToSTL, downloadBlob } from './stlExport.js';
-import { buildThreeMF, buildThreeMFCompressed, limitDistinctColors } from './threeMFExport.js';
+import { buildThreeMF, buildThreeMFCompressed, limitDistinctColors, filamentColors } from './threeMFExport.js';
 import { initBugReport, APP_NAME } from './bugReport.js';
 import { initPrintOrder } from './printOrder.js';
 import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
 import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
 import { initPanelOrder } from './panelOrder.js';
-import { initFilamentPalette, describeColor } from './filaments.js';
+import { initFilamentPalette, describeColor, filamentLabel } from './filaments.js';
 import { encodeDesign, decodeDesign, findDesignCode } from './designCode.js';
 import { CHANNEL, initChannel, storeOrigin } from './channel.js';
 import { initPageTheme } from './pageTheme.js';
@@ -286,7 +286,7 @@ async function main() {
     }
     if (exportFormat === '3mf' || exportFormat === 'both') {
       const limited = limitDistinctColors(objects, 4);
-      deliver3mf(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
+      deliver3mf(buildThreeMF(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`, limited);
     }
   }
 
@@ -880,7 +880,7 @@ async function main() {
       // <components> revert). See the STL branch above and
       // Mesh.welded() (mesh.js) for why this step is needed at all.
       const weldedObjects = limitedObjects.map((o) => ({ ...o, mesh: o.mesh.welded() }));
-      deliver3mf(buildThreeMF(weldedObjects, `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`);
+      deliver3mf(buildThreeMF(weldedObjects, `${APP_NAME} by Cobb3D`), `${fileBase}.3mf`, weldedObjects);
     }
   }
 
@@ -888,10 +888,30 @@ async function main() {
   // makes, as a file rather than a download: while capture3mf is set, the
   // export hands its 3MF to it instead of downloading (and skips the STL).
   let capture3mf = null;
-  function deliver3mf(blob, name) {
+  function deliver3mf(blob, name, objects = null) {
     if (capture3mf) capture3mf({ blob, name });
-    else downloadBlob(blob, name);
+    else {
+      downloadBlob(blob, name);
+      if (objects) showFilamentNotice(objects);
+    }
   }
+  // After a 3MF download: which filament is which colour. The file only
+  // says which filament each part (and painted pattern) uses, so the
+  // slicer opens it with whatever colours its filaments already have.
+  function filamentList(objects) {
+    return filamentColors(objects).map((hex, i) => `${i + 1} = ${filamentLabel(hex)}`);
+  }
+  function showFilamentNotice(objects) {
+    const box = document.getElementById('filamentNotice');
+    const list = document.getElementById('filamentNoticeList');
+    list.replaceChildren(...filamentList(objects).map((t) => {
+      const li = document.createElement('li');
+      li.textContent = `Filament ${t}`;
+      return li;
+    }));
+    box.hidden = false;
+  }
+  document.getElementById('filamentNoticeClose').addEventListener('click', () => { document.getElementById('filamentNotice').hidden = true; });
   liveState.make3mf = () => {
     let result = null;
     const saved = exportFormat;
@@ -995,7 +1015,7 @@ async function main() {
       const blob = await deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys${shapeOverride ? '_' + shapeOverride : ''}${themeId ? '_' + themeId : ''}.3mf`);
       const fit = printBed && printBed.w ? (fitsOnBed(printBed, plate.w, plate.h) ? `fits on the ${printBed.name}` : `too big for the ${printBed.name}, try a smaller range`) : '';
       const themeName = themeId ? `, ${THEMES[themeId].name} theme` : '';
-      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}${themeName}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}. ${(blob.size / 1048576).toFixed(1)} MB.`;
+      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}${themeName}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}. ${(blob.size / 1048576).toFixed(1)} MB. In Bambu Studio set filament ${blob.filaments.join(', ')}.`;
     });
   }
 
@@ -1054,6 +1074,8 @@ async function main() {
     const limited = limitDistinctColors(plate.objects, 4);
     const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
     downloadBlob(blob, name);
+    showFilamentNotice(limited);
+    blob.filaments = filamentList(limited);
     return blob;
   }
   function liveSettings() { return settings; }
@@ -1161,13 +1183,15 @@ async function main() {
         const set = [...new Set(String(letters).toUpperCase().replace(/\s+/g, ''))].length;
         const limited = limitDistinctColors(plate.objects, 4);
         const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
+        const capsFilaments = filamentList(limited);
         const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+        showFilamentNotice(limited);
         downloadBlob(blob, `KeyCapForge_caps_${plate.copies}x_${plate.used}plate${plate.used === 1 ? '' : 's'}.3mf`);
         const perBed = plate.sets.map((n, i) => `plate ${i + 1}: ${plural(n, 'set')} (${n * set} caps)`).join(', ');
         const room = plate.copies < plate.maxCopies ? ` There's room for up to ${plate.setsPerBed} sets per plate (${plate.maxCopies} of each letter on ${plural(plate.plates, 'plate')}).` : ` That's as many as fit: ${plural(plate.setsPerBed, 'set')} per plate.`;
         const capped = want > plate.maxCopies ? ` (You asked for ${want}; only ${plate.maxCopies} fit.)` : '';
         const arrange = plate.used > 1 ? ' In Bambu Studio, press Arrange (A) after opening and it puts them on separate plates.' : '';
-        note.textContent = `Exported ${plate.placed} caps, ${plate.copies} of each letter, for the ${plate.bed.name}: ${perBed}.${capped}${room} ${(blob.size / 1048576).toFixed(1)} MB.${arrange}`;
+        note.textContent = `Exported ${plate.placed} caps, ${plate.copies} of each letter, for the ${plate.bed.name}: ${perBed}.${capped}${room} ${(blob.size / 1048576).toFixed(1)} MB.${arrange} In Bambu Studio set filament ${capsFilaments.join(', ')}.`;
       } finally {
         btn.disabled = false;
       }

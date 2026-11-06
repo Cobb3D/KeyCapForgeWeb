@@ -359,6 +359,12 @@
             <path class="bulb-rays" d="M12 .2v1.1M3.4 3.6l.8.8M20.6 3.6l-.8.8M1 9.5h1.2M21.8 9.5H23"/>
           </svg>
         </button>
+        <div class="filament-notice" id="filamentNotice" hidden role="status">
+          <button type="button" class="filament-notice-close" id="filamentNoticeClose" aria-label="Close">×</button>
+          <strong>3MF saved. In Bambu Studio, set the filaments to:</strong>
+          <ul id="filamentNoticeList"></ul>
+          <span class="filament-notice-hint">The file says which filament each part uses, not its color, so the slicer starts with whatever colors its filaments already have.</span>
+        </div>
         <p class="viewport-hint"><span class="hint-mouse">Drag to orbit · right-drag to pan · scroll to zoom</span><span class="hint-touch">Drag to orbit · pinch to zoom · two-finger drag to pan</span></p>
       </div>
     </section>

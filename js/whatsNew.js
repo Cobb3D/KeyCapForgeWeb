@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'After a 3MF export, the app lists which color goes in each filament (for example Cow: filament 1 white, filament 2 black), so you know what to set in Bambu Studio',
   'Maker tools: export a plate of themed bases (Cow, Woodland, Navy or Snow camo) from the new Theme menu',
   'Caps plates open correctly in Bambu Studio again: every cap keeps its letter on its own filament and stays on the plate',
   'Camo and cow patterns now go into 3MF files as slicer paint, so patterned designs keep their letters on their own filament in the latest Bambu Studio',

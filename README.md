@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/6/2026a**
+**Version 11/6/2026b**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026b.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2508,4 +2508,21 @@ first thing to check.
   through camoBase() with the theme's marks and style, as one painted
   part per base (not grouped into parts). deliverPlate now uses
   buildThreeMFCompressed (Cow plate 2-7 keys: 73 MB -> 10 MB).
+
+- **Filament list after a 3MF export.** threeMFExport.js exports
+  `filamentColors(objects)` (the order buildThreeMF numbers filaments in:
+  first appearance of each part colour, then pattern colours).
+  app.js `filamentList()` labels each with `filamentLabel(hex)`
+  (filaments.js: the palette filament's full name, or `colorWord(hex)`, a
+  plain colour word from hue/lightness, plus the hex). deliver3mf() shows
+  it in #filamentNotice on the 3D view after a download (not for Send to
+  Print, which captures the file instead); deliverPlate() and the caps
+  plate show it too and add it to their notes.
+
+  Tried (11/6/2026): a Bambu Studio project (Application
+  "BambuStudio-02.00.00.00", Metadata/project_settings.config merged from
+  the BBL system profiles for A1 / 0.20mm Standard / PLA Basic, with
+  filament_colour) so colours load pre-set. Bambu Studio said "Invalid
+  configuration file". Not pursued: it would be printer-specific and
+  brittle across Bambu Studio versions.
 

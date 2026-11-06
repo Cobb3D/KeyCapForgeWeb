@@ -195,8 +195,14 @@ const PRUSA_PRINT_KEYS = () => [
   ['perimeters', PRINT_SETTINGS.wallLoops],
 ];
 
+// The colour each filament number stands for in a file built from
+// `objects` (filament 1 = first entry): the order buildThreeMF numbers them.
+export function filamentColors(objects) {
+  return [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
+}
+
 export function buildThreeMF(objects, appName = 'KeyCapForge by Cobb3D', opts = {}) {
-  const distinctColors = [...new Set(objects.flatMap((o) => [o.colorHex, ...(o.triangleColors || [])]))];
+  const distinctColors = filamentColors(objects);
   const colorIndex = new Map(distinctColors.map((c, i) => [c, i]));
 
   let resourcesXML = '';
