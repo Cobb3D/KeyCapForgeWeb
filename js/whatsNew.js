@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'New default cap size: 15.5mm top width and 11.8mm tall (was 13.5mm and 10mm)',
   'Every letter in a font is now the same height: W, M and other wide letters are no longer smaller than the rest',
   'Caps plates over more than one plate now download as one file per plate, each centered on its bed, instead of one file that landed off the plate in Bambu Studio',
   'After a 3MF export, the app lists which color goes in each filament (for example Cow: filament 1 white, filament 2 black), so you know what to set in Bambu Studio',

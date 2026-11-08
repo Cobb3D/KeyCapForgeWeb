@@ -23,7 +23,7 @@ import { buildLogoClicker } from './logoBuilder.js';
 const FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];
 
 const settings = {
-  capWidthMM: 18, capTopWidthMM: 13.5, capHeightMM: 10, wallThicknessMM: 1.4,
+  capWidthMM: 18, capTopWidthMM: 15.5, capHeightMM: 11.8, wallThicknessMM: 1.4,
   cornerRadiusMM: 1.6, topBevelMM: 0.8, bottomBevelMM: 0.8,
   legendDepthMM: 0.6, legendSizeFraction: 0.62,
   // Emoji in their cap's legend colour, with dark details cut out, instead

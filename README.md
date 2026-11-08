@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/6/2026f**
+**Version 11/7/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-6-2026f.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-7-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2556,4 +2556,10 @@ first thing to check.
   letters within 0.1mm of each other; capitals 8.4mm except Archivo
   Black 7.7 and Russo One 7.8; lowercase 8.4 except Archivo Black 6.2,
   Russo One 6.5, Roboto 7.8.
+
+- **Default cap size 15.5mm top / 11.8mm tall** (settings in app.js and
+  the capTopWidth / capHeight sliders in index.html). designCode.js keeps
+  its frozen V1 defaults (13.5 / 10), so older codes rebuild unchanged and
+  new codes carry the two values (a default design's code is now 61
+  characters instead of 26).
 

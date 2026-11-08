@@ -7,6 +7,14 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/7/2026a
+
+- **New default cap size:** Top width **15.5mm** (was 13.5) and Height
+  **11.8mm** (was 10). Base width (18mm), walls, top thickness, corner
+  radius, bevels and stem wall are unchanged. With the wider top, the
+  letters come out bigger at the same Legend size.
+- Design codes made before this still open at their old sizes.
+
 ## 11/6/2026f
 
 - Filament names no longer repeat the brand ("Polymaker PLA Pro White",
