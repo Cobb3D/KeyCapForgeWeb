@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/10/2026c**
+**Version 11/10/2026d**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026c.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026d.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2581,4 +2581,15 @@ first thing to check.
   " → closest IIID Max: <line> <name> (<hex>), <closeness> (ΔE n)".
   filamentLabel() appends it (export notice, Maker tools notes, the order
   email's filament list), and orderInfo's "Colors needed" lines too.
-
+- **3D emoji (11/10/2026d).** `emojiRelief(cap, settings)` in
+  keycapBuilder.js decides the relief: none (setting off, or a shine-through
+  legend), a low raised plaque for the simple shapes in `FLAT_RELIEF_EMOJI`,
+  or a rounded dome for everything else, which is also drawn at 0.8 of the
+  top width or more. rasterizeLegend() takes it as `relief` and builds the
+  top surface from a height per grid corner (distance from the outline,
+  quarter-circle profile, light blur), so colours share one continuous
+  surface. `printsFaceDown()` keeps those caps rim-down in exports, like
+  embossed ones. Emoji colours: a candidate that's a shade of a picked
+  colour (`shadeDist`, `sameHueShade`) or the thin blend band between two
+  (`blendOf`) joins it instead of taking a filament. Design codes: `e3`
+  (`emoji3D`), default off so older codes stay flat.

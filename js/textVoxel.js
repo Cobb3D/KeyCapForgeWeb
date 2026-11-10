@@ -37,6 +37,51 @@ const IMAGE_MIN_INTERIOR = 0.3;
 
 // Width / height of the ink of `text` in this font, measured the same way
 // rasterizeLegend draws it (same weight and style rules). Cached.
+// CIE Lab, for comparing colours the way they look rather than by raw RGB.
+function rgbToLab(r, g, b) {
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const R = lin(r), G = lin(g), B = lin(b);
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const x = f((0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047);
+  const y = f(0.2126 * R + 0.7152 * G + 0.0722 * B);
+  const z = f((0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+// How different two colours are, counting a difference in lightness for
+// less than a difference in hue. Shading on an emoji (the darker side of a
+// ball, a highlight) is the same colour lighter or darker, so this puts it
+// with its base colour, while a detail in another colour (dark lines, eyes,
+// a tongue) still stands apart.
+const SHADE_L_WEIGHT = 0.5;
+function shadeDist(a, b) {
+  const A = rgbToLab(a[0], a[1], a[2]), B = rgbToLab(b[0], b[1], b[2]);
+  return Math.hypot((A[0] - B[0]) * SHADE_L_WEIGHT, A[1] - B[1], A[2] - B[2]);
+}
+
+// A highlight (the same colour washed out toward white) differs from its
+// base mostly in strength of colour, which shadeDist counts in full. So two
+// colours of the same hue (within SAME_HUE_DEG) and not too far apart in
+// lightness are shades of each other too, as long as both are real colours
+// (greys have no hue to compare).
+const SAME_HUE_DEG = 12, SAME_HUE_MAX_DL = 30, MIN_CHROMA = 20;
+function sameHueShade(a, b) {
+  const A = rgbToLab(a[0], a[1], a[2]), B = rgbToLab(b[0], b[1], b[2]);
+  if (Math.hypot(A[1], A[2]) < MIN_CHROMA || Math.hypot(B[1], B[2]) < MIN_CHROMA) return false;
+  let dh = Math.abs(Math.atan2(A[2], A[1]) - Math.atan2(B[2], B[1])) * 180 / Math.PI;
+  if (dh > 180) dh = 360 - dh;
+  return dh < SAME_HUE_DEG && Math.abs(A[0] - B[0]) < SAME_HUE_MAX_DL;
+}
+// Whether colour p sits on the straight line between colours a and b: the
+// blend of the two that anti-aliasing leaves along their shared edge.
+function blendOf(p, a, b) {
+  const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
+  const len2 = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
+  if (len2 < 1) return false;
+  const t = (ap[0] * ab[0] + ap[1] * ab[1] + ap[2] * ab[2]) / len2;
+  if (t < 0.15 || t > 0.85) return false;
+  return Math.hypot(ap[0] - t * ab[0], ap[1] - t * ab[1], ap[2] - t * ab[2]) < 40;
+}
+
 const aspectCache = new Map();
 export function glyphAspect(text, { fontFamily, bold, italic }) {
   const weight = SINGLE_WEIGHT_FONTS.has(fontFamily) ? '400' : (bold ? '700' : '400');
@@ -54,7 +99,7 @@ export function glyphAspect(text, { fontFamily, bold, italic }) {
   return aspect;
 }
 
-export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null }) {
+export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null, relief = null }) {
   if (!text && !image) return [];
 
   const RES = 12; // canvas px per mm — plenty for a legend a few mm tall
@@ -250,9 +295,16 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
     const remaining = new Map(freq);
     const clusters = [];
     const MERGE_DIST = 70;
+    // Emoji only: a candidate colour that's a lighter or darker shade of a
+    // colour already picked (shadeDist under SHADE_DIST) doesn't become a
+    // colour of its own. It joins that colour (`shadeOf`), so shading
+    // prints as one flat colour and the slot it would have used stays free
+    // for a real detail colour. Imported logos keep their colours as drawn.
+    const SHADE_DIST = 18;
+    const shades = []; // { rgb, slot }: extra representatives of a slot
     let totalPx = 0;
     for (const c of freq.values()) totalPx += c;
-    while (clusters.length < 3 && remaining.size > 0) {
+    while (clusters.length < 3 && remaining.size > 0 && shades.length < 12) {
       let bestKey = null, bestCount = -1;
       for (const [k, c] of remaining) if (c > bestCount) { bestCount = c; bestKey = k; }
       const [r, g, b] = bestKey.split(',').map(Number);
@@ -265,7 +317,7 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
       // none of it is interior (with the same colour on all four sides),
       // while a real area mostly is. Rejected candidates are dropped and
       // the next one is tried.
-      if (image && clusters.length > 0) {
+      const thinBand = () => {
         const near = (px, py) => {
           if (px < 0 || py < 0 || px >= canvasW || py >= canvasH || !isInside(px, py)) return false;
           const [pr, pg, pb] = rgbAt(px, py);
@@ -277,15 +329,29 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
           members++;
           if (near(px - step, py) && near(px + step, py) && near(px, py - step) && near(px, py + step)) interior++;
         }
-        if (members < totalPx * 0.005 || interior < members * IMAGE_MIN_INTERIOR) {
-          for (const k of [...remaining.keys()]) {
-            const [kr, kg, kb] = k.split(',').map(Number);
-            if (Math.hypot(kr - r, kg - g, kb - b) < MERGE_DIST) remaining.delete(k);
-          }
-          continue;
+        return members < totalPx * 0.005 || interior < members * IMAGE_MIN_INTERIOR;
+      };
+      if (image && clusters.length > 0 && thinBand()) {
+        for (const k of [...remaining.keys()]) {
+          const [kr, kg, kb] = k.split(',').map(Number);
+          if (Math.hypot(kr - r, kg - g, kb - b) < MERGE_DIST) remaining.delete(k);
+        }
+        continue;
+      }
+      let shadeOf = image ? -1 : clusters.findIndex((c) => shadeDist(c, [r, g, b]) < SHADE_DIST || sameHueShade(c, [r, g, b]));
+      // Emoji: the thin band of blended pixels where two picked colours
+      // meet (the brown fringe along a basketball's black lines) isn't a
+      // colour either. It goes with whichever of the two it's nearer.
+      if (!image && shadeOf < 0 && clusters.length >= 2) {
+        let isBlend = false;
+        for (let i = 0; i < clusters.length && !isBlend; i++) for (let j = i + 1; j < clusters.length; j++) if (blendOf([r, g, b], clusters[i], clusters[j])) { isBlend = true; break; }
+        if (isBlend && thinBand()) {
+          let bd = Infinity;
+          clusters.forEach((c, i) => { const d = Math.hypot(c[0] - r, c[1] - g, c[2] - b); if (d < bd) { bd = d; shadeOf = i; } });
         }
       }
-      clusters.push([r, g, b]);
+      if (shadeOf >= 0) shades.push({ rgb: [r, g, b], slot: shadeOf });
+      else clusters.push([r, g, b]);
       for (const k of [...remaining.keys()]) {
         const [kr, kg, kb] = k.split(',').map(Number);
         if (Math.hypot(kr - r, kg - g, kb - b) < MERGE_DIST) remaining.delete(k);
@@ -300,6 +366,10 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
         const [cr, cg, cb] = slotColors[i];
         const d = Math.hypot(r - cr, g - cg, b - cb);
         if (d < bestD) { bestD = d; best = i; }
+      }
+      for (const sh of shades) {
+        const d = Math.hypot(r - sh.rgb[0], g - sh.rgb[1], b - sh.rgb[2]);
+        if (d < bestD) { bestD = d; best = sh.slot; }
       }
       return best;
     };
@@ -389,25 +459,33 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   // diagonal pair into a matched one, never the reverse, so the total
   // number of mismatches is strictly non-increasing and the loop
   // terminates as soon as a full pass makes no changes at all.
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let gy = 0; gy < gridH - 1; gy++) {
-      for (let gx = 0; gx < gridW - 1; gx++) {
-        const tl = slotGrid[gy * gridW + gx];
-        const tr = slotGrid[gy * gridW + (gx + 1)];
-        const bl = slotGrid[(gy + 1) * gridW + gx];
-        const br = slotGrid[(gy + 1) * gridW + (gx + 1)];
-        if (tl >= 0 && br >= 0 && tl === br && tr !== tl && bl !== tl) {
-          slotGrid[gy * gridW + (gx + 1)] = tl; // fill in the top-right bridge cell
-          changed = true;
-        } else if (tr >= 0 && bl >= 0 && tr === bl && tl !== tr && br !== tr) {
-          slotGrid[gy * gridW + gx] = tr; // fill in the top-left bridge cell
-          changed = true;
+  // The same goes for two filled cells of DIFFERENT colours that touch only
+  // at a corner, with the other two cells empty: each colour's own mesh is
+  // fine, but the pocket the cap body cuts for the legend follows the
+  // filled/empty outline, and gets four walls meeting on that one edge
+  // (found on 😴 🦀 🍟 🚀). One of the empty cells is filled too.
+  const fixDiagonals = () => {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let gy = 0; gy < gridH - 1; gy++) {
+        for (let gx = 0; gx < gridW - 1; gx++) {
+          const tl = slotGrid[gy * gridW + gx];
+          const tr = slotGrid[gy * gridW + (gx + 1)];
+          const bl = slotGrid[(gy + 1) * gridW + gx];
+          const br = slotGrid[(gy + 1) * gridW + (gx + 1)];
+          if (tl >= 0 && br >= 0 && ((tl === br && tr !== tl && bl !== tl) || (tr < 0 && bl < 0))) {
+            slotGrid[gy * gridW + (gx + 1)] = tl; // fill in the top-right bridge cell
+            changed = true;
+          } else if (tr >= 0 && bl >= 0 && ((tr === bl && tl !== tr && br !== tr) || (tl < 0 && br < 0))) {
+            slotGrid[gy * gridW + gx] = tr; // fill in the top-left bridge cell
+            changed = true;
+          }
         }
       }
     }
-  }
+  };
+  fixDiagonals();
 
   const gridSlotAt = (gx, gy) => (gx < 0 || gy < 0 || gx >= gridW || gy >= gridH) ? -1 : slotGrid[gy * gridW + gx];
 
@@ -506,9 +584,96 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
     }
   }
 
+  fixDiagonals(); // the clean-up above can leave new corner contacts
+
+  // Relief (3D emoji): instead of a flat top, the legend's top surface rises
+  // above `depth` by a height that depends on how far each point is from the
+  // legend's outline, so it stands proud of the cap. `relief` is
+  // { lift, rise, round }, in mm:
+  //   lift   the straight step up at the outline, the same all round
+  //   rise   how much higher than that the surface gets
+  //   round  true: the height keeps growing all the way to the middle of
+  //          the shape along a quarter-circle curve, so a ball becomes a
+  //          dome and an animal's head a pillow, its thin parts (ears, legs)
+  //          staying lower. false: the height is reached within
+  //          RELIEF_EDGE_MM of the outline and the rest is flat, a raised
+  //          plaque with a softened edge.
+  // Heights are held per grid CORNER, shared by the cells around it, so the
+  // top is one continuous surface across cells and across colours: cells of
+  // the same colour need no wall between them, and the wall between two
+  // colours has the same top edge on both sides. Corners on the outline sit
+  // at exactly `lift`. Measured from the whole silhouette, before the
+  // one-colour cut-outs become holes, so eyes and mouths don't dent it.
+  let cornerH = null;
+  if (relief) {
+    const RELIEF_EDGE_MM = 0.45;
+    const INF = 1e12;
+    // Exact squared distance (in cells) from each cell to the nearest cell
+    // outside the legend: Felzenszwalb & Huttenlocher's two-pass transform.
+    const d2 = new Float64Array(gridW * gridH);
+    for (let i = 0; i < d2.length; i++) d2[i] = slotGrid[i] < 0 ? 0 : INF;
+    const pass = (n, get, set) => {
+      const v = new Int32Array(n), z = new Float64Array(n + 1), f = new Float64Array(n);
+      for (let q = 0; q < n; q++) f[q] = get(q);
+      let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+      for (let q = 1; q < n; q++) {
+        let sx;
+        do { const pq = v[k]; sx = ((f[q] + q * q) - (f[pq] + pq * pq)) / (2 * q - 2 * pq); } while (sx <= z[k] && --k >= 0);
+        k++; v[k] = q; z[k] = sx; z[k + 1] = INF;
+      }
+      k = 0;
+      for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; set(q, (q - v[k]) * (q - v[k]) + f[v[k]]); }
+    };
+    // The canvas edge counts as outside too (a legend never touches it: pad).
+    for (let gx = 0; gx < gridW; gx++) pass(gridH, (q) => d2[q * gridW + gx], (q, val) => { d2[q * gridW + gx] = val; });
+    for (let gy = 0; gy < gridH; gy++) pass(gridW, (q) => d2[gy * gridW + q], (q, val) => { d2[gy * gridW + q] = val; });
+    let maxD = 0;
+    const dist = new Float64Array(gridW * gridH);
+    for (let i = 0; i < dist.length; i++) {
+      // -0.5: the nearest outside cell's edge, not its centre.
+      dist[i] = slotGrid[i] < 0 ? 0 : Math.max(0, Math.sqrt(Math.min(d2[i], INF)) - 0.5) * cellSizeMM;
+      if (dist[i] > maxD) maxD = dist[i];
+    }
+    const reach = relief.round ? Math.max(maxD, RELIEF_EDGE_MM) : RELIEF_EDGE_MM;
+    let h = new Float64Array(gridW * gridH);
+    for (let i = 0; i < h.length; i++) {
+      if (slotGrid[i] < 0) continue;
+      const t = Math.min(1, dist[i] / reach);
+      h[i] = relief.rise * Math.sqrt(1 - (1 - t) * (1 - t));
+    }
+    // A light blur takes the crease off the ridges where two slopes meet
+    // (down the middle of an ear or a leg).
+    const blurCells = Math.max(1, Math.round(0.15 / cellSizeMM));
+    for (let it = 0; it < 2; it++) {
+      const out = new Float64Array(h.length);
+      for (let gy = 0; gy < gridH; gy++) for (let gx = 0; gx < gridW; gx++) {
+        if (slotGrid[gy * gridW + gx] < 0) continue;
+        let sum = 0, n = 0;
+        for (let y = Math.max(0, gy - blurCells); y <= Math.min(gridH - 1, gy + blurCells); y++) {
+          for (let x = Math.max(0, gx - blurCells); x <= Math.min(gridW - 1, gx + blurCells); x++) { sum += h[y * gridW + x]; n++; }
+        }
+        out[gy * gridW + gx] = sum / n;
+      }
+      h = out;
+    }
+    cornerH = new Float64Array((gridW + 1) * (gridH + 1));
+    for (let cy = 0; cy <= gridH; cy++) for (let cx = 0; cx <= gridW; cx++) {
+      let sum = 0, edge = false;
+      for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) {
+        const gx = cx + dx, gy = cy + dy;
+        if (gx < 0 || gy < 0 || gx >= gridW || gy >= gridH || slotGrid[gy * gridW + gx] < 0) { edge = true; break; }
+        sum += h[gy * gridW + gx];
+      }
+      cornerH[cy * (gridW + 1) + cx] = relief.lift + (edge ? 0 : sum / 4);
+    }
+  }
+
   // One-colour emoji: the cut-outs, held as slot 1 through the clean-ups
   // above, become holes.
-  if (stencil) for (let i = 0; i < slotGrid.length; i++) if (slotGrid[i] === 1) slotGrid[i] = -1;
+  if (stencil) {
+    for (let i = 0; i < slotGrid.length; i++) if (slotGrid[i] === 1) slotGrid[i] = -1;
+    fixDiagonals();
+  }
 
   for (let gy = 0; gy < gridH; gy++) {
     for (let gx = 0; gx < gridW; gx++) {
@@ -545,12 +710,17 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
       // with holes and notches, and checking every edge is shared by
       // exactly 2 triangles — rather than trusting hand-derived reasoning
       // alone a third time.)
-      mesh.addQuad([x0, y0, depth], [x1, y0, depth], [x1, y1, depth], [x0, y1, depth]); // top
+      // Top heights at this cell's four corners: all `depth` for a flat
+      // legend, depth + the relief height for a 3D one. Named by mesh
+      // corner: y1 is the canvas row gy (upper), y0 the row gy + 1.
+      const zc = (cx, cy) => (cornerH ? depth + cornerH[cy * (gridW + 1) + cx] : depth);
+      const z00 = zc(gx, gy + 1), z10 = zc(gx + 1, gy + 1), z11 = zc(gx + 1, gy), z01 = zc(gx, gy);
+      mesh.addQuad([x0, y0, z00], [x1, y0, z10], [x1, y1, z11], [x0, y1, z01]); // top
       mesh.addQuad([x0, y1, 0], [x1, y1, 0], [x1, y0, 0], [x0, y0, 0]); // bottom
-      if (needsWall(gx - 1, gy)) mesh.addQuad([x0, y0, 0], [x0, y0, depth], [x0, y1, depth], [x0, y1, 0]); // -X
-      if (needsWall(gx + 1, gy)) mesh.addQuad([x1, y1, 0], [x1, y1, depth], [x1, y0, depth], [x1, y0, 0]); // +X
-      if (needsWall(gx, gy - 1)) mesh.addQuad([x0, y1, 0], [x0, y1, depth], [x1, y1, depth], [x1, y1, 0]); // faces py-step, at y1
-      if (needsWall(gx, gy + 1)) mesh.addQuad([x1, y0, 0], [x1, y0, depth], [x0, y0, depth], [x0, y0, 0]); // faces py+step, at y0
+      if (needsWall(gx - 1, gy)) mesh.addQuad([x0, y0, 0], [x0, y0, z00], [x0, y1, z01], [x0, y1, 0]); // -X
+      if (needsWall(gx + 1, gy)) mesh.addQuad([x1, y1, 0], [x1, y1, z11], [x1, y0, z10], [x1, y0, 0]); // +X
+      if (needsWall(gx, gy - 1)) mesh.addQuad([x0, y1, 0], [x0, y1, z01], [x1, y1, z11], [x1, y1, 0]); // faces py-step, at y1
+      if (needsWall(gx, gy + 1)) mesh.addQuad([x1, y0, 0], [x1, y0, z10], [x0, y0, z00], [x0, y0, 0]); // faces py+step, at y0
     }
   }
 
@@ -566,9 +736,14 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   // pocket in the cap exactly the legend's shape, so the two parts don't
   // overlap (slicers keep only one of two overlapping parts, and could drop
   // the legend). xAt/yAt accept grid lines just outside the grid too.
+  // How far the top rises above `depth` at its highest (0 for a flat legend).
+  let reliefHeight = 0;
+  if (cornerH) for (let i = 0; i < cornerH.length; i++) if (cornerH[i] > reliefHeight) reliefHeight = cornerH[i];
+  parts.reliefHeight = reliefHeight;
   parts.footprint = {
     gridW, gridH,
     filled: (gx, gy) => gridSlotAt(gx, gy) >= 0,
+    slotAt: gridSlotAt,
     xAt: (g) => ((g * step) / RES) * scale - meshWidth / 2,
     yAt: (g) => meshHeight / 2 - ((g * step) / RES) * scale,
   };

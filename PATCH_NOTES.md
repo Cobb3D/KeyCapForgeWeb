@@ -7,6 +7,32 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/10/2026d
+
+- **3D emoji.** Emoji now stand up from the cap's face instead of sitting
+  flush. Faces, animals, balls, food and the like are rounded: a basketball
+  is a dome, an animal's head is pillowed with its ears and legs lower, up
+  to 1.2mm above the face. Simple shapes (hearts, stars, the moon,
+  lightning, snowflake, sparkles, 100, notes, paw prints, confetti) are
+  raised 0.4mm with a softened edge. On by default; untick "3D emoji" in
+  the Text panel for flat emoji as before. Works with 1-color emoji too.
+  Shine-through emoji stay flat.
+- **Rounded emoji are bigger.** They fill at least 80% of the cap's top
+  width (letters stay at the Legend size setting, 62% by default).
+- **Caps with a 3D emoji print face-up.** Like embossed legends, they're
+  exported rim-down instead of flipped onto their face, since the emoji
+  stands above the face. Letter caps in the same set still print face-down.
+- **Shading removed from emoji.** A lighter or darker shade of a color the
+  emoji already uses (the shadow side of a ball, a highlight) now prints in
+  that color, and so does the thin blended fringe along dark lines. The
+  basketball is one orange plus its lines (it used to take a third, brown
+  filament for the fringe). The freed filament goes to a real detail where
+  there is one: the sheep gets its face, the cow its eyes.
+- **Design codes** carry the 3D emoji setting. Codes made before this
+  update open with flat emoji, as they were designed.
+- Fixed: on four emoji (sleeping face, crab, fries, rocket) the pocket in
+  the cap had one edge where two colors touched only at a corner.
+
 ## 11/10/2026c
 
 - **Closest IIID Max color for every other color.** When a design uses a

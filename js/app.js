@@ -1,5 +1,5 @@
 import { ensureThreeLoaded, Viewport, meshToObject3D } from './scene.js';
-import { buildKeycap } from './keycapBuilder.js';
+import { buildKeycap, printsFaceDown } from './keycapBuilder.js';
 import { buildBase, buildBaseParts, capCenters, maxSafeRecessDepth, baseExtentsFor } from './baseBuilder.js';
 import { Mesh } from './mesh.js';
 import { buildSwitchObject, MX_SWITCH } from './switchModel.js';
@@ -29,6 +29,9 @@ const settings = {
   // Emoji in their cap's legend colour, with dark details cut out, instead
   // of up to 3 of their own colours (the '1-color emoji' checkbox).
   emojiOneColor: false,
+  // Emoji stand proud of the cap's face, rounded (see emojiRelief in
+  // keycapBuilder.js). Off = flat and flush, as before 11/10/2026d.
+  emoji3D: true,
   stemCavityWidthMM: 4.2, stemCavityThicknessMM: 1.35, stemCavityDepthMM: 3.5,
   // Wall thickness of the stem boss, measured straight out from the end of
   // each cross arm. 0.65mm gives a 5.5mm-diameter boss (4.2mm cross +
@@ -664,6 +667,7 @@ async function main() {
   bindSlider('legendDepth', 'legendDepthMM', 'mm');
   bindSlider('legendSize', 'legendSizeFraction', '×', 2);
   document.getElementById('emojiOneColor').addEventListener('change', (e) => { settings.emojiOneColor = e.target.checked; rebuild(); });
+  document.getElementById('emoji3D').addEventListener('change', (e) => { settings.emoji3D = e.target.checked; rebuild(); });
   bindSlider('baseFootprint', 'baseFootprintMM', 'mm');
   bindSlider('baseOuterWall', 'baseOuterWallExtraMM', 'mm');
   bindSlider('keyClearance', 'keyClearanceMM', 'mm', 2);
@@ -835,7 +839,7 @@ async function main() {
       // needing support to bridge across. So an embossed cap stays
       // rim-down, unflipped, the same orientation as before this feature
       // existed and the same as the live preview.
-      const shouldFlip = cap.legendStyle !== 'embossed';
+      const shouldFlip = printsFaceDown(cap, settings);
       const orient = (mesh) => (shouldFlip ? mesh.flippedForPrint(settings.capHeightMM) : mesh);
       const flippedBody = orient(body);
       combined.append(flippedBody, x, y, 0);
@@ -1251,6 +1255,7 @@ async function main() {
       s.output.textContent = `${settings[s.key].toFixed(s.decimals)}${s.unit}`;
     }
     document.getElementById('emojiOneColor').checked = settings.emojiOneColor;
+    document.getElementById('emoji3D').checked = settings.emoji3D;
     document.getElementById('basePatternToggle').checked = settings.basePattern;
     document.getElementById('joinedBase').checked = settings.joinedBase;
     document.getElementById('verticalLayout').checked = settings.verticalLayout;

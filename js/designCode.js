@@ -35,6 +35,8 @@ const V1_SETTINGS = {
   baseShape: 'soft', keyringStyle: 'lug', keyringSide: 'top', keyringOuterMM: 10.7, keyringHoleMM: 6.6,
   baseColorHex: '#c92a2a', verticalLayout: true,
   basePattern: false, patternStyle: 'camo', patternMarks: ['#c2b280', '#5b4632', '#3b4a2a'],
+  // Added 11/10/2026d. Codes made before then have no 'e3' and mean flat.
+  emoji3D: false,
 };
 // Short key for each setting. Append only; never reuse or reorder.
 const SETTING_KEYS = {
@@ -49,6 +51,7 @@ const SETTING_KEYS = {
   baseShape: 'bs', keyringStyle: 'ks', keyringSide: 'kS', keyringOuterMM: 'ko', keyringHoleMM: 'kh',
   baseColorHex: 'bc', verticalLayout: 'vl',
   basePattern: 'bp', patternStyle: 'ps', patternMarks: 'pm',
+  emoji3D: 'e3',
 };
 
 const V1_FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];

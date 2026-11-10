@@ -244,9 +244,32 @@ function ringFaceBottomRim(outer, inner) {
 // the cap's own legendColorHex), but colorfulEmoji caps can come back with
 // up to 3, each already carrying its own detected color. See
 // rasterizeLegend() in textVoxel.js for how those colors get picked.
+// 3D emoji (the '3D emoji' setting, on by default): an emoji stands proud of
+// the cap's face instead of sitting flush. Simple shapes (hearts, stars, the
+// moon) are raised a little, with a softened edge. Everything else (faces,
+// animals, balls, food) is rounded like a dome or a pillow and drawn larger,
+// filling more of the face. A shine-through emoji stays flat: it sits under
+// the cap's top, where there's nothing to raise.
+const FLAT_RELIEF_EMOJI = new Set(['❤️', '❤', '💕', '💖', '💯', '🌙', '⭐', '⚡', '❄️', '❄', '🌟', '✨', '🎵', '🐾', '🎉', '🎊']);
+const ROUND_EMOJI_SIZE = 0.8; // of the cap's top width, at least
+export function emojiRelief(cap, settings) {
+  if (!cap.colorfulEmoji || !cap.text || settings.emoji3D === false || cap.legendStyle === 'shineThrough') return null;
+  if (FLAT_RELIEF_EMOJI.has(cap.text)) return { lift: 0.2, rise: 0.2, round: false };
+  return { lift: 0.2, rise: 1.0, round: true };
+}
+// Caps print top-face-down on the bed (the smoothest face) unless something
+// stands up from the face: an embossed legend or a 3D emoji. Those print
+// the right way up, rim on the bed.
+export function printsFaceDown(cap, settings) {
+  return cap.legendStyle !== 'embossed' && !emojiRelief(cap, settings);
+}
+
 function buildLegend(cap, settings, topZ) {
   if (!cap.text) return { parts: [], footprint: null };
-  const safeSize = settings.capTopWidthMM * settings.legendSizeFraction * legendFitFactor(cap.shape);
+  const relief = emojiRelief(cap, settings);
+  // Rounded 3D emoji fill more of the face than a letter does.
+  const sizeFraction = relief && relief.round ? Math.max(settings.legendSizeFraction, ROUND_EMOJI_SIZE) : settings.legendSizeFraction;
+  const safeSize = settings.capTopWidthMM * sizeFraction * legendFitFactor(cap.shape);
   // On a square cap a wide letter (W, M) may run wider than the legend
   // box, up to the flat part of the top (inside the top bevel) less 0.4mm
   // each side, so it keeps (about) the same height as the other letters
@@ -254,7 +277,7 @@ function buildLegend(cap, settings, topZ) {
   // their edges, so they keep the square box.
   const topBevel = Math.min(settings.topBevelMM, settings.capHeightMM * 0.3, settings.capTopWidthMM * 0.3);
   const flatTop = settings.capTopWidthMM - 2 * topBevel;
-  const maxWidth = cap.shape === 'square' || !cap.shape
+  const maxWidth = (cap.shape === 'square' || !cap.shape) && !relief
     ? Math.min(safeSize * 1.5, flatTop - 0.8)
     : safeSize;
   // Letters A-Z / a-z all get one height per font and case: the height the
@@ -290,6 +313,7 @@ function buildLegend(cap, settings, topZ) {
     targetWidth: safeSize, targetHeight, maxWidth, depth,
     colorful: !!cap.colorfulEmoji && !settings.emojiOneColor,
     stencil: !!cap.colorfulEmoji && !!settings.emojiOneColor,
+    relief,
   });
   return {
     parts: parts.map(({ mesh, colorHex }) => ({
