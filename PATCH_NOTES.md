@@ -7,6 +7,15 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/10/2026b
+
+- **Order emails say which color goes in each filament.** Send to Print
+  emails now start with "In Bambu Studio, set the filaments to:" and the
+  list for the attached file (Filament 1 = ..., 2 = ...), the same list
+  the app shows after an export. The 3MF only says which filament each
+  part uses, so Bambu Studio still opens it with its own filament colors;
+  set them from this list.
+
 ## 11/10/2026a
 
 - **Design code box in Maker tools.** "Open a design code" at the top of

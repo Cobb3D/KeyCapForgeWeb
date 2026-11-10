@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/10/2026a**
+**Version 11/10/2026b**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026b.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2567,4 +2567,9 @@ first thing to check.
   #makerDesignNote at the top of #makerPanel; app.js calls the same
   loadDesignCode() as the design code dialog and reports the result in
   the note (.ok / .error).
+
+- **Filament list in order emails.** deliver3mf() passes `filaments`
+  (filamentList of the exported objects) to capture3mf, so
+  liveState.make3mf() returns it with the file; printOrder.js puts it at
+  the top of the email summary. Tested for a letters and a logo order.
 

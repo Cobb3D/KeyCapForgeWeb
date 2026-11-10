@@ -889,7 +889,8 @@ async function main() {
   // export hands its 3MF to it instead of downloading (and skips the STL).
   let capture3mf = null;
   function deliver3mf(blob, name, objects = null) {
-    if (capture3mf) capture3mf({ blob, name });
+    // Send to Print gets the file's filament list too, for the order email.
+    if (capture3mf) capture3mf({ blob, name, filaments: objects ? filamentList(objects) : [] });
     else {
       downloadBlob(blob, name);
       if (objects) showFilamentNotice(objects);

@@ -82,7 +82,12 @@ export function initPrintOrder({ make3mf, orderInfo }) {
         website: trapEl ? trapEl.value : '',
         elapsedMs: Date.now() - openedAt,
         title: info.title || '',
-        summary: info.summary || '',
+        // Which colour goes in each filament comes first: the 3MF only says
+        // which filament each part uses, so Bambu Studio opens it with
+        // whatever colours its filaments already have.
+        summary: (file.filaments && file.filaments.length
+          ? `In Bambu Studio, set the filaments to:\n${file.filaments.map((f) => `  Filament ${f}`).join('\n')}\n\n`
+          : '') + (info.summary || ''),
         design: info.design || '',
         page: location.href,
         fileName: file.name,
