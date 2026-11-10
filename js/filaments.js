@@ -180,7 +180,80 @@ export function colorWord(hex) {
 // filament's name, or a plain colour word, with its hex.
 export function filamentLabel(hex) {
   const f = filamentFor(hex);
-  return f ? `${fullName(f)} (${f.hexes[0]})` : `${colorWord(hex)} (${String(hex).toLowerCase()})`;
+  const label = f ? `${fullName(f)} (${f.hexes[0]})` : `${colorWord(hex)} (${String(hex).toLowerCase()})`;
+  return label + iiidSuggestion(hex);
+}
+
+// ---------- Closest IIID Max colour ----------
+// Cobb3D prints with IIID Max, so any other colour (another brand's, or a
+// custom one) gets the nearest IIID Max filament, by CIEDE2000: the
+// standard measure of how different two colours look (about 1 = barely
+// visible side by side, 2-5 = noticeable up close, over 10 = clearly a
+// different colour).
+
+function toLab(hex) {
+  const h = String(hex).replace('#', '');
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(h.slice(i, i + 2), 16)));
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  const [fx, fy, fz] = [f(x), f(y), f(z)];
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+// CIEDE2000 colour difference (Sharma, Wu & Dalal 2005).
+export function deltaE2000(hexA, hexB) {
+  const [L1, a1, b1] = toLab(hexA), [L2, a2, b2] = toLab(hexB);
+  const rad = Math.PI / 180;
+  const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cm = (C1 + C2) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cm ** 7 / (Cm ** 7 + 25 ** 7)));
+  const a1p = (1 + G) * a1, a2p = (1 + G) * a2;
+  const C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+  const hp = (b, a) => (b === 0 && a === 0 ? 0 : (Math.atan2(b, a) / rad + 360) % 360);
+  const h1p = hp(b1, a1p), h2p = hp(b2, a2p);
+  const dLp = L2 - L1, dCp = C2p - C1p;
+  let dhp = 0;
+  if (C1p * C2p !== 0) { dhp = h2p - h1p; if (dhp > 180) dhp -= 360; else if (dhp < -180) dhp += 360; }
+  const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp / 2) * rad);
+  const Lpm = (L1 + L2) / 2, Cpm = (C1p + C2p) / 2;
+  let hpm = h1p + h2p;
+  if (C1p * C2p !== 0) {
+    if (Math.abs(h1p - h2p) <= 180) hpm = (h1p + h2p) / 2;
+    else hpm = h1p + h2p < 360 ? (h1p + h2p + 360) / 2 : (h1p + h2p - 360) / 2;
+  }
+  const T = 1 - 0.17 * Math.cos((hpm - 30) * rad) + 0.24 * Math.cos(2 * hpm * rad) + 0.32 * Math.cos((3 * hpm + 6) * rad) - 0.2 * Math.cos((4 * hpm - 63) * rad);
+  const dTheta = 30 * Math.exp(-(((hpm - 275) / 25) ** 2));
+  const Rc = 2 * Math.sqrt(Cpm ** 7 / (Cpm ** 7 + 25 ** 7));
+  const Sl = 1 + (0.015 * (Lpm - 50) ** 2) / Math.sqrt(20 + (Lpm - 50) ** 2);
+  const Sc = 1 + 0.045 * Cpm, Sh = 1 + 0.015 * Cpm * T;
+  const Rt = -Math.sin(2 * dTheta * rad) * Rc;
+  return Math.sqrt((dLp / Sl) ** 2 + (dCp / Sc) ** 2 + (dHp / Sh) ** 2 + Rt * (dCp / Sc) * (dHp / Sh));
+}
+
+const IIID_FILAMENTS = ALL.filter((f) => f.brand.id === 'iiidmax');
+
+// The nearest IIID Max filament to a colour: { filament, dE }.
+export function closestIIIDMax(hex) {
+  let best = null;
+  for (const f of IIID_FILAMENTS) {
+    const dE = deltaE2000(hex, f.hexes[0]);
+    if (!best || dE < best.dE) best = { filament: f, dE };
+  }
+  return best;
+}
+
+const closeness = (dE) => (dE < 1 ? 'same color' : dE < 3 ? 'very close' : dE < 6 ? 'close' : dE < 12 ? 'nearest, noticeably different' : 'nearest, but clearly different');
+
+// " → closest IIID Max: High Speed PLA+ Red (#c12e1f), close" for a colour
+// that isn't an IIID Max filament; '' for one that is.
+export function iiidSuggestion(hex) {
+  const f = filamentFor(hex);
+  if (f && f.brand.id === 'iiidmax') return '';
+  const m = closestIIIDMax(f ? f.hexes[0] : hex);
+  if (!m) return '';
+  return ` → closest IIID Max: ${m.filament.line} ${m.filament.name} (${m.filament.hexes[0]}), ${closeness(m.dE)} (ΔE ${m.dE.toFixed(1)})`;
 }
 
 // "Bambu Lab PLA Matte Charcoal (#000000)" for a filament colour, else

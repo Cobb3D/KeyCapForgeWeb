@@ -11,7 +11,7 @@ import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.j
 import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
 import { initPanelOrder } from './panelOrder.js';
-import { initFilamentPalette, describeColor, filamentLabel } from './filaments.js';
+import { initFilamentPalette, describeColor, filamentLabel, iiidSuggestion } from './filaments.js';
 import { encodeDesign, decodeDesign, findDesignCode } from './designCode.js';
 import { CHANNEL, initChannel, storeOrigin } from './channel.js';
 import { initPageTheme } from './pageTheme.js';
@@ -941,7 +941,7 @@ async function main() {
       ? [settings.logoCapColorHex, ...(settings.logoOneColor ? [settings.logoLegendColorHex] : [])]
       : caps.flatMap((c) => [c.bodyColorHex, ...(c.colorfulEmoji && !settings.emojiOneColor ? [] : [c.legendColorHex])]);
     used.push(settings.baseColorHex);
-    const colorsNeeded = [...new Set(used.map((h) => String(h).toLowerCase()))].map(describeColor);
+    const colorsNeeded = [...new Set(used.map((h) => String(h).toLowerCase()))].map((h) => describeColor(h) + iiidSuggestion(h));
     lines.push('', `Colors needed (${colorsNeeded.length}):`, ...colorsNeeded.map((d) => `  - ${d}`));
     return {
       title: mode === 'logo' ? 'logo clicker' : caps.map((c) => c.text).join(''),

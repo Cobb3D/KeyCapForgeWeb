@@ -7,6 +7,19 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/10/2026c
+
+- **Closest IIID Max color for every other color.** When a design uses a
+  Bambu Lab, Sunlu or Polymaker color, or a custom one, the order email
+  (its filament list and "Colors needed") and the filament list after an
+  export add the nearest IIID Max filament and how close it is, e.g.
+  "Sunlu PLA Cyan (#65fdfd) → closest IIID Max: High Speed PLA+ Matte
+  Glacier Blue (#85b9be), nearest, but clearly different (ΔE 17.4)".
+  Closeness is measured the way the eye sees it (CIEDE2000): under 1 the
+  same color, under 3 very close, under 6 close, under 12 noticeably
+  different, above that clearly different. IIID Max colors are shown as
+  they are.
+
 ## 11/10/2026b
 
 - **Order emails say which color goes in each filament.** Send to Print

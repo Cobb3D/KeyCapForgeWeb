@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/10/2026b**
+**Version 11/10/2026c**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026b.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026c.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2572,4 +2572,13 @@ first thing to check.
   (filamentList of the exported objects) to capture3mf, so
   liveState.make3mf() returns it with the file; printOrder.js puts it at
   the top of the email summary. Tested for a letters and a logo order.
+
+- **Closest IIID Max colour.** filaments.js `deltaE2000(a, b)` (sRGB ->
+  CIELAB D65, then CIEDE2000 per Sharma, Wu & Dalal 2005; matches all 10
+  of their published test pairs to 4 decimals), `closestIIIDMax(hex)`
+  over the IIID Max palette (by its published hexes), and
+  `iiidSuggestion(hex)`: '' for an IIID Max filament, else
+  " → closest IIID Max: <line> <name> (<hex>), <closeness> (ΔE n)".
+  filamentLabel() appends it (export notice, Maker tools notes, the order
+  email's filament list), and orderInfo's "Colors needed" lines too.
 
