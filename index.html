@@ -285,6 +285,12 @@
       <section class="panel letters-only" id="makerPanel" hidden>
         <h2>Maker tools</h2>
         <p class="hint">Batch-printing tools for makers: plates of bases and caps for printing stock ahead of orders. Opened from "Maker tools" at the bottom of the menu (or ?maker on the address); this browser remembers it.</p>
+        <div class="maker-code-box">
+          <label for="makerDesignCode" class="maker-label">Open a design code</label>
+          <textarea id="makerDesignCode" class="maker-code" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste the code from an Etsy order (KCF1-…). The whole personalization text is fine too."></textarea>
+          <button class="btn primary" id="makerDesignLoad" type="button">Open design</button>
+          <p class="hint" id="makerDesignNote" aria-live="polite">Rebuilds the buyer's design exactly: letters, fonts, colors, base and every setting. Then Export it as usual.</p>
+        </div>
         <div class="row maker-range">
           <label>Bases for</label>
           <input type="number" id="makerFrom" min="1" max="12" value="2"> to

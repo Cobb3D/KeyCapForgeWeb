@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Maker tools has an "Open a design code" box at the top: paste a code from an Etsy order and the design opens, ready to export',
   'New default cap size: 15.5mm top width and 11.8mm tall (was 13.5mm and 10mm)',
   'Every letter in a font is now the same height: W, M and other wide letters are no longer smaller than the rest',
   'Caps plates over more than one plate now download as one file per plate, each centered on its bed, instead of one file that landed off the plate in Bambu Studio',

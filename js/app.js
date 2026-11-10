@@ -1321,6 +1321,25 @@ async function main() {
     document.getElementById('designCodeClose').addEventListener('click', () => dialog.close());
   }
 
+  // Maker tools: the same, from a box in the panel.
+  {
+    const input = document.getElementById('makerDesignCode');
+    const note = document.getElementById('makerDesignNote');
+    const load = async () => {
+      note.className = 'hint';
+      try {
+        await loadDesignCode(input.value);
+        note.className = 'hint ok';
+        note.textContent = `Opened "${caps.map((c) => c.text).join('')}" (${caps.length} caps). Export it as usual.`;
+      } catch (err) {
+        note.className = 'hint error';
+        note.textContent = `Couldn't open it: ${err.message}.`;
+      }
+    };
+    document.getElementById('makerDesignLoad').addEventListener('click', load);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); load(); } });
+  }
+
   // Open a design from a code (every mode; how Cobb3D rebuilds an order).
   {
     const input = document.getElementById('designCodeInput');

@@ -7,6 +7,14 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/10/2026a
+
+- **Design code box in Maker tools.** "Open a design code" at the top of
+  the Maker tools panel: paste the code from an Etsy order (the whole
+  Personalization text is fine) and click **Open design** (or press
+  Enter). The design opens exactly as the buyer made it, ready to export.
+  The same thing still works from the Copy design code window.
+
 ## 11/7/2026a
 
 - **New default cap size:** Top width **15.5mm** (was 13.5) and Height

@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/7/2026a**
+**Version 11/10/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-7-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2562,4 +2562,9 @@ first thing to check.
   its frozen V1 defaults (13.5 / 10), so older codes rebuild unchanged and
   new codes carry the two values (a default design's code is now 61
   characters instead of 26).
+
+- **Maker tools design code box.** #makerDesignCode / #makerDesignLoad /
+  #makerDesignNote at the top of #makerPanel; app.js calls the same
+  loadDesignCode() as the design code dialog and reports the result in
+  the note (.ok / .error).
 
