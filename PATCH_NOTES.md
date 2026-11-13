@@ -7,6 +7,14 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/13/2026a
+
+- **Caps plates are grouped by letter.** In Maker tools, a plate of letter
+  caps now has all the A's next to each other, then all the B's, and so on
+  (front-left first, row by row), instead of A to Z repeated set after set.
+  Each letter comes off the bed as one block, so the caps are easier to
+  sort. The number of caps and sets per plate is unchanged.
+
 ## 11/10/2026d
 
 - **3D emoji.** Emoji now stand up from the cap's face instead of sitting

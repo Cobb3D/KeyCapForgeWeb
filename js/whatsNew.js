@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Maker tools caps plates are grouped by letter: all the A\'s together, then the B\'s, and so on, so they\'re easier to sort after printing',
   '3D emoji: emoji now stand up from the cap. Faces, animals and balls are rounded and bigger, simple shapes like hearts and stars are raised a little, and shading is gone so each prints in flat colors. Untick "3D emoji" for flat ones',
   'Maker tools has an "Open a design code" box at the top: paste a code from an Etsy order and the design opens, ready to export',
   'New default cap size: 15.5mm top width and 11.8mm tall (was 13.5mm and 10mm)',

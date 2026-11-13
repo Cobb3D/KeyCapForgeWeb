@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/10/2026d**
+**Version 11/13/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-10-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-13-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2593,3 +2593,6 @@ first thing to check.
   colour (`shadeDist`, `sameHueShade`) or the thin blend band between two
   (`blendOf`) joins it instead of taking a filament. Design codes: `e3`
   (`emoji3D`), default off so older codes stay flat.
+- **Caps plate order (11/13/2026a).** buildCapsPlate() fills each bed's
+  cells letter by letter (all copies of A, then B…), front-left first, row
+  by row, so a letter's copies sit together.

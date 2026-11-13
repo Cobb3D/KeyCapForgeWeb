@@ -1089,7 +1089,8 @@ async function main() {
   // Letter caps plate: full sets of `letters` (A..Z) on `plates` print
   // beds, `copies` of each letter in all (or as many as fit), shared out as
   // evenly as possible so each bed holds whole sets and can be printed on
-  // its own. Every cap is a copy of the first cap in the set (shape, font,
+  // its own, with each letter's copies next to each other (A's, then B's…).
+  // Every cap is a copy of the first cap in the set (shape, font,
   // legend style, colors) with its letter changed, oriented for printing
   // like the normal export (face down, except embossed). The back-right
   // corner of each bed is kept free for the prime tower.
@@ -1150,8 +1151,12 @@ async function main() {
     const plates_ = sets.map((n) => {
       const spots = new Map();
       let k = 0;
-      for (let s = 0; s < n; s++) {
-        for (const L of letters) {
+      // Letter by letter, not set by set: all of this bed's A's fill the
+      // next cells in a row (carrying on into the row behind when one
+      // runs out), then all the B's, and so on, so each letter comes off
+      // the bed as one block and the caps are easy to sort.
+      for (const L of letters) {
+        for (let s = 0; s < n; s++) {
           const cell = cells[k++];
           const it = built.get(L);
           if (!spots.has(L)) spots.set(L, []);
