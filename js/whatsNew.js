@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Maker tools: every export (base plate, caps plate, display piece) has a Preview button that shows it in the 3D view before you download anything',
   'Maker tools: Display piece. Blows a one-key keychain up to fill the print bed as two files (base and cap), with 5 real switches under the giant cap so it still presses. A logo image can go on the cap instead of the letter',
   'Maker tools caps plates are grouped by letter: all the A\'s together, then the B\'s, and so on, so they\'re easier to sort after printing',
   '3D emoji: emoji now stand up from the cap. Faces, animals and balls are rounded and bigger, simple shapes like hearts and stars are raised a little, and shading is gone so each prints in flat colors. Untick "3D emoji" for flat ones',

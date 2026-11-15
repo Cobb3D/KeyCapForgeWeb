@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/15/2026a**
+**Version 11/15/2026b**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026b.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2604,3 +2604,7 @@ first thing to check.
   pockets; buildKeycap (keycapBuilder.js) builds a thin shell with five
   `displayPost`s ending in real stem sockets. `cap.logoCanvas` puts a logo
   image on the face instead of the letter. Maker tools > Display piece.
+- **Maker previews (11/15/2026b).** `showMakerPreview(label, objects)` in
+  app.js puts a Maker tools export's objects in the 3D view in place of the
+  design (each Preview button, and after each export). rebuild() and
+  rebuildLogo() end it, as does "Back to the design".

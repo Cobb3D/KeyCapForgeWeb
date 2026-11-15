@@ -231,6 +231,7 @@ async function main() {
   }
 
   function rebuildLogo() {
+    endMakerPreview();
     const group = new THREE.Group();
     const r = logoBuild();
     if (r) {
@@ -308,6 +309,7 @@ async function main() {
   // slider fires many changes per second while being dragged.
   let logoRebuildTimer = null;
   function rebuild() {
+    endMakerPreview();
     if (mode === 'logo') {
       clearTimeout(logoRebuildTimer);
       logoRebuildTimer = setTimeout(rebuildLogo, 150);
@@ -1008,7 +1010,7 @@ async function main() {
         sel.appendChild(o);
       }
     }
-    document.getElementById('makerPlateBtn').addEventListener('click', async () => {
+    const basePlateFromForm = () => {
       let from = Math.round(Number(document.getElementById('makerFrom').value) || 2);
       let to = Math.round(Number(document.getElementById('makerTo').value) || 7);
       from = Math.max(1, Math.min(12, from)); to = Math.max(1, Math.min(12, to));
@@ -1017,11 +1019,26 @@ async function main() {
       const shapeOverride = shapeSel ? shapeSel.value : '';
       const themeId = document.getElementById('makerBasePattern').value;
       const plate = buildBasePlate(from, to, shapeOverride, themeId);
-      note.textContent = 'Building the plate…';
-      const blob = await deliverPlate(plate, `KeyCapForge_bases_${from}-${to}keys${shapeOverride ? '_' + shapeOverride : ''}${themeId ? '_' + themeId : ''}.3mf`);
       const fit = printBed && printBed.w ? (fitsOnBed(printBed, plate.w, plate.h) ? `fits on the ${printBed.name}` : `too big for the ${printBed.name}, try a smaller range`) : '';
       const themeName = themeId ? `, ${THEMES[themeId].name} theme` : '';
-      note.textContent = `Exported ${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}${themeName}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}. ${(blob.size / 1048576).toFixed(1)} MB. In Bambu Studio set filament ${blob.filaments.join(', ')}.`;
+      const what = `${to - from + 1} bases (${from} to ${to} keys, ${shapeOverride ? shapeSel.selectedOptions[0].textContent.toLowerCase() : 'Base & Fit shape'}${themeName}); the plate takes ${Math.ceil(plate.w)} × ${Math.ceil(plate.h)} mm${fit ? ', ' + fit : ''}`;
+      return { plate, what, from, to, shapeOverride, themeId };
+    };
+    const showBasePlate = (f) => showMakerPreview(`base plate, ${f.from} to ${f.to} keys`, f.plate.objects);
+    document.getElementById('makerPlatePreviewBtn').addEventListener('click', async () => {
+      note.textContent = 'Building the plate…';
+      await new Promise((r) => setTimeout(r, 30));
+      const f = basePlateFromForm();
+      showBasePlate(f);
+      note.textContent = `Preview: ${f.what}. Nothing downloaded yet.`;
+    });
+    document.getElementById('makerPlateBtn').addEventListener('click', async () => {
+      note.textContent = 'Building the plate…';
+      await new Promise((r) => setTimeout(r, 30));
+      const f = basePlateFromForm();
+      const blob = await deliverPlate(f.plate, `KeyCapForge_bases_${f.from}-${f.to}keys${f.shapeOverride ? '_' + f.shapeOverride : ''}${f.themeId ? '_' + f.themeId : ''}.3mf`);
+      showBasePlate(f);
+      note.textContent = `Exported ${f.what}. ${(blob.size / 1048576).toFixed(1)} MB. In Bambu Studio set filament ${blob.filaments.join(', ')}.`;
     });
   }
 
@@ -1084,6 +1101,43 @@ async function main() {
     blob.filaments = filamentList(limited);
     return blob;
   }
+  // ---------- Maker previews ----------
+  // Shows what a Maker tools export will contain in the 3D view, in place
+  // of the design: the plate as it will sit on the bed, or the display
+  // piece put together. `objects` are 3MF-style objects ({ mesh, colorHex,
+  // triangleColors, translation, instances }). Any change to the design
+  // rebuilds the normal preview, which takes the view back (see rebuild);
+  // so does "Back to the design".
+  let makerPreviewOn = false;
+  const makerPreviewBar = document.getElementById('makerPreviewBar');
+  function endMakerPreview() {
+    if (!makerPreviewOn) return;
+    makerPreviewOn = false;
+    makerPreviewBar.hidden = true;
+  }
+  function showMakerPreview(label, objects) {
+    const group = new THREE.Group();
+    for (const o of objects) {
+      const obj = meshToObject3D(THREE, o.mesh, o.colorHex, { decal: !!o.decal || /legend/.test(o.name || ''), triangleColors: o.triangleColors || null });
+      for (const t of (o.instances || [o.translation || [0, 0, 0]])) {
+        const copy = obj.clone();
+        copy.position.set(t[0], t[1], t[2]);
+        group.add(copy);
+      }
+    }
+    viewport.setModel(group);
+    applyViewModes();
+    viewport.frameToModel(true);
+    makerPreviewOn = true;
+    document.getElementById('makerPreviewLabel').textContent = `Previewing: ${label}.`;
+    makerPreviewBar.hidden = false;
+  }
+  document.getElementById('makerPreviewBack').addEventListener('click', (e) => {
+    e.preventDefault();
+    endMakerPreview();
+    if (mode === 'logo') rebuildLogo(); else rebuild();
+    viewport.frameToModel(true);
+  });
   function liveSettings() { return settings; }
   liveState.buildBasePlate = buildBasePlate;
 
@@ -1179,6 +1233,20 @@ async function main() {
   {
     const note = document.getElementById('makerCapsNote');
     const btn = document.getElementById('makerCapsBtn');
+    const showCapsPlate = (plate) => showMakerPreview(
+      `caps plate${plate.used > 1 ? ` 1 of ${plate.used}` : ''}, ${plate.sets[0]} of each letter`, plate.plateObjects[0]);
+    document.getElementById('makerCapsPreviewBtn').addEventListener('click', async () => {
+      const letters = document.getElementById('makerLetters').value;
+      const want = Math.round(Number(document.getElementById('makerCopies').value) || 0);
+      const platesWanted = Math.round(Number(document.getElementById('makerPlates').value) || 1);
+      note.textContent = 'Building the caps…';
+      await new Promise((r) => setTimeout(r, 30));
+      const plate = buildCapsPlate(letters, want > 0 ? Math.min(99, want) : 0, platesWanted);
+      if (!plate) { note.textContent = 'Type the letters to put on the plate first.'; return; }
+      if (!plate.placed) { note.textContent = `Not even one set fits: the ${plate.bed.name} bed has room for ${plate.perPlate} caps. Use fewer letters.`; return; }
+      showCapsPlate(plate);
+      note.textContent = `Preview: ${plate.placed} caps, ${plate.copies} of each letter, on ${plate.used} plate${plate.used === 1 ? '' : 's'} for the ${plate.bed.name}${plate.used > 1 ? ' (the first plate is shown; the others are laid out the same way)' : ''}. Nothing downloaded yet.`;
+    });
     btn.addEventListener('click', async () => {
       const letters = document.getElementById('makerLetters').value;
       const want = Math.round(Number(document.getElementById('makerCopies').value) || 0);
@@ -1207,6 +1275,7 @@ async function main() {
           // A short pause between downloads, so the browser takes each one.
           if (i < plate.plateObjects.length - 1) await new Promise((r) => setTimeout(r, 700));
         }
+        showCapsPlate(plate);
         const blob = { size: bytes };
         const perBed = plate.sets.map((n, i) => `plate ${i + 1}: ${plural(n, 'set')} (${n * set} caps)`).join(', ');
         const room = plate.copies < plate.maxCopies ? ` There's room for up to ${plate.setsPerBed} sets per plate (${plate.maxCopies} of each letter on ${plural(plate.plates, 'plate')}).` : ` That's as many as fit: ${plural(plate.setsPerBed, 'set')} per plate.`;
@@ -1252,15 +1321,38 @@ async function main() {
         logoState.textContent = err.message || String(err);
       }
     });
-    btn.addEventListener('click', async () => {
+    // The cap to blow up: the design's first key, with the logo if asked.
+    const displayCap = () => {
       let cap = caps[0];
-      if (!cap) { note.textContent = 'Add a key to the design first.'; return; }
-      const wantsLogo = legendSel.value === 'logo';
-      if (wantsLogo) {
+      if (!cap) { note.textContent = 'Add a key to the design first.'; return null; }
+      if (legendSel.value === 'logo') {
         const l = currentLogo();
-        if (!l) { note.textContent = 'Choose a logo image first.'; return; }
+        if (!l) { note.textContent = 'Choose a logo image first.'; return null; }
         cap = { ...cap, logoCanvas: l.canvas, colorfulEmoji: false };
       }
+      return cap;
+    };
+    const showDisplay = (piece) => showMakerPreview(`display piece at ${piece.scale.toFixed(1)}×, put together`, piece.assembled);
+    document.getElementById('makerDisplayPreviewBtn').addEventListener('click', async () => {
+      const cap = displayCap();
+      if (!cap) return;
+      const bed = printBed && printBed.w ? printBed : bedById(DEFAULT_PRINT_BED);
+      const want = Number(document.getElementById('makerDisplayScale').value) || 0;
+      note.textContent = 'Building the display piece…';
+      await new Promise((r) => setTimeout(r, 30));
+      try {
+        const piece = buildDisplayPiece(cap, settings, bed, want);
+        showDisplay(piece);
+        const f = piece.info, mm = (v) => Math.round(v);
+        note.textContent = `Preview at ${piece.scale.toFixed(1)}× for the ${bed.name}: base ${mm(f.baseW)} × ${mm(f.baseH)} mm, ${mm(f.baseZ)} mm tall; cap ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall, about ${Math.round(f.capGrams / 5) * 5} g. The bed outline is for scale: the base and the cap print separately. Nothing downloaded yet.`;
+      } catch (err) {
+        note.textContent = err && err.message ? err.message : 'The display piece could not be built.';
+      }
+    });
+    btn.addEventListener('click', async () => {
+      const cap = displayCap();
+      if (!cap) return;
+      const wantsLogo = legendSel.value === 'logo';
       const bed = printBed && printBed.w ? printBed : bedById(DEFAULT_PRINT_BED);
       const want = Number(document.getElementById('makerDisplayScale').value) || 0;
       btn.disabled = true;
@@ -1281,6 +1373,7 @@ async function main() {
           downloadBlob(blob, files[i][1]);
           if (i === 0) await new Promise((r) => setTimeout(r, 700)); // so the browser takes both
         }
+        showDisplay(piece);
         const f = piece.info, mm = (v) => Math.round(v);
         const capped = want > piece.maxScale + 0.05 ? ` (You asked for ${want}×; ${piece.maxScale.toFixed(1)}× is the most that fits the ${bed.name}.)` : '';
         note.textContent = `Exported ${wantsLogo ? 'the logo key' : `"${cap.text || 'blank'}"`} at ${piece.scale.toFixed(1)}× for the ${bed.name}, as two files.${capped} `

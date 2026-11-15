@@ -630,3 +630,14 @@ textarea.maker-code {
 #makerDesignNote.ok { color: var(--ok); }
 #makerDesignNote.error { color: var(--error); }
 @media (max-width: 820px) { textarea.maker-code { font-size: 16px; } }
+
+/* Maker tools: Preview + Export buttons side by side, and the bar over the
+   3D view while it shows a maker preview instead of the design. */
+.maker-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.maker-actions .btn.primary { flex: 1 1 auto; }
+.maker-preview-bar {
+  position: absolute; top: 72px; left: 50%; transform: translateX(-50%); z-index: 5;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; font-size: 12px; max-width: calc(100% - 24px); text-align: center;
+}
+.maker-preview-bar a { color: var(--accent-text); margin-left: 6px; white-space: nowrap; }

@@ -134,8 +134,15 @@ export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0) {
   const capGrams = (capVolume - postVolume * 0.5) * PLA_G_PER_MM3;
 
   const capBox = bbox(body);
+  // For the 3D preview: the two put together, the cap the right way up on
+  // its switches over the key's centre (the base is centred with its loop).
+  const restZ = one.baseThicknessMM * k + RIM_ABOVE_BASE_MM;
+  const assembled = baseObjects.concat(
+    [{ mesh: body, colorHex: cap.bodyColorHex, translation: [-cx, -cy, restZ] }],
+    legendParts.map((p) => ({ mesh: p.mesh, colorHex: p.colorHex, translation: [-cx, -cy, restZ], decal: true })),
+  );
   return {
-    scale: k, maxScale: max, base: baseObjects, cap: capObjects,
+    scale: k, maxScale: max, base: baseObjects, cap: capObjects, assembled,
     info: {
       baseW: whole.w, baseH: whole.h, baseZ: whole.z,
       capW: capBox.w, capH: capBox.h, capZ: capHeight,

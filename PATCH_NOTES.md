@@ -7,6 +7,20 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/15/2026b
+
+- **3D preview for every Maker tools export.** The base plate, the letter
+  caps plate and the display piece each have a Preview button next to
+  Export. It shows what the file will contain in the 3D view, on the print
+  bed outline, without downloading anything: the bases side by side with
+  their theme, the caps as they're laid out on the plate (the first plate,
+  when there are several), and the display piece put together with its cap
+  on. Exporting shows the same preview. A bar over the view says what's
+  being previewed; "Back to the design" (or any change to the design)
+  returns to the normal view.
+- Caps on a plate print face-down, so the preview shows their undersides;
+  each letter is drawn through the cap so you can tell them apart.
+
 ## 11/15/2026a
 
 - **Display piece (Maker tools).** Blows the first key of the current
