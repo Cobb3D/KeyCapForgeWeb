@@ -1,6 +1,7 @@
 import { Mesh, Polygon2D, loftShell, ringFace, ringFaceBetween, earClip, resamplePolygon } from './mesh.js';
 import { profileFor, regularPolygon, legendFitFactor } from './shapeProfiles.js';
 import { rasterizeLegend, glyphAspect } from './textVoxel.js';
+import { triangulate } from './logoVector.js';
 
 // The stem boss: the round post on the underside that holds the cross-
 // shaped socket. Its wall is stemBossWallMM thick, measured straight out
@@ -67,7 +68,10 @@ export function buildKeycap(cap, settings) {
   // through the boss wall. The ceiling ring is now built with
   // ringFaceBetween(), which doesn't need matching point counts.
   const bossOuterR = bossOuter;
-  const { mesh: bossMesh, ceilingBoundary } = stemBoss(settings, ceilingZ, bossOuterR, innerTop);
+  // A display piece (settings.display, see displayPiece.js) has several
+  // posts instead, one over each of its switches.
+  const posts = settings.display ? settings.display.stems.map((c) => displayPost(settings, ceilingZ, c)) : null;
+  const { mesh: bossMesh, ceilingBoundary } = posts ? { mesh: null, ceilingBoundary: null } : stemBoss(settings, ceilingZ, bossOuterR, innerTop);
 
   // Ceiling face closing the gap between the hollow cavity's own wall
   // (innerTop) and the stem boss's outer wall (bossOuter) at ceilingZ.
@@ -92,7 +96,14 @@ export function buildKeycap(cap, settings) {
   // points at matching angles, and point-for-point pairing folded this face
   // over itself (and reversed some of its triangles) for hexagon, octagon,
   // pentagon, star, and heart caps.
-  body.append(ringFaceBetween(innerTop, ceilingBoundary, ceilingZ, true));
+  if (posts) {
+    const ccw = (poly) => (poly.signedArea < 0 ? [...poly.points].reverse() : poly.points);
+    const tris = triangulate(ccw(innerTop), posts.map((q) => [...ccw(q.ceilingBoundary)].reverse()));
+    if (!tris) throw new Error('The display cap\'s ceiling could not be built');
+    for (const [a, b, c] of tris) body.addTriangle([a[0], a[1], ceilingZ], [c[0], c[1], ceilingZ], [b[0], b[1], ceilingZ]);
+  } else {
+    body.append(ringFaceBetween(innerTop, ceilingBoundary, ceilingZ, true));
+  }
 
   // Solid top cap — topRim, not topProfile, since the actual outer edge at
   // full height is the beveled (smaller) rim, not the un-beveled taper
@@ -124,7 +135,8 @@ export function buildKeycap(cap, settings) {
     }
   }
 
-  body.append(bossMesh);
+  if (posts) posts.forEach((q) => body.append(q.mesh));
+  else body.append(bossMesh);
 
   return { body, legendParts: legend.parts };
 }
@@ -254,8 +266,10 @@ const FLAT_RELIEF_EMOJI = new Set(['❤️', '❤', '💕', '💖', '💯', '�
 const ROUND_EMOJI_SIZE = 0.8; // of the cap's top width, at least
 export function emojiRelief(cap, settings) {
   if (!cap.colorfulEmoji || !cap.text || settings.emoji3D === false || cap.legendStyle === 'shineThrough') return null;
-  if (FLAT_RELIEF_EMOJI.has(cap.text)) return { lift: 0.2, rise: 0.2, round: false };
-  return { lift: 0.2, rise: 1.0, round: true };
+  // A display piece's relief is blown up with the rest of the cap.
+  const k = settings.display ? settings.display.scale : 1;
+  if (FLAT_RELIEF_EMOJI.has(cap.text)) return { lift: 0.2 * k, rise: 0.2 * k, round: false, edge: 0.45 * k };
+  return { lift: 0.2 * k, rise: 1.0 * k, round: true, edge: 0.45 * k };
 }
 // Caps print top-face-down on the bed (the smoothest face) unless something
 // stands up from the face: an embossed legend or a 3D emoji. Those print
@@ -264,9 +278,12 @@ export function printsFaceDown(cap, settings) {
   return cap.legendStyle !== 'embossed' && !emojiRelief(cap, settings);
 }
 
+// A display piece can carry a logo image instead of a letter
+// (cap.logoCanvas, from loadLogoFile): it fills this much of the top width.
+const LOGO_LEGEND_SIZE = 0.72;
 function buildLegend(cap, settings, topZ) {
-  if (!cap.text) return { parts: [], footprint: null };
-  const relief = emojiRelief(cap, settings);
+  if (!cap.text && !cap.logoCanvas) return { parts: [], footprint: null };
+  const relief = cap.logoCanvas ? null : emojiRelief(cap, settings);
   // Rounded 3D emoji fill more of the face than a letter does.
   const sizeFraction = relief && relief.round ? Math.max(settings.legendSizeFraction, ROUND_EMOJI_SIZE) : settings.legendSizeFraction;
   const safeSize = settings.capTopWidthMM * sizeFraction * legendFitFactor(cap.shape);
@@ -305,7 +322,12 @@ function buildLegend(cap, settings, topZ) {
   } else if (cap.legendStyle === 'shineThrough') baseZ = topZ - depth * 2;
   else baseZ = topZ; // embossed
 
-  const parts = rasterizeLegend(cap.text, {
+  const logoSize = settings.capTopWidthMM * LOGO_LEGEND_SIZE * legendFitFactor(cap.shape);
+  const parts = cap.logoCanvas ? rasterizeLegend('logo', {
+    // Up to 3 of the logo's own colours, like a logo clicker.
+    image: cap.logoCanvas, targetWidth: logoSize, targetHeight: logoSize, depth, colorful: true,
+    cells: settings.display ? settings.display.legendCells : 0,
+  }) : rasterizeLegend(cap.text, {
     fontFamily: cap.fontFamily, bold: cap.isBold, italic: cap.isItalic, underline: cap.isUnderline,
     // Emoji normally keep up to 3 of their own colours; with the one-colour
     // emoji setting they become a single part in the cap's legend colour,
@@ -314,6 +336,9 @@ function buildLegend(cap, settings, topZ) {
     colorful: !!cap.colorfulEmoji && !settings.emojiOneColor,
     stencil: !!cap.colorfulEmoji && !!settings.emojiOneColor,
     relief,
+    // A display piece's legend is many times the size, so it gets a finer
+    // grid (see `cells` in rasterizeLegend).
+    cells: settings.display ? settings.display.legendCells : 0,
   });
   return {
     parts: parts.map(({ mesh, colorHex }) => ({
@@ -491,6 +516,37 @@ export function stemBoss(settings, ceilingZ, bossOuter, innerTop) {
     }
   }
   return { mesh, ceilingBoundary };
+}
+
+// One of a display piece's posts: it hangs from the cap's ceiling down to
+// the rim plane (z = 0) over a switch at `center`. The bottom POST_TIP_MM
+// is a normal real-size stem boss with the cross socket in its end, since
+// that part slides down into the switch's housing when the key is pressed.
+// Above that it widens (45 degrees) to display.postRadius, thick enough to
+// print as a tall column and to carry the cap, and flares again where it
+// meets the ceiling. Returns { mesh, ceilingBoundary } like stemBoss.
+const POST_TIP_MM = 2.5; // of plain boss above the socket's roof
+function displayPost(settings, ceilingZ, [cx, cy]) {
+  const r0 = stemBossRadius(settings), R = Math.max(r0, settings.display.postRadius);
+  const depth = Math.min(settings.stemCavityDepthMM, ceilingZ);
+  const at = (r) => regularPolygon(STEM_BOSS_SIDES, r).translated(cx, cy);
+  const tipTop = Math.min(depth + POST_TIP_MM, ceilingZ);
+  const flareTop = Math.min(tipTop + (R - r0), ceilingZ);
+  const fillet = Math.min(R * 0.6, Math.max(0, ceilingZ - flareTop));
+  const filletStart = ceilingZ - fillet;
+  const rAtFlareTop = r0 + (flareTop - tipTop);
+  const mesh = new Mesh();
+  mesh.append(loftShell(at(r0), at(r0), 0, tipTop));
+  if (flareTop > tipTop + 1e-6) mesh.append(loftShell(at(r0), at(rAtFlareTop), tipTop, flareTop));
+  if (filletStart > flareTop + 1e-6) mesh.append(loftShell(at(rAtFlareTop), at(rAtFlareTop), flareTop, filletStart));
+  const top = fillet > 0.05 ? at(rAtFlareTop + fillet) : at(rAtFlareTop);
+  if (fillet > 0.05) mesh.append(loftShell(at(rAtFlareTop), top, filletStart, ceilingZ));
+  const cross = crossProfile(settings.stemCavityWidthMM, settings.stemCavityThicknessMM).translated(cx, cy);
+  mesh.append(ringFaceBetween(at(r0), cross, 0, true, [cx, cy]));
+  mesh.append(loftShell(cross, cross, 0, depth, true));
+  const { points, triangles } = earClip(cross);
+  for (const [ia, ib, ic] of triangles) mesh.addTriangle([points[ia][0], points[ia][1], depth], [points[ic][0], points[ic][1], depth], [points[ib][0], points[ib][1], depth]);
+  return { mesh, ceilingBoundary: top };
 }
 
 function crossProfile(armLength, armThickness) {

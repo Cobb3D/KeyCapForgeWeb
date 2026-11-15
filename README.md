@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/13/2026a**
+**Version 11/15/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-13-2026a.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2596,3 +2596,11 @@ first thing to check.
 - **Caps plate order (11/13/2026a).** buildCapsPlate() fills each bed's
   cells letter by letter (all copies of A, then B…), front-left first, row
   by row, so a letter's copies sit together.
+- **Display piece (11/15/2026a).** js/displayPiece.js: `buildDisplayPiece(cap,
+  settings, bed, scale)` builds the first key blown up to fill the bed as
+  two prints. `settings.display` switches the builders into display mode:
+  buildJoinedBlock (baseBuilder.js) scales the outline, rims, recess and
+  thickness but cuts a shallow recess whose floor holds five real switch
+  pockets; buildKeycap (keycapBuilder.js) builds a thin shell with five
+  `displayPost`s ending in real stem sockets. `cap.logoCanvas` puts a logo
+  image on the face instead of the letter. Maker tools > Display piece.

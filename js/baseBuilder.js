@@ -86,6 +86,9 @@ const SWITCH_POCKET_CLEARANCE_MM = 0.3;
 // the whole way, along one of its own straight edges.
 export function recessOutlineFor(shape, settings) {
   const capOutline = resamplePolygon(profileFor(shape, settings.capWidthMM + recessClearance(settings), settings.cornerRadiusMM), RESAMPLE_N);
+  // A display piece's recess is the cap's outline blown up; its real-size
+  // switches go in through the recess floor, well inside it.
+  if (settings.display) return capOutline;
   const pocketSize = SWITCH_HOUSING_MM + 2 * SWITCH_POCKET_CLEARANCE_MM;
   const pocket = resamplePolygon(roundedRect(pocketSize, pocketSize, 0.5), RESAMPLE_N);
 
@@ -374,7 +377,9 @@ function buildBaseInternal(caps, settings, wantParts) {
       anchorY = mid[1] + dir[1] * (tOut + reach);
       neck = reach + shapedOverlap;
     }
-    const lug = keyringFeature(settings, neck).rotatedZ(rotation).translated(anchorX, anchorY, 0);
+    let lug = keyringFeature(settings, neck).rotatedZ(rotation).translated(anchorX, anchorY, 0);
+    // Display piece: the loop is the normal one, blown up with the base.
+    if (settings.display) lug = lug.scaled(settings.display.scale);
     mesh.append(lug);
     parts.push({ mesh: lug, name: 'keyring' });
   }
@@ -441,7 +446,16 @@ export function switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ)
 //
 // Returns null if the top face can't be triangulated (never seen), so the
 // caller falls back to the per-key blocks.
+//
+// Display piece (settings.display, see displayPiece.js): everything above
+// is worked out at normal size, then the outline, rims, recess and
+// thickness are multiplied by display.scale. The switches stay real size:
+// the recess is display.recessDepth deep (just enough for the cap's 4mm of
+// travel), and its floor is the plate, with one real plate hole and shaft
+// for each of display.switches (offsets from the key's centre, in mm at
+// the blown-up size).
 function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, split = false) {
+  const D = settings.display || null;
   let bottomBevel = baseBottomBevelFor(settings);
   const xs = outer.points.map((p) => p[0]), ys = outer.points.map((p) => p[1]);
   const xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
@@ -457,7 +471,7 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, spli
     wallAtTop = Math.min(shaped.wall, shaped.maxBevel + 0.3);
     if (shaped.holes.length) bottomBevel = Math.min(bottomBevel, Math.max(0, wallAtTop - 0.3));
   }
-  const topBevel = Math.min(baseTopBevelFor(settings), Math.max(0, wallAtTop - 0.3));
+  let topBevel = Math.min(baseTopBevelFor(settings), Math.max(0, wallAtTop - 0.3));
   // The outer wall and its two bevel rims, as rounded rectangles with the
   // same corner points, so each rim lines up point for point with the wall.
   // (The rims are inset on every side, corners included; the corner radius
@@ -478,12 +492,23 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, spli
   // A shaped outline brings its own wall and rims (same point layout at
   // every inset; see baseShapes.js) and any through-hole (the tag's keyring
   // hole).
-  const out = shaped ? shaped.at(0) : densify(base0);
-  const topRim = shaped ? shaped.at(topBevel) : densify(ccw(rectAt(topBevel)));
-  const bottomRim = shaped ? shaped.at(bottomBevel) : densify(ccw(rectAt(bottomBevel)));
-  const throughHoles = shaped ? shaped.holes : [];
-  const { recessFloorZ, plateZ, floorZ } = baseStackFor(settings);
-  const recesses = recessesRaw.map(ccw);
+  let out = shaped ? shaped.at(0) : densify(base0);
+  let topRim = shaped ? shaped.at(topBevel) : densify(ccw(rectAt(topBevel)));
+  let bottomRim = shaped ? shaped.at(bottomBevel) : densify(ccw(rectAt(bottomBevel)));
+  let throughHoles = shaped ? shaped.holes : [];
+  let recesses = recessesRaw.map(ccw);
+  let stack = baseStackFor(settings);
+  const k = D ? D.scale : 1;
+  if (D) {
+    const big = (poly) => new Polygon2D(poly.points.map(([x, y]) => [x * k, y * k]));
+    out = big(out); topRim = big(topRim); bottomRim = big(bottomRim);
+    throughHoles = throughHoles.map(big); recesses = recesses.map(big);
+    thickness *= k; topBevel *= k; bottomBevel *= k;
+    const recessFloorZ = thickness - D.recessDepth;
+    const plateZ = recessFloorZ - settings.plateThicknessMM;
+    stack = { recessFloorZ, plateZ, floorZ: plateZ - settings.clearanceHeightMM };
+  }
+  const { recessFloorZ, plateZ, floorZ } = stack;
 
   const tris = triangulate(topRim.points, recesses.concat(throughHoles).map((r) => [...r.points].reverse()));
   if (!tris) return null;
@@ -539,19 +564,33 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, spli
     for (const h of throughHoles) mesh.append(loftShell(h, h, 0, thickness, true));
   }
 
+  let failed = false;
   cells.forEach(({ cx, cy }, i) => {
     const recessOutline = recesses[i];
-    const plateHole = resamplePolygon(roundedRect(settings.plateHoleMM, settings.plateHoleMM, 0.4), RESAMPLE_N).translated(cx, cy);
-    const clearanceHole = resamplePolygon(roundedRect(settings.clearanceMM, settings.clearanceMM, 0.6), RESAMPLE_N).translated(cx, cy);
+    // Where the switches go: the key's centre, or a display piece's five.
+    const pockets = D ? D.switches.map(([sx, sy]) => [cx * k + sx, cy * k + sy]) : [[cx, cy]];
+    const plateHoles = pockets.map(([px, py]) => resamplePolygon(roundedRect(settings.plateHoleMM, settings.plateHoleMM, 0.4), RESAMPLE_N).translated(px, py));
     mesh.append(loftShell(recessOutline, recessOutline, recessFloorZ, thickness, true));
-    mesh.append(ringFaceBetween(recessOutline, plateHole, recessFloorZ, false, [cx, cy]));
-    mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
-    mesh.append(switchShaftTop(clearanceHole, plateHole, cx, cy, floorZ, plateZ));
-    const { points, triangles } = earClip(clearanceHole);
-    for (const [a, b, c] of triangles) {
-      mesh.addTriangle([points[a][0], points[a][1], floorZ], [points[b][0], points[b][1], floorZ], [points[c][0], points[c][1], floorZ]);
+    if (pockets.length === 1) {
+      mesh.append(ringFaceBetween(recessOutline, plateHoles[0], recessFloorZ, false, pockets[0]));
+    } else {
+      // The recess floor with several plate holes in it.
+      const floorTris = triangulate(recessOutline.points, plateHoles.map((h) => [...ccw(h).points].reverse()));
+      if (!floorTris) { failed = true; return; }
+      for (const [a, b, c] of floorTris) mesh.addTriangle([a[0], a[1], recessFloorZ], [b[0], b[1], recessFloorZ], [c[0], c[1], recessFloorZ]);
     }
+    pockets.forEach(([px, py], j) => {
+      const plateHole = plateHoles[j];
+      const clearanceHole = resamplePolygon(roundedRect(settings.clearanceMM, settings.clearanceMM, 0.6), RESAMPLE_N).translated(px, py);
+      mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
+      mesh.append(switchShaftTop(clearanceHole, plateHole, px, py, floorZ, plateZ));
+      const { points, triangles } = earClip(clearanceHole);
+      for (const [a, b, c] of triangles) {
+        mesh.addTriangle([points[a][0], points[a][1], floorZ], [points[b][0], points[b][1], floorZ], [points[c][0], points[c][1], floorZ]);
+      }
+    });
   });
+  if (failed) return null;
   return doSplit ? { lower, upper: mesh } : mesh;
 }
 

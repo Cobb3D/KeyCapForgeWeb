@@ -7,6 +7,30 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/15/2026a
+
+- **Display piece (Maker tools).** Blows the first key of the current
+  design up to fill the print bed, as a working desk piece, and downloads
+  two files: one for the base, one for the cap. Leave Size empty for as big
+  as the bed fits (6.5x on a 256 mm bed at default sizes: base 159 x 247 mm
+  with its keyring loop and 113 mm tall, cap 117 mm square and 77 mm tall),
+  or type a smaller size.
+  - It takes 5 real switches: one in the middle and one toward each corner
+    of the cap, so the giant key is carried level and still presses. The
+    base's recess floor has five normal switch pockets; the cap has five
+    posts from its ceiling, each ending in a normal stem socket.
+  - The cap is a thin shell (1.2 mm walls, 2 mm top) rather than walls
+    blown up with the rest, to keep it light enough for the switches'
+    springs to hold up (about 75 g at 6.5x). The export note gives the
+    weight; use medium or heavy switches.
+  - The base's outline, thickness, bevels and keyring loop, and the cap's
+    outline, height and legend are all the normal design at the larger
+    size. The legend is built on a finer grid so its edges stay smooth.
+- **Logo on the display cap.** In Display piece, set "On the cap" to
+  "A logo" and choose an image: the logo goes in the center of the cap's
+  face (up to 3 of its colors) instead of the key's letter. If no image is
+  chosen there, the one loaded in Logo mode is used.
+
 ## 11/13/2026a
 
 - **Caps plates are grouped by letter.** In Maker tools, a plate of letter

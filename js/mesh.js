@@ -126,6 +126,28 @@ export class Mesh {
     return m;
   }
 
+  // The same shape, k times as big in every direction, about the origin.
+  scaled(k) {
+    const m = new Mesh();
+    for (let i = 0; i < this.vertices.length; i++) m.vertices.push(this.vertices[i] * k);
+    m.normals = this.normals.slice();
+    m.indices = this.indices.slice();
+    return m;
+  }
+
+  // Volume enclosed by a closed mesh, in cubic mm.
+  get volume() {
+    let v = 0;
+    const V = this.vertices, I = this.indices;
+    for (let i = 0; i < I.length; i += 3) {
+      const a = I[i] * 3, b = I[i + 1] * 3, c = I[i + 2] * 3;
+      v += V[a] * (V[b + 1] * V[c + 2] - V[b + 2] * V[c + 1])
+         - V[a + 1] * (V[b] * V[c + 2] - V[b + 2] * V[c])
+         + V[a + 2] * (V[b] * V[c + 1] - V[b + 1] * V[c]);
+    }
+    return Math.abs(v) / 6;
+  }
+
   // A true 180° rotation around a line parallel to X, through Y=0 and
   // Z=capHeight/2 — not a mirror. Remaps Z from [0, capHeight] back into
   // [0, capHeight] with top and bottom swapped, and negates Y to match (a

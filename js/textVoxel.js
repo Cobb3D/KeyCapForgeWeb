@@ -99,7 +99,7 @@ export function glyphAspect(text, { fontFamily, bold, italic }) {
   return aspect;
 }
 
-export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null, relief = null }) {
+export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null, relief = null, cells = 0 }) {
   if (!text && !image) return [];
 
   const RES = 12; // canvas px per mm — plenty for a legend a few mm tall
@@ -122,7 +122,9 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
     const probe = document.createElement('canvas').getContext('2d');
     weight = SINGLE_WEIGHT_FONTS.has(fontFamily) ? '400' : (bold ? '700' : '400');
     styleStr = italic ? 'italic' : 'normal';
-    const sizePx = 200;
+    // Drawn at 200px, or larger when more cells are asked for, so there's
+    // more than a pixel per cell.
+    const sizePx = cells > 160 ? Math.round(200 * cells / 160) : 200;
     probe.font = `${styleStr} ${weight} ${sizePx}px "${fontFamily}"`;
     const metrics = probe.measureText(text);
     const textWidthPx = Math.max(metrics.width, 1);
@@ -239,7 +241,9 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   // a 10mm cap). An imported logo can be 50mm across, where 160 cells would
   // be 0.3mm each, too coarse for fine lettering, so images get enough
   // cells for about 0.15mm, up to 340 across.
-  const targetCellsPerAxis = image ? Math.max(160, Math.min(340, Math.round(Math.max(targetWidth, targetHeight) / 0.15))) : 160;
+  // `cells` asks for a set number instead (a display piece's legend is
+  // 100mm or more across).
+  const targetCellsPerAxis = cells || (image ? Math.max(160, Math.min(340, Math.round(Math.max(targetWidth, targetHeight) / 0.15))) : 160);
   const step = Math.max(1, Math.round(Math.max(canvasW, canvasH) / targetCellsPerAxis));
 
   if (window.showDiag) {
@@ -606,7 +610,7 @@ export function rasterizeLegend(text, { fontFamily, bold, italic, underline, tar
   // one-colour cut-outs become holes, so eyes and mouths don't dent it.
   let cornerH = null;
   if (relief) {
-    const RELIEF_EDGE_MM = 0.45;
+    const RELIEF_EDGE_MM = relief.edge ?? 0.45;
     const INF = 1e12;
     // Exact squared distance (in cells) from each cell to the nearest cell
     // outside the legend: Felzenszwalb & Huttenlocher's two-pass transform.

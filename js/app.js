@@ -8,6 +8,7 @@ import { buildThreeMF, buildThreeMFCompressed, limitDistinctColors, filamentColo
 import { initBugReport, APP_NAME } from './bugReport.js';
 import { initPrintOrder } from './printOrder.js';
 import { PRINT_BEDS, bedById, fitsOnBed, DEFAULT_PRINT_BED } from './printBeds.js';
+import { buildDisplayPiece } from './displayPiece.js';
 import { initWhatsNew } from './whatsNew.js';
 import { initCollapsiblePanels } from './collapsible.js';
 import { initPanelOrder } from './panelOrder.js';
@@ -1212,6 +1213,83 @@ async function main() {
         const capped = want > plate.maxCopies ? ` (You asked for ${want}; only ${plate.maxCopies} fit.)` : '';
         const arrange = plate.used > 1 ? ` Downloaded as ${plate.used} files, one per plate (…plate1of${plate.used}, …plate2of${plate.used}…); open each in its own Bambu Studio plate or project. If your browser asks whether to allow several downloads, say yes.` : '';
         note.textContent = `Exported ${plate.placed} caps, ${plate.copies} of each letter, for the ${plate.bed.name}: ${perBed}.${capped}${room} ${(blob.size / 1048576).toFixed(1)} MB.${arrange} In Bambu Studio set filament ${capsFilaments.join(', ')}.`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Display piece: the first key of the design, blown up to fill the bed,
+  // as one 3MF for the base and one for the cap (see displayPiece.js).
+  {
+    const note = document.getElementById('makerDisplayNote');
+    const btn = document.getElementById('makerDisplayBtn');
+    // A logo for the cap's face instead of the letter. Its own image, or
+    // (if none is chosen here) the one loaded in Logo mode.
+    const legendSel = document.getElementById('makerDisplayLegend');
+    const logoRow = document.getElementById('makerDisplayLogoRow');
+    const logoPick = document.getElementById('makerDisplayLogoFile');
+    const logoState = document.getElementById('makerDisplayLogoStatus');
+    let displayLogo = null;
+    const currentLogo = () => displayLogo || (logo && logo.canvas ? logo : null);
+    const syncLogoRow = () => {
+      logoRow.hidden = legendSel.value !== 'logo';
+      const l = currentLogo();
+      logoState.textContent = l ? (l === displayLogo ? l.name : `${l.name} (from Logo mode)`) : 'No image chosen';
+    };
+    legendSel.addEventListener('change', syncLogoRow);
+    document.getElementById('makerDisplayLogoBtn').addEventListener('click', () => logoPick.click());
+    logoPick.addEventListener('change', async () => {
+      const file = logoPick.files && logoPick.files[0];
+      logoPick.value = '';
+      if (!file) return;
+      logoState.textContent = 'Reading the image…';
+      try {
+        const { canvas } = await loadLogoFile(file);
+        displayLogo = { canvas, name: file.name };
+        syncLogoRow();
+      } catch (err) {
+        logoState.textContent = err.message || String(err);
+      }
+    });
+    btn.addEventListener('click', async () => {
+      let cap = caps[0];
+      if (!cap) { note.textContent = 'Add a key to the design first.'; return; }
+      const wantsLogo = legendSel.value === 'logo';
+      if (wantsLogo) {
+        const l = currentLogo();
+        if (!l) { note.textContent = 'Choose a logo image first.'; return; }
+        cap = { ...cap, logoCanvas: l.canvas, colorfulEmoji: false };
+      }
+      const bed = printBed && printBed.w ? printBed : bedById(DEFAULT_PRINT_BED);
+      const want = Number(document.getElementById('makerDisplayScale').value) || 0;
+      btn.disabled = true;
+      note.textContent = 'Building the display piece…';
+      await new Promise((r) => setTimeout(r, 30)); // let the note show
+      try {
+        const piece = buildDisplayPiece(cap, settings, bed, want);
+        const tag = `${piece.scale.toFixed(1).replace('.', '_')}x`;
+        const name = wantsLogo ? 'logo' : (exportFileBaseName().slice(0, 12) || 'key');
+        const files = [[piece.base, `KeyCapForge_display_${name}_${tag}_base.3mf`], [piece.cap, `KeyCapForge_display_${name}_${tag}_cap.3mf`]];
+        let bytes = 0;
+        const filaments = [];
+        for (let i = 0; i < files.length; i++) {
+          const limited = limitDistinctColors(files[i][0], 4);
+          const blob = await buildThreeMFCompressed(limited.map((o) => ({ ...o, mesh: o.mesh.welded() })), `${APP_NAME} by Cobb3D`);
+          bytes += blob.size;
+          filaments.push(filamentList(limited).join(', '));
+          downloadBlob(blob, files[i][1]);
+          if (i === 0) await new Promise((r) => setTimeout(r, 700)); // so the browser takes both
+        }
+        const f = piece.info, mm = (v) => Math.round(v);
+        const capped = want > piece.maxScale + 0.05 ? ` (You asked for ${want}×; ${piece.maxScale.toFixed(1)}× is the most that fits the ${bed.name}.)` : '';
+        note.textContent = `Exported ${wantsLogo ? 'the logo key' : `"${cap.text || 'blank'}"`} at ${piece.scale.toFixed(1)}× for the ${bed.name}, as two files.${capped} `
+          + `Base: ${mm(f.baseW)} × ${mm(f.baseH)} mm, ${mm(f.baseZ)} mm tall. `
+          + `Cap: ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall, about ${Math.round(f.capGrams / 5) * 5} g in PLA; it prints ${f.faceDown ? 'face-down' : 'face-up (it needs supports inside)'}. `
+          + `Takes ${f.switches} switches: the middle, and ${f.cornerOffset.toFixed(1)} mm out toward each corner. Their springs carry the cap, so use medium or heavy switches (5 light ones hold up roughly 150 g). `
+          + `${(bytes / 1048576).toFixed(1)} MB. In Bambu Studio set filament: base ${filaments[0]}; cap ${filaments[1]}. If your browser asks whether to allow several downloads, say yes.`;
+      } catch (err) {
+        note.textContent = err && err.message ? err.message : 'The display piece could not be built.';
       } finally {
         btn.disabled = false;
       }
