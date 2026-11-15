@@ -347,6 +347,13 @@
           <span>× (empty = as big as the bed fits)</span>
         </div>
         <div class="row maker-range">
+          <label for="makerDisplaySwitches">Switches</label>
+          <select id="makerDisplaySwitches">
+            <option value="9" selected>9: heavy-duty cap (for events)</option>
+            <option value="5">5: lighter cap</option>
+          </select>
+        </div>
+        <div class="row maker-range">
           <label for="makerDisplayLegend">On the cap</label>
           <select id="makerDisplayLegend">
             <option value="letter" selected>The key's letter or emoji</option>
@@ -362,7 +369,7 @@
           <button class="btn ghost" id="makerDisplayPreviewBtn" type="button">Preview</button>
           <button class="btn primary" id="makerDisplayBtn" type="button">Export display piece (2 × 3MF)</button>
         </div>
-        <p class="hint" id="makerDisplayNote">The first key of the current design, blown up to fill the print bed picked above the view, as two files: the base and the cap. It takes 5 real switches, one under each corner of the cap and one in the middle, so the giant key still presses. Pick "A logo" to put a logo image in the center of the cap instead of the letter (up to 3 of its colors).</p>
+        <p class="hint" id="makerDisplayNote">The first key of the current design, blown up to fill the print bed picked above the view, as two files: the base and the cap. It takes 9 or 5 real switches under the cap (the middle, the corners and, with 9, the sides), so the giant key still presses. The cap lands on the base at the end of its travel, so a hard hit goes into the base, not the switches. Their springs hold the cap up: 9 carry a thicker, tougher cap. Pick "A logo" to put a logo image in the center of the cap instead of the letter (up to 3 of its colors).</p>
         <a href="#" id="makerHide" class="maker-hide">Hide maker tools in this browser</a>
       </section>
 

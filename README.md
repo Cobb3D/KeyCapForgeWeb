@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/15/2026b**
+**Version 11/15/2026c**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026b.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026c.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2608,3 +2608,9 @@ first thing to check.
   app.js puts a Maker tools export's objects in the 3D view in place of the
   design (each Preview button, and after each export). rebuild() and
   rebuildLogo() end it, as does "Back to the design".
+- **Display piece, built to be hit (11/15/2026c).** See the notes at the
+  top of js/displayPiece.js: 9 or 5 switches (`DISPLAY_PRESETS`), the
+  cap's rim and four `displayStop` pillars land on the recess floor before
+  the switches bottom out, each switch sits in a well in that floor, the
+  recess walls are 0.6 mm from the cap, and `info.capGrams` /
+  `info.holdGrams` compare the cap's weight with what the springs hold.

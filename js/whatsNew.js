@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Display piece is built to be hit: the cap lands on the base before the switches bottom out, the recess keeps it from being knocked sideways, and it takes 9 switches (or 5) with the cap\'s weight checked against what their springs hold',
   'Maker tools: every export (base plate, caps plate, display piece) has a Preview button that shows it in the 3D view before you download anything',
   'Maker tools: Display piece. Blows a one-key keychain up to fill the print bed as two files (base and cap), with 5 real switches under the giant cap so it still presses. A logo image can go on the cap instead of the letter',
   'Maker tools caps plates are grouped by letter: all the A\'s together, then the B\'s, and so on, so they\'re easier to sort after printing',

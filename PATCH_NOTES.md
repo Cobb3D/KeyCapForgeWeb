@@ -7,6 +7,33 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/15/2026c
+
+Display piece: reworked so it can be hit at events, and checked against a
+slicer and Cherry's switch data.
+
+- **A hit no longer goes through the switches.** After 3.4 mm of travel
+  the cap's rim and four round pillars inside it land on the base, just
+  before the switches reach the end of their own 4 mm. The posts and
+  switches then only ever carry the springs' force (about 1 N each),
+  however hard the cap is hit. Each switch now sits in its own well in the
+  recess floor so that floor can be the landing surface.
+- **The cap can't be knocked sideways.** It rests 1.5 mm inside the
+  recess, and the recess walls are 0.6 mm from it (the gap used to be the
+  normal one blown up, about 3 mm).
+- **9 switches by default, 5 as an option.** A switch's spring holds up
+  30 cN before the key moves (Cherry MX2A Red, Black and Brown; MX Green
+  and Grey are 25 cN), so 5 switches hold 153 g and 9 hold 275 g. With 9
+  the cap gets 2 mm walls, a 3 mm top and stiffening fins; with 5 it stays
+  a 1.2 mm shell.
+- **Weights from a slicer** (PrusaSlicer 2.7.4, 0.2 mm layers, 3 walls,
+  12% gyroid, PLA) at 6.5x: 9-switch cap 177 g (64% of what its switches
+  hold), 5-switch cap 112 g (73%), base 608 g. The export and preview
+  notes now give the cap's weight next to what the switches hold, and say
+  when it is too close.
+- Fixed: the cap's cavity came out through the big top bevel, and its rim
+  bevel was wider than its wall. The cavity now follows the bevel.
+
 ## 11/15/2026b
 
 - **3D preview for every Maker tools export.** The base plate, the letter

@@ -1,41 +1,71 @@
 // Display piece: a one-key keychain blown up to fill a print bed, as a
-// working desk piece. Two prints, the base and the cap.
+// working desk piece people can hit. Two prints, the base and the cap.
 //
 // Everything you see is the normal design multiplied by `scale`: the
 // base's outline, thickness, bevels and keyring loop, and the cap's
 // outline, height and legend. What isn't scaled is everything that has to
-// fit real MX switches, five of them (one under each corner of the cap and
-// one in the middle) so a cap that size is carried level and doesn't tip
-// when pressed off-centre:
+// fit real MX switches, 9 or 5 of them (the middle, one toward each
+// corner, and with 9 one toward each side), so a cap that size is carried
+// level and doesn't tip when pressed off-centre.
 //
-//   base  The recess is the cap's blown-up outline, but only deep enough
-//         for the cap's 4mm of travel. Its floor is the switch plate, with
-//         five real plate holes and switch shafts (see buildJoinedBlock in
-//         baseBuilder.js).
-//   cap   A thin shell (SHELL_WALL_MM walls, SHELL_TOP_MM top), not walls
-//         blown up with everything else: the springs of five switches hold
-//         up roughly 150-250g, and a 10mm-thick wall would weigh more than
-//         that. Five posts hang from its ceiling to the rim, each ending in
-//         a real stem socket (see displayPost in keycapBuilder.js).
+//   base  The recess is the cap's outline plus a small real gap
+//         (SIDE_CLEARANCE_MM), so its walls keep the cap from being
+//         knocked sideways on the switches. Its floor is where the cap
+//         lands at the end of its travel. Each switch sits in a well in
+//         that floor, on a real plate hole and switch shaft (see
+//         buildJoinedBlock in baseBuilder.js).
+//   cap   A thin shell, not walls blown up with everything else: the
+//         switches' springs have to hold it up (see below). A post hangs
+//         from the ceiling over each switch, ending in a real stem socket
+//         (displayPost in keycapBuilder.js), and fins between the posts
+//         stiffen the top (displayFin).
 //
-// Heights: an unpressed switch's stem tops out 11.6mm above the plate, and
-// the cap's socket is stemCavityDepthMM deep from its rim, so the rim rests
-// 11.6 - depth above the plate. The plate is put RIM_ABOVE_BASE_MM less
-// than that below the base's top, so the cap's rim sits just above the top
-// of the base, as on the real keychain, and sinks into the recess when
-// pressed.
+// Hits. Pressed STOP_TRAVEL_MM, the cap's rim and four round stop pillars
+// (displayStop) land on the recess floor, just before the switches reach the end
+// of their own travel. So however hard the cap is hit, the posts and the
+// switches only ever carry the springs' force (about 1 N each); the hit
+// goes through the rim and the stops into the base.
+//
+// Weight. A switch's spring pushes up with its "initial force" before the
+// key moves: 30 cN for Cherry MX2A Red, Black and Brown (25 cN for MX Green
+// and Grey), from Cherry's data sheets. So 5 switches hold up 150 cN, 153
+// grams, and 9 hold 275 g; a heavier cap sinks. Sliced in PrusaSlicer 2.7.4
+// (0.2mm layers, 3 walls, 12% gyroid, PLA at 1.24 g/cm3) at 6.5x: the 5-switch
+// cap is 112 g and the 9-switch one 177 g, 73% and 64% of what their
+// switches hold; the base is 608 g. `info.capGrams` estimates this from
+// the mesh for other sizes (CAP_WEIGHT_FIT, within about 8% of the slicer).
+//
+// Heights, from the cap's rim at rest: RIM_BELOW_TOP_MM inside the recess,
+// STOP_TRAVEL_MM above the recess floor, and (stem top 11.6 - socket
+// depth) above the plate at the bottom of each well.
 import { buildBaseParts, buildBase } from './baseBuilder.js';
 import { buildKeycap, printsFaceDown } from './keycapBuilder.js';
 import { profileFor } from './shapeProfiles.js';
 import { MX_SWITCH } from './switchModel.js';
 
-export const DISPLAY_SWITCHES = 5;
-const SHELL_WALL_MM = 1.2, SHELL_TOP_MM = 2.0, LEGEND_DEPTH_MM = 0.8;
-const RIM_ABOVE_BASE_MM = 0.5;
+// The cap's shell and stiffening (mm) for each number of switches: more
+// switches hold up a heavier cap, so 9 get thicker walls, top and fins.
+export const DISPLAY_PRESETS = {
+  9: { switches: 9, wall: 2.0, top: 3.0, finT: 2.0, finDepth: 15, stopR: 5 },
+  5: { switches: 5, wall: 1.2, top: 2.0, finT: 0, finDepth: 15, stopR: 4 },
+};
+export const DISPLAY_DEFAULTS = DISPLAY_PRESETS[9];
+const LEGEND_DEPTH_MM = 0.8;
+// The cap's rim rests this far inside the recess, so the recess walls
+// (SIDE_CLEARANCE_MM from the cap) stop it being knocked sideways.
+const RIM_BELOW_TOP_MM = 1.5, SIDE_CLEARANCE_MM = 0.6;
+// The rim and the stops land on the recess floor after this much
+// travel, a little before a switch reaches the end of its own 4mm
+// (3.6mm at the short end of Cherry's tolerance).
+const STOP_TRAVEL_MM = 3.4;
+const WELL_MM = 16.6;          // the square well each switch sits in
 const BED_MARGIN_MM = 8;       // spare room on the bed, in all
 const MAX_PRINT_HEIGHT_MM = 240;
 const PLA_G_PER_MM3 = 0.00124;
-const SWITCH_SHAFT_HALF_MM = 7.9; // half the switch shaft's width
+const POST_FILL = 0.7, CAP_WEIGHT_FIT = 1.08;
+// What one MX switch's spring pushes up with before the key moves:
+// Cherry's "initial force", 30 cN for MX2A Red, Black and Brown.
+const SWITCH_INITIAL_CN = 30;
 
 function bbox(mesh) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z1 = -Infinity;
@@ -77,11 +107,12 @@ export function maxDisplayScale(cap, settings, bed) {
 }
 
 // `cap` may carry logoCanvas (an imported logo image) to put a logo on the
-// cap's face instead of its letter.
+// cap's face instead of its letter. `opts.switches` is 5 or 9.
 // Builds both prints. Returns { scale, base: [objects], cap: [objects],
 // info }, the objects ready for buildThreeMF, each print centred on the
 // origin. Throws an Error with a plain-words message if it can't be built.
-export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0) {
+export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0, opts = {}) {
+  const o = { ...(DISPLAY_PRESETS[opts.switches] || DISPLAY_DEFAULTS), ...opts };
   const one = oneKey(settings);
   const max = maxDisplayScale(cap, settings, bed);
   const k = scaleWanted > 0 ? Math.min(scaleWanted, max) : Math.floor(max * 10) / 10;
@@ -92,51 +123,93 @@ export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0) {
   const capSettings = {
     ...one,
     capWidthMM: one.capWidthMM * k, capTopWidthMM: one.capTopWidthMM * k, capHeightMM: one.capHeightMM * k,
-    cornerRadiusMM: one.cornerRadiusMM * k, topBevelMM: one.topBevelMM * k, bottomBevelMM: one.bottomBevelMM * k,
-    wallThicknessMM: SHELL_WALL_MM, topThicknessMM: SHELL_TOP_MM,
+    cornerRadiusMM: one.cornerRadiusMM * k, topBevelMM: one.topBevelMM * k,
+    // The rim's bevel stays inside the thin wall.
+    bottomBevelMM: Math.min(one.bottomBevelMM * k, o.wall * 0.5),
+    wallThicknessMM: o.wall, topThicknessMM: o.top,
     // An engraved legend is a real-size inlay; an embossed one stands up
     // from the face, so its height is blown up with the cap.
     legendDepthMM: cap.legendStyle === 'embossed' ? one.legendDepthMM * k : LEGEND_DEPTH_MM,
   };
-  // Where the corner switches go: as far out toward the corners as a post
-  // fits against the ceiling and a switch fits inside the cap's walls.
-  const innerBottom = profileFor(cap.shape, capSettings.capWidthMM, capSettings.cornerRadiusMM).insetApprox(SHELL_WALL_MM);
-  const innerTop = profileFor(cap.shape, capSettings.capTopWidthMM, capSettings.cornerRadiusMM * (capSettings.capTopWidthMM / capSettings.capWidthMM)).insetApprox(SHELL_WALL_MM);
-  const postRoom = postRadius * 1.6 + 1.5, switchRoom = SWITCH_SHAFT_HALF_MM * Math.SQRT2 + 1.5;
+  const capHeight = capSettings.capHeightMM;
+  // The cavity's outline at the rim and at the ceiling, as buildKeycap
+  // makes them (the ceiling's follows the top bevel when that's deeper
+  // than the top is thick).
+  const topBevel = Math.min(capSettings.topBevelMM, capHeight * 0.3, capSettings.capTopWidthMM * 0.3);
+  const ceilingZ = capHeight - Math.max(o.top, (cap.legendStyle === 'shineThrough' ? 2 : cap.legendStyle === 'embossed' ? 0 : 1) * capSettings.legendDepthMM + 0.4);
+  const followsBevel = capHeight - topBevel - 0.41 * o.wall < ceilingZ - 0.01;
+  const topProfile = profileFor(cap.shape, capSettings.capTopWidthMM, capSettings.cornerRadiusMM * (capSettings.capTopWidthMM / capSettings.capWidthMM));
+  const innerBottom = profileFor(cap.shape, capSettings.capWidthMM, capSettings.cornerRadiusMM).insetApprox(o.wall);
+  const innerTop = topProfile.insetApprox(followsBevel ? topBevel - (capHeight - ceilingZ) + 1.41 * o.wall : o.wall);
+  // Where the outer switches go: as far out toward the corners as a post
+  // fits against the ceiling and a switch's well fits inside the cap's rim.
+  const postRoom = postRadius * 1.6 + 1.5, switchRoom = (WELL_MM / 2) * Math.SQRT2 + 1.5;
   const fits = (d) => [[d, d], [-d, d], [-d, -d], [d, -d]].every(([x, y]) => circleInside(innerTop, x, y, postRoom) && circleInside(innerBottom, x, y, switchRoom));
   let d = capSettings.capTopWidthMM / 2;
   while (d > 0 && !fits(d)) d -= 0.25;
-  // The corner switches' shafts must also stay clear of the middle one's.
-  const minD = 2 * SWITCH_SHAFT_HALF_MM + 2;
+  // The outer switches' wells must also stay clear of the middle one's.
+  const minD = WELL_MM + 3;
   if (d < minD) throw new Error(`At ${k.toFixed(1)} times size this cap shape has no room for a switch under each corner. Try a bigger print bed or a square cap.`);
-  const spots = [[0, 0], [d, d], [-d, d], [-d, -d], [d, -d]];
-  capSettings.display = { scale: k, stems: spots, postRadius, legendCells: 400 };
-
-  const { body, legendParts } = buildKeycap(cap, capSettings);
-  const capHeight = capSettings.capHeightMM;
+  const nine = o.switches === 9;
+  const spots = [[0, 0], [d, d], [-d, d], [-d, -d], [d, -d]].concat(nine ? [[d, 0], [0, d], [-d, 0], [0, -d]] : []);
+  // Between the posts, four stops (round pillars that land on the base at
+  // the end of the travel) just outside the middle switch, and beyond each
+  // a stiffening fin under the ceiling: along the axes for 5 switches,
+  // along the diagonals (between the middle and corner switches) for 9,
+  // where the axes have switches on them.
+  const dirs = nine ? [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([x, y]) => [x * Math.SQRT1_2, y * Math.SQRT1_2]) : [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  const stopAt = (WELL_MM / 2) * (nine ? Math.SQRT2 : 1) + 2 + o.stopR * 1.6;
+  const finStart = stopAt + o.stopR * 1.6 + 1.5;
+  const stops = o.stopR > 0 ? dirs.map(([ux, uy]) => ({ c: [ux * stopAt, uy * stopAt], r: o.stopR })) : [];
+  const fins = [];
+  if (o.finT > 0) {
+    for (const [ux, uy] of dirs) {
+      let end = nine ? d * Math.SQRT2 - (WELL_MM / 2) * Math.SQRT2 - 2.5 : capSettings.capTopWidthMM / 2;
+      while (end > finStart + 6 && !circleInside(innerTop, ux * end, uy * end, o.finT / 2 + 1.5)) end -= 0.5;
+      if (end > finStart + 6) fins.push({ a: [ux * finStart, uy * finStart], b: [ux * end, uy * end], t: o.finT, depth: o.finDepth });
+    }
+  }
+  if (stops.some((q) => !circleInside(innerTop, q.c[0], q.c[1], q.r * 1.6 + 1))) stops.length = 0;
+  // If the ceiling can't be built around everything (an odd cap shape),
+  // leave out the fins, then the stops; the rim still lands on the base.
+  let built = null;
+  for (const drop of [0, 1, 2]) {
+    if (drop >= 1) fins.length = 0;
+    if (drop >= 2) stops.length = 0;
+    capSettings.display = { scale: k, stems: spots, postRadius, fins, stops, legendCells: 400 };
+    try { built = buildKeycap(cap, capSettings); break; } catch (err) { if (drop === 2) throw err; }
+  }
+  const { body, legendParts } = built;
   const faceDown = printsFaceDown(cap, capSettings);
   const orient = (m) => (faceDown ? m.flippedForPrint(capHeight) : m);
   const capObjects = [{ mesh: orient(body), colorHex: cap.bodyColorHex, name: 'cap_body', group: 'cap', translation: [0, 0, 0] }]
     .concat(legendParts.map((p, j) => ({ mesh: orient(p.mesh), colorHex: p.colorHex, name: `cap_legend_${j}`, group: 'cap', translation: [0, 0, 0] })));
 
-  // The base.
-  const recessDepth = MX_SWITCH.stemTopAbovePlate - Math.min(one.stemCavityDepthMM, capHeight) - RIM_ABOVE_BASE_MM;
-  const baseSettings = { ...one, display: { scale: k, switches: spots, recessDepth } };
+  // The base. Heights, from the cap's rim at rest: the rim sits
+  // RIM_BELOW_TOP_MM inside the recess, STOP_TRAVEL_MM above the recess
+  // floor it lands on, and (stem top - socket depth) above the plate, which
+  // puts the plate at the bottom of a well under each switch.
+  const rimAbovePlate = MX_SWITCH.stemTopAbovePlate - Math.min(one.stemCavityDepthMM, capHeight);
+  const baseSettings = { ...one, display: {
+    scale: k, switches: spots, sideClearance: SIDE_CLEARANCE_MM,
+    recessDepth: RIM_BELOW_TOP_MM + STOP_TRAVEL_MM, wellDepth: rimAbovePlate - STOP_TRAVEL_MM, wellSize: WELL_MM,
+  } };
   const parts = buildBaseParts([cap], baseSettings);
   const whole = bbox({ vertices: parts.flatMap((p) => p.mesh.vertices) });
   const cx = (whole.x0 + whole.x1) / 2, cy = (whole.y0 + whole.y1) / 2;
   const baseObjects = parts.map((p) => ({ mesh: p.mesh, colorHex: settings.baseColorHex, name: p.name, group: 'base', translation: [-cx, -cy, 0] }));
 
-  // Roughly what the cap weighs printed in PLA: the shell prints solid,
-  // the posts mostly hollow (counted at half).
-  const postVolume = spots.length * Math.PI * postRadius * postRadius * Math.max(0, capHeight - SHELL_TOP_MM - 6);
-  const capVolume = body.volume + legendParts.reduce((s, p) => s + p.mesh.volume, 0);
-  const capGrams = (capVolume - postVolume * 0.5) * PLA_G_PER_MM3;
+  // What the cap weighs printed in PLA, and what the switches can hold
+  // (see Weight at the top of this file).
+  const postVolume = (spots.length * postRadius * postRadius + stops.length * o.stopR * o.stopR) * Math.PI * Math.max(0, capHeight - o.top - 6);
+  const capVolume = body.volume + legendParts.reduce((sum, p) => sum + p.mesh.volume, 0);
+  const capGrams = (capVolume - postVolume * (1 - POST_FILL)) * PLA_G_PER_MM3 * CAP_WEIGHT_FIT;
+  const holdGrams = spots.length * SWITCH_INITIAL_CN / 0.980665;
 
   const capBox = bbox(body);
   // For the 3D preview: the two put together, the cap the right way up on
   // its switches over the key's centre (the base is centred with its loop).
-  const restZ = one.baseThicknessMM * k + RIM_ABOVE_BASE_MM;
+  const restZ = one.baseThicknessMM * k - RIM_BELOW_TOP_MM;
   const assembled = baseObjects.concat(
     [{ mesh: body, colorHex: cap.bodyColorHex, translation: [-cx, -cy, restZ] }],
     legendParts.map((p) => ({ mesh: p.mesh, colorHex: p.colorHex, translation: [-cx, -cy, restZ], decal: true })),
@@ -146,7 +219,7 @@ export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0) {
     info: {
       baseW: whole.w, baseH: whole.h, baseZ: whole.z,
       capW: capBox.w, capH: capBox.h, capZ: capHeight,
-      capGrams, faceDown, switches: spots.length, cornerOffset: d,
+      capGrams, holdGrams, faceDown, switches: spots.length, cornerOffset: d, fins: fins.length, stops: stops.length,
     },
   };
 }

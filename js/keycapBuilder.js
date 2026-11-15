@@ -47,7 +47,7 @@ export function buildKeycap(cap, settings) {
   body.append(loftShell(topProfile, topRim, height - topBevel, height));
 
   const innerBottom = bottomProfile.insetApprox(settings.wallThicknessMM);
-  const innerTop = topProfile.insetApprox(settings.wallThicknessMM);
+  let innerTop = topProfile.insetApprox(settings.wallThicknessMM);
   // Solid top ("crown") above the hollow interior: topThicknessMM, default
   // 1.5mm. It used to be half the legend depth, 0.3mm at defaults, one or
   // two printed layers. It's never allowed thinner than the legend needs
@@ -56,7 +56,21 @@ export function buildKeycap(cap, settings) {
   const legendNeeds = (cap.legendStyle === 'shineThrough' ? 2 : cap.legendStyle === 'embossed' ? 0 : 1) * settings.legendDepthMM;
   const topThickness = Math.max(settings.topThicknessMM ?? 1.5, legendNeeds + 0.4);
   const ceilingZ = Math.max(1.0, height - topThickness);
-  body.append(loftShell(innerBottom, innerTop, 0, ceilingZ, true));
+  // Where the top bevel is deeper than the top is thick (a display piece:
+  // its bevel is blown up, its shell isn't), a straight cavity wall would
+  // come out through the bevel. The cavity then follows the bevel instead,
+  // one wall thickness inside it: straight up to bevelZ, then sloping in to
+  // the ceiling.
+  const wall = settings.wallThicknessMM;
+  const bevelZ = height - topBevel - 0.41 * wall;
+  if (bevelZ < ceilingZ - 0.01 && bevelZ > 0.5) {
+    const innerAtBevel = innerTop;
+    innerTop = topProfile.insetApprox(topBevel - topThickness + 1.41 * wall);
+    body.append(loftShell(innerBottom, innerAtBevel, 0, bevelZ, true));
+    body.append(loftShell(innerAtBevel, innerTop, bevelZ, ceilingZ, true));
+  } else {
+    body.append(loftShell(innerBottom, innerTop, 0, ceilingZ, true));
+  }
   body.append(ringFaceBottomRim(bottomRim, innerBottom));
 
   const bossOuter = regularPolygon(STEM_BOSS_SIDES, stemBossRadius(settings));
@@ -70,7 +84,9 @@ export function buildKeycap(cap, settings) {
   const bossOuterR = bossOuter;
   // A display piece (settings.display, see displayPiece.js) has several
   // posts instead, one over each of its switches.
-  const posts = settings.display ? settings.display.stems.map((c) => displayPost(settings, ceilingZ, c)) : null;
+  const posts = settings.display
+    ? settings.display.stems.map((c) => displayPost(settings, ceilingZ, c)).concat((settings.display.fins || []).map((f) => displayFin(f, ceilingZ)), (settings.display.stops || []).map((q) => displayStop(q, ceilingZ)))
+    : null;
   const { mesh: bossMesh, ceilingBoundary } = posts ? { mesh: null, ceilingBoundary: null } : stemBoss(settings, ceilingZ, bossOuterR, innerTop);
 
   // Ceiling face closing the gap between the hollow cavity's own wall
@@ -546,6 +562,40 @@ function displayPost(settings, ceilingZ, [cx, cy]) {
   mesh.append(loftShell(cross, cross, 0, depth, true));
   const { points, triangles } = earClip(cross);
   for (const [ia, ib, ic] of triangles) mesh.addTriangle([points[ia][0], points[ia][1], depth], [points[ic][0], points[ic][1], depth], [points[ib][0], points[ib][1], depth]);
+  return { mesh, ceilingBoundary: top };
+}
+
+// One of a display piece's stiffening fins: a thin wall under the ceiling
+// between the posts, `fin` = { a: [x, y], b: [x, y], t, depth }, running
+// from a to b, t thick and `depth` tall. It stiffens the top against a hit
+// between the posts. Returns { mesh, ceilingBoundary } like a post.
+function displayFin(fin, ceilingZ) {
+  const [ax, ay] = fin.a, [bx, by] = fin.b;
+  const len = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / len, uy = (by - ay) / len;
+  const nx = -uy * fin.t / 2, ny = ux * fin.t / 2;
+  const outline = new Polygon2D([[ax - nx, ay - ny], [bx - nx, by - ny], [bx + nx, by + ny], [ax + nx, ay + ny]]);
+  const z0 = Math.max(0, ceilingZ - fin.depth);
+  const mesh = loftShell(outline, outline, z0, ceilingZ);
+  const { points, triangles } = earClip(outline);
+  for (const [ia, ib, ic] of triangles) mesh.addTriangle([points[ia][0], points[ia][1], z0], [points[ic][0], points[ic][1], z0], [points[ib][0], points[ib][1], z0]);
+  return { mesh, ceilingBoundary: outline };
+}
+
+// One of a display piece's stops: a plain round pillar from the ceiling
+// down to the rim plane (z = 0), `stop` = { c: [x, y], r }, flaring where
+// it meets the ceiling. When the cap is pressed to the end of its travel
+// the stops land on the base together with the rim, so a hard hit goes
+// into the base and not through the switches. Round and r wide so it
+// doesn't buckle: a thin wall that tall would fold under a few kilos.
+function displayStop(stop, ceilingZ) {
+  const [cx, cy] = stop.c;
+  const at = (r) => regularPolygon(STEM_BOSS_SIDES, r).translated(cx, cy);
+  const fillet = Math.min(stop.r * 0.6, ceilingZ / 2);
+  const mesh = loftShell(at(stop.r), at(stop.r), 0, ceilingZ - fillet);
+  const top = at(stop.r + fillet);
+  mesh.append(loftShell(at(stop.r), top, ceilingZ - fillet, ceilingZ));
+  const { points, triangles } = earClip(at(stop.r));
+  for (const [ia, ib, ic] of triangles) mesh.addTriangle([points[ia][0], points[ia][1], 0], [points[ic][0], points[ic][1], 0], [points[ib][0], points[ib][1], 0]);
   return { mesh, ceilingBoundary: top };
 }
 

@@ -87,8 +87,14 @@ const SWITCH_POCKET_CLEARANCE_MM = 0.3;
 export function recessOutlineFor(shape, settings) {
   const capOutline = resamplePolygon(profileFor(shape, settings.capWidthMM + recessClearance(settings), settings.cornerRadiusMM), RESAMPLE_N);
   // A display piece's recess is the cap's outline blown up; its real-size
-  // switches go in through the recess floor, well inside it.
-  if (settings.display) return capOutline;
+  // switches go in through the recess floor, well inside it. The gap to the
+  // cap is a real one (display.sideClearance mm at full size), not the
+  // normal gap blown up, so the recess walls keep the cap from being
+  // knocked sideways on its switches.
+  if (settings.display) {
+    const D = settings.display;
+    return resamplePolygon(profileFor(shape, settings.capWidthMM + 2 * D.sideClearance / D.scale, settings.cornerRadiusMM), RESAMPLE_N);
+  }
   const pocketSize = SWITCH_HOUSING_MM + 2 * SWITCH_POCKET_CLEARANCE_MM;
   const pocket = resamplePolygon(roundedRect(pocketSize, pocketSize, 0.5), RESAMPLE_N);
 
@@ -504,9 +510,13 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, spli
     out = big(out); topRim = big(topRim); bottomRim = big(bottomRim);
     throughHoles = throughHoles.map(big); recesses = recesses.map(big);
     thickness *= k; topBevel *= k; bottomBevel *= k;
+    // The recess floor is where the cap's rim lands at the end of its
+    // travel. Each switch sits lower, in its own well (D.wellDepth), on
+    // the plate at the well's bottom.
     const recessFloorZ = thickness - D.recessDepth;
-    const plateZ = recessFloorZ - settings.plateThicknessMM;
-    stack = { recessFloorZ, plateZ, floorZ: plateZ - settings.clearanceHeightMM };
+    const plateTopZ = recessFloorZ - D.wellDepth;
+    const plateZ = plateTopZ - settings.plateThicknessMM;
+    stack = { recessFloorZ, plateTopZ, plateZ, floorZ: plateZ - settings.clearanceHeightMM };
   }
   const { recessFloorZ, plateZ, floorZ } = stack;
 
@@ -571,18 +581,27 @@ function buildJoinedBlock(outer, cells, thickness, settings, shaped = null, spli
     const pockets = D ? D.switches.map(([sx, sy]) => [cx * k + sx, cy * k + sy]) : [[cx, cy]];
     const plateHoles = pockets.map(([px, py]) => resamplePolygon(roundedRect(settings.plateHoleMM, settings.plateHoleMM, 0.4), RESAMPLE_N).translated(px, py));
     mesh.append(loftShell(recessOutline, recessOutline, recessFloorZ, thickness, true));
-    if (pockets.length === 1) {
+    // Top of the plate: the recess floor itself, or the bottom of each
+    // switch's well in a display piece.
+    const plateTopZ = D ? stack.plateTopZ : recessFloorZ;
+    if (!D) {
       mesh.append(ringFaceBetween(recessOutline, plateHoles[0], recessFloorZ, false, pockets[0]));
     } else {
-      // The recess floor with several plate holes in it.
-      const floorTris = triangulate(recessOutline.points, plateHoles.map((h) => [...ccw(h).points].reverse()));
+      // The recess floor with the switch wells in it, each well's walls,
+      // and the plate around the hole at its bottom.
+      const wells = pockets.map(([px, py]) => resamplePolygon(roundedRect(D.wellSize, D.wellSize, 0.5), RESAMPLE_N).translated(px, py));
+      const floorTris = triangulate(recessOutline.points, wells.map((h) => [...ccw(h).points].reverse()));
       if (!floorTris) { failed = true; return; }
       for (const [a, b, c] of floorTris) mesh.addTriangle([a[0], a[1], recessFloorZ], [b[0], b[1], recessFloorZ], [c[0], c[1], recessFloorZ]);
+      wells.forEach((well, j) => {
+        mesh.append(loftShell(well, well, plateTopZ, recessFloorZ, true));
+        mesh.append(ringFaceBetween(well, plateHoles[j], plateTopZ, false, pockets[j]));
+      });
     }
     pockets.forEach(([px, py], j) => {
       const plateHole = plateHoles[j];
       const clearanceHole = resamplePolygon(roundedRect(settings.clearanceMM, settings.clearanceMM, 0.6), RESAMPLE_N).translated(px, py);
-      mesh.append(loftShell(plateHole, plateHole, plateZ, recessFloorZ, true));
+      mesh.append(loftShell(plateHole, plateHole, plateZ, plateTopZ, true));
       mesh.append(switchShaftTop(clearanceHole, plateHole, px, py, floorZ, plateZ));
       const { points, triangles } = earClip(clearanceHole);
       for (const [a, b, c] of triangles) {

@@ -1332,6 +1332,14 @@ async function main() {
       }
       return cap;
     };
+    // How the cap's weight compares with what the switches' springs hold.
+    const weightLine = (f) => {
+      const g = Math.round(f.capGrams / 5) * 5, hold = Math.round(f.holdGrams / 5) * 5, share = f.capGrams / f.holdGrams;
+      const verdict = share <= 0.7 ? 'the springs hold it up with room to spare'
+        : share <= 0.9 ? 'that is close to the limit, so it may be slow to come back up; pick 9 switches or a smaller size'
+        : 'that is too heavy: the cap will sag or stay down; pick 9 switches or a smaller size';
+      return `The cap is about ${g} g in PLA; ${f.switches} switches hold up about ${hold} g before they start to move (Cherry MX Red, Black or Brown, 30 cN each), so ${verdict}.`;
+    };
     const showDisplay = (piece) => showMakerPreview(`display piece at ${piece.scale.toFixed(1)}×, put together`, piece.assembled);
     document.getElementById('makerDisplayPreviewBtn').addEventListener('click', async () => {
       const cap = displayCap();
@@ -1341,10 +1349,10 @@ async function main() {
       note.textContent = 'Building the display piece…';
       await new Promise((r) => setTimeout(r, 30));
       try {
-        const piece = buildDisplayPiece(cap, settings, bed, want);
+        const piece = buildDisplayPiece(cap, settings, bed, want, { switches: Number(document.getElementById('makerDisplaySwitches').value) || 9 });
         showDisplay(piece);
         const f = piece.info, mm = (v) => Math.round(v);
-        note.textContent = `Preview at ${piece.scale.toFixed(1)}× for the ${bed.name}: base ${mm(f.baseW)} × ${mm(f.baseH)} mm, ${mm(f.baseZ)} mm tall; cap ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall, about ${Math.round(f.capGrams / 5) * 5} g. The bed outline is for scale: the base and the cap print separately. Nothing downloaded yet.`;
+        note.textContent = `Preview at ${piece.scale.toFixed(1)}× for the ${bed.name}: base ${mm(f.baseW)} × ${mm(f.baseH)} mm, ${mm(f.baseZ)} mm tall; cap ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall. ${weightLine(f)} The bed outline is for scale: the base and the cap print separately. Nothing downloaded yet.`;
       } catch (err) {
         note.textContent = err && err.message ? err.message : 'The display piece could not be built.';
       }
@@ -1359,7 +1367,7 @@ async function main() {
       note.textContent = 'Building the display piece…';
       await new Promise((r) => setTimeout(r, 30)); // let the note show
       try {
-        const piece = buildDisplayPiece(cap, settings, bed, want);
+        const piece = buildDisplayPiece(cap, settings, bed, want, { switches: Number(document.getElementById('makerDisplaySwitches').value) || 9 });
         const tag = `${piece.scale.toFixed(1).replace('.', '_')}x`;
         const name = wantsLogo ? 'logo' : (exportFileBaseName().slice(0, 12) || 'key');
         const files = [[piece.base, `KeyCapForge_display_${name}_${tag}_base.3mf`], [piece.cap, `KeyCapForge_display_${name}_${tag}_cap.3mf`]];
@@ -1378,8 +1386,8 @@ async function main() {
         const capped = want > piece.maxScale + 0.05 ? ` (You asked for ${want}×; ${piece.maxScale.toFixed(1)}× is the most that fits the ${bed.name}.)` : '';
         note.textContent = `Exported ${wantsLogo ? 'the logo key' : `"${cap.text || 'blank'}"`} at ${piece.scale.toFixed(1)}× for the ${bed.name}, as two files.${capped} `
           + `Base: ${mm(f.baseW)} × ${mm(f.baseH)} mm, ${mm(f.baseZ)} mm tall. `
-          + `Cap: ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall, about ${Math.round(f.capGrams / 5) * 5} g in PLA; it prints ${f.faceDown ? 'face-down' : 'face-up (it needs supports inside)'}. `
-          + `Takes ${f.switches} switches: the middle, and ${f.cornerOffset.toFixed(1)} mm out toward each corner. Their springs carry the cap, so use medium or heavy switches (5 light ones hold up roughly 150 g). `
+          + `Cap: ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall; it prints ${f.faceDown ? 'face-down' : 'face-up (it needs supports inside)'}. `
+          + `Takes ${f.switches} switches: the middle, and ${f.cornerOffset.toFixed(1)} mm out toward each corner${f.switches === 9 ? ' and each side' : ''}. ${weightLine(f)} `
           + `${(bytes / 1048576).toFixed(1)} MB. In Bambu Studio set filament: base ${filaments[0]}; cap ${filaments[1]}. If your browser asks whether to allow several downloads, say yes.`;
       } catch (err) {
         note.textContent = err && err.message ? err.message : 'The display piece could not be built.';
