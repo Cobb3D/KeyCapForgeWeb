@@ -1349,7 +1349,7 @@ async function main() {
       note.textContent = 'Building the display piece…';
       await new Promise((r) => setTimeout(r, 30));
       try {
-        const piece = buildDisplayPiece(cap, settings, bed, want, { switches: Number(document.getElementById('makerDisplaySwitches').value) || 9 });
+        const piece = buildDisplayPiece(cap, settings, bed, want, { switches: Number(document.getElementById('makerDisplaySwitches').value) || 9, height: (Number(document.getElementById('makerDisplayHeight').value) || 100) / 100 });
         showDisplay(piece);
         const f = piece.info, mm = (v) => Math.round(v);
         note.textContent = `Preview at ${piece.scale.toFixed(1)}× for the ${bed.name}: base ${mm(f.baseW)} × ${mm(f.baseH)} mm, ${mm(f.baseZ)} mm tall; cap ${mm(f.capW)} × ${mm(f.capH)} mm, ${mm(f.capZ)} mm tall. ${weightLine(f)} The bed outline is for scale: the base and the cap print separately. Nothing downloaded yet.`;
@@ -1367,8 +1367,8 @@ async function main() {
       note.textContent = 'Building the display piece…';
       await new Promise((r) => setTimeout(r, 30)); // let the note show
       try {
-        const piece = buildDisplayPiece(cap, settings, bed, want, { switches: Number(document.getElementById('makerDisplaySwitches').value) || 9 });
-        const tag = `${piece.scale.toFixed(1).replace('.', '_')}x`;
+        const piece = buildDisplayPiece(cap, settings, bed, want, { switches: Number(document.getElementById('makerDisplaySwitches').value) || 9, height: (Number(document.getElementById('makerDisplayHeight').value) || 100) / 100 });
+        const tag = `${piece.scale.toFixed(1).replace('.', '_')}x${piece.height < 0.995 ? `_h${Math.round(piece.height * 100)}` : ''}`;
         const name = wantsLogo ? 'logo' : (exportFileBaseName().slice(0, 12) || 'key');
         const files = [[piece.base, `KeyCapForge_display_${name}_${tag}_base.3mf`], [piece.cap, `KeyCapForge_display_${name}_${tag}_cap.3mf`]];
         let bytes = 0;

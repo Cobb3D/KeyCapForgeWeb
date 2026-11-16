@@ -59,6 +59,9 @@ const RIM_BELOW_TOP_MM = 1.5, SIDE_CLEARANCE_MM = 0.6;
 // (3.6mm at the short end of Cherry's tolerance).
 const STOP_TRAVEL_MM = 3.4;
 const WELL_MM = 16.6;          // the square well each switch sits in
+// The least height a base (recess, well, plate, switch shaft and a floor)
+// and a cap (socket, post taper, top) can be squashed to.
+const MIN_BASE_MM = 24, MIN_CAP_MM = 22;
 const BED_MARGIN_MM = 8;       // spare room on the bed, in all
 const MAX_PRINT_HEIGHT_MM = 240;
 const PLA_G_PER_MM3 = 0.00124;
@@ -118,11 +121,21 @@ export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0, opts = {}
   const k = scaleWanted > 0 ? Math.min(scaleWanted, max) : Math.floor(max * 10) / 10;
   if (!(k >= 2)) throw new Error('The display piece has to be at least 2 times normal size.');
 
+  // Height: `opts.height` (0.2 to 1) makes both prints that fraction of
+  // their full blown-up height, for a flatter piece that prints faster.
+  // Only the plain stretch of the base under the switches and the cap's
+  // walls, posts and stops get shorter: the sockets, wells, plates and
+  // travel are built real size after the squash. (Scaling Z in the slicer
+  // instead squashes those too, and the switches no longer fit.) Not below
+  // what the base needs under its switches or the cap needs for its posts.
+  const hf = Math.max(Math.min(1, o.height > 0 ? o.height : 1), MIN_BASE_MM / (one.baseThicknessMM * k), MIN_CAP_MM / (one.capHeightMM * k));
+  one.baseThicknessMM *= hf;
+
   // The cap: outline blown up, shell and sockets real size.
   const postRadius = Math.max(4, Math.min(8, 0.8 * k));
   const capSettings = {
     ...one,
-    capWidthMM: one.capWidthMM * k, capTopWidthMM: one.capTopWidthMM * k, capHeightMM: one.capHeightMM * k,
+    capWidthMM: one.capWidthMM * k, capTopWidthMM: one.capTopWidthMM * k, capHeightMM: one.capHeightMM * k * hf,
     cornerRadiusMM: one.cornerRadiusMM * k, topBevelMM: one.topBevelMM * k,
     // The rim's bevel stays inside the thin wall.
     bottomBevelMM: Math.min(one.bottomBevelMM * k, o.wall * 0.5),
@@ -215,7 +228,7 @@ export function buildDisplayPiece(cap, settings, bed, scaleWanted = 0, opts = {}
     legendParts.map((p) => ({ mesh: p.mesh, colorHex: p.colorHex, translation: [-cx, -cy, restZ], decal: true })),
   );
   return {
-    scale: k, maxScale: max, base: baseObjects, cap: capObjects, assembled,
+    scale: k, maxScale: max, height: hf, base: baseObjects, cap: capObjects, assembled,
     info: {
       baseW: whole.w, baseH: whole.h, baseZ: whole.z,
       capW: capBox.w, capH: capBox.h, capZ: capHeight,

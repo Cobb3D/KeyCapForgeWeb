@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/15/2026c**
+**Version 11/15/2026d**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026c.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-15-2026d.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.
@@ -2614,3 +2614,6 @@ first thing to check.
   the switches bottom out, each switch sits in a well in that floor, the
   recess walls are 0.6 mm from the cap, and `info.capGrams` /
   `info.holdGrams` compare the cap's weight with what the springs hold.
+- **Display piece height (11/15/2026d).** `opts.height` in
+  buildDisplayPiece squashes the base's thickness and the cap's height
+  before the real-size switch parts are built, so those stay real size.

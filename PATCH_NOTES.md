@@ -7,6 +7,19 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/15/2026d
+
+- **Display piece: Height setting.** A percentage of the full blown-up
+  height, for both the base and the cap, so the piece sits lower on a
+  table and prints faster. Use this instead of scaling Z in the slicer:
+  scaling there also squashes the switch sockets, wells, plates and shafts,
+  and the switches no longer fit or latch. With the setting, only the plain
+  part of the base under the switches and the cap's walls, posts and stops
+  get shorter; everything a switch touches stays real size. At 42% and
+  6.5x the base is 48 mm tall (286 g sliced) and the cap 32 mm (83 g with
+  9 switches, 56 g with 5). It won't go lower than a 24 mm base and a
+  22 mm cap.
+
 ## 11/15/2026c
 
 Display piece: reworked so it can be hit at events, and checked against a
