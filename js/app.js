@@ -21,7 +21,31 @@ import { camoBase, PATTERN_STYLES } from './camo.js';
 import { loadLogoFile } from './logoImport.js';
 import { buildLogoClicker } from './logoBuilder.js';
 
-const FONTS = ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One'];
+// The font menu, in groups. Every font is a Google Font loaded by the
+// <link> in index.html; one that only comes in a single weight also has to
+// go in SINGLE_WEIGHT_FONTS in textVoxel.js. The first font is the default
+// and the first seven are frozen in designCode.js (V1_FONTS), so keep them
+// first and in this order.
+const FONT_GROUPS = [
+  ['Bold & block', ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One', 'Bowlby One', 'Alfa Slab One']],
+  ['Rounded & fun', ['Fredoka', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers']],
+  ['Retro & tech', ['Bungee', 'Righteous', 'Orbitron', 'Black Ops One', 'Press Start 2P']],
+  ['Hand-drawn & script', ['Permanent Marker', 'Pacifico']],
+];
+const FONTS = FONT_GROUPS.flatMap(([, fonts]) => fonts);
+
+// Browsers only download a web font once something uses it, and canvas text
+// (which the legends are drawn with) doesn't wait for it. So when a cap uses
+// a font that isn't loaded yet, load it, then build again: otherwise the
+// first build after picking a font comes out in a fallback font.
+const fontLoads = new Map();
+function ensureFont(family, onLoaded) {
+  if (fontLoads.has(family)) return;
+  const faces = ['400', '700', 'italic 400', 'italic 700'].map((w) => `${w} 40px "${family}"`);
+  if (faces.every((f) => document.fonts.check(f))) { fontLoads.set(family, Promise.resolve()); return; }
+  fontLoads.set(family, Promise.all(faces.map((f) => document.fonts.load(f).catch(() => [])))
+    .then(() => onLoaded()));
+}
 
 const settings = {
   capWidthMM: 18, capTopWidthMM: 15.5, capHeightMM: 11.8, wallThicknessMM: 1.4,
@@ -315,6 +339,7 @@ async function main() {
       logoRebuildTimer = setTimeout(rebuildLogo, 150);
       return;
     }
+    for (const c of caps) ensureFont(c.fontFamily, rebuild);
     const count = caps.length;
     const centers = capCenters(count, settings);
     const baseMesh = buildBase(caps, settings);
@@ -488,7 +513,20 @@ async function main() {
       shapeSel.addEventListener('change', () => { cap.shape = shapeSel.value; rebuild(); });
 
       const fontSel = document.createElement('select');
-      for (const f of FONTS) { const o = document.createElement('option'); o.value = f; o.textContent = f; fontSel.appendChild(o); }
+      for (const [label, fonts] of FONT_GROUPS) {
+        const g = document.createElement('optgroup'); g.label = label;
+        for (const f of fonts) {
+          const o = document.createElement('option'); o.value = f; o.textContent = f;
+          o.style.fontFamily = `"${f}", sans-serif`; // shown in its own font where the browser allows it
+          g.appendChild(o);
+        }
+        fontSel.appendChild(g);
+      }
+      // A design code from a newer version could name a font this menu
+      // doesn't have; keep it selectable instead of showing a blank menu.
+      if (!FONTS.includes(cap.fontFamily)) {
+        const o = document.createElement('option'); o.value = o.textContent = cap.fontFamily; fontSel.appendChild(o);
+      }
       fontSel.value = cap.fontFamily;
       fontSel.addEventListener('change', () => { cap.fontFamily = fontSel.value; rebuild(); });
 

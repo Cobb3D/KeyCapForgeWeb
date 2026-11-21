@@ -7,7 +7,11 @@ import { Mesh } from './mesh.js';
 // That's a font-matching failure specific to canvas text, not a rendering
 // bug in the voxelizer — worth knowing if a garbled/wrong-looking legend
 // ever shows up again after adding a new font to FONTS in app.js.
-const SINGLE_WEIGHT_FONTS = new Set(['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Fjalla One']);
+const SINGLE_WEIGHT_FONTS = new Set([
+  'Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Fjalla One',
+  'Bowlby One', 'Alfa Slab One', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers',
+  'Bungee', 'Righteous', 'Black Ops One', 'Press Start 2P', 'Permanent Marker', 'Pacifico',
+]);
 const loggedCombos = new Set();
 
 // Renders `text` to an offscreen canvas at high resolution using the

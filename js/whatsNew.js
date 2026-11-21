@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  '14 new fonts, 21 in all, grouped in the font menu: heavy block and slab letters, rounded and comic ones, retro and tech ones (including a pixel font and a stencil), and a marker and a script',
   'Display piece has a Height setting: make the base and cap shorter without squashing the switch sockets (don\'t scale Z in the slicer)',
   'Display piece is built to be hit: the cap lands on the base before the switches bottom out, the recess keeps it from being knocked sideways, and it takes 9 switches (or 5) with the cap\'s weight checked against what their springs hold',
   'Maker tools: every export (base plate, caps plate, display piece) has a Preview button that shows it in the 3D view before you download anything',

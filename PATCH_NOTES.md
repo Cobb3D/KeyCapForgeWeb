@@ -7,6 +7,22 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/21/2026a
+
+- **14 new fonts** (21 in all). The font menu is now grouped:
+  - Bold & block: the original seven, plus Bowlby One (extra heavy) and
+    Alfa Slab One (heavy slab serif).
+  - Rounded & fun: Fredoka, Lilita One, Titan One, Luckiest Guy, Bangers.
+  - Retro & tech: Bungee, Righteous, Orbitron, Black Ops One (stencil),
+    Press Start 2P (pixel).
+  - Hand-drawn & script: Permanent Marker, Pacifico.
+  All are heavy enough for a legend on a 0.4 mm nozzle. Fredoka and
+  Orbitron respond to Bold; the rest come in one weight. Design codes
+  carry the new fonts, so Etsy orders using them open correctly.
+- Fixed: picking a font that hadn't been used yet could build the
+  legend once in a fallback font. The app now loads the font first and
+  builds again when it arrives.
+
 ## 11/15/2026d
 
 - **Display piece: Height setting.** A percentage of the full blown-up
