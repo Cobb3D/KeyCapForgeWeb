@@ -7,6 +7,11 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/21/2026b
+
+- **New font: Chewy** (by Sideshow), in the Rounded & fun group. One
+  weight, so Bold doesn't change it. 22 fonts in all.
+
 ## 11/21/2026a
 
 - **14 new fonts** (21 in all). The font menu is now grouped:

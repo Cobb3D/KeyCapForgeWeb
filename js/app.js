@@ -28,7 +28,7 @@ import { buildLogoClicker } from './logoBuilder.js';
 // first and in this order.
 const FONT_GROUPS = [
   ['Bold & block', ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One', 'Bowlby One', 'Alfa Slab One']],
-  ['Rounded & fun', ['Fredoka', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers']],
+  ['Rounded & fun', ['Fredoka', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers', 'Chewy']],
   ['Retro & tech', ['Bungee', 'Righteous', 'Orbitron', 'Black Ops One', 'Press Start 2P']],
   ['Hand-drawn & script', ['Permanent Marker', 'Pacifico']],
 ];

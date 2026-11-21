@@ -9,7 +9,7 @@ import { Mesh } from './mesh.js';
 // ever shows up again after adding a new font to FONTS in app.js.
 const SINGLE_WEIGHT_FONTS = new Set([
   'Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Fjalla One',
-  'Bowlby One', 'Alfa Slab One', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers',
+  'Bowlby One', 'Alfa Slab One', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers', 'Chewy',
   'Bungee', 'Righteous', 'Black Ops One', 'Press Start 2P', 'Permanent Marker', 'Pacifico',
 ]);
 const loggedCombos = new Set();
