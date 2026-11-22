@@ -111,6 +111,12 @@ let shape = 'square';
 // Default starting set ("Cobb"). The word box is filled from this on
 // load (see syncWordFromCaps below), so this is the source of truth;
 // index.html's value="Cobb" only shows for the moment before the app loads.
+// One font for every letter in the set, picked in the "Font" menu at the
+// top of "Caps in this set". Each cap still carries its own fontFamily (the
+// builders, exports and design codes read it there); they're just always
+// set together. New caps get this font.
+let capFont = FONTS[0];
+
 let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;
 // 'letters' (a set of letter caps) or 'logo' (one logo-shaped clicker).
@@ -133,7 +139,7 @@ const liveState = { viewport: null, getExportFormat: null };
 
 function makeCap(text, { colorfulEmoji = false } = {}) {
   return {
-    text, shape, fontFamily: FONTS[0], isBold: true, isItalic: false, isUnderline: false,
+    text, shape, fontFamily: capFont, isBold: true, isItalic: false, isUnderline: false,
     // 'engraved' (not 'embossed') is the default on purpose: its legend
     // sits flush with the cap's flat top surface — same Z-plane, just a
     // different color region for multi-material printing — rather than
@@ -492,7 +498,45 @@ async function main() {
   const capCountEl = document.getElementById('capCount');
   function renderCapCount() { capCountEl.textContent = caps.length; }
 
+  // ---------- Font (one for the whole set) ----------
+  const capFontSel = document.getElementById('capFont');
+  const MIXED = '__mixed__';
+  for (const [label, fonts] of FONT_GROUPS) {
+    const g = document.createElement('optgroup'); g.label = label;
+    for (const f of fonts) {
+      const o = document.createElement('option'); o.value = f; o.textContent = f;
+      o.style.fontFamily = `"${f}", sans-serif`; // shown in its own font where the browser allows it
+      g.appendChild(o);
+    }
+    capFontSel.appendChild(g);
+  }
+  capFontSel.addEventListener('change', () => {
+    if (capFontSel.value === MIXED) return;
+    capFont = capFontSel.value;
+    for (const c of caps) c.fontFamily = capFont;
+    syncCapFont();
+    rebuild();
+  });
+  // Show the set's font in the menu. A design opened from an older code
+  // can have different fonts on different letters: it's kept as it was (so
+  // Maker tools rebuilds an order exactly) and the menu says "Mixed" until
+  // a font is picked. A font this version doesn't list (from a newer
+  // version's code) gets its own entry rather than a blank menu.
+  function syncCapFont() {
+    for (const o of capFontSel.querySelectorAll('option[data-extra]')) o.remove();
+    const fonts = [...new Set(caps.map((c) => c.fontFamily))];
+    let value = fonts.length === 0 ? capFont : fonts.length === 1 ? fonts[0] : MIXED;
+    if (fonts.length === 1) capFont = fonts[0];
+    if (value === MIXED || !FONTS.includes(value)) {
+      const o = document.createElement('option'); o.dataset.extra = '1';
+      o.value = value; o.textContent = value === MIXED ? 'Mixed (pick one for all)' : value;
+      capFontSel.prepend(o);
+    }
+    capFontSel.value = value;
+  }
+
   function renderCapList() {
+    syncCapFont();
     capListEl.innerHTML = '';
     caps.forEach((cap, i) => {
       const row = document.createElement('div');
@@ -512,29 +556,11 @@ async function main() {
       shapeSel.value = cap.shape || shape;
       shapeSel.addEventListener('change', () => { cap.shape = shapeSel.value; rebuild(); });
 
-      const fontSel = document.createElement('select');
-      for (const [label, fonts] of FONT_GROUPS) {
-        const g = document.createElement('optgroup'); g.label = label;
-        for (const f of fonts) {
-          const o = document.createElement('option'); o.value = f; o.textContent = f;
-          o.style.fontFamily = `"${f}", sans-serif`; // shown in its own font where the browser allows it
-          g.appendChild(o);
-        }
-        fontSel.appendChild(g);
-      }
-      // A design code from a newer version could name a font this menu
-      // doesn't have; keep it selectable instead of showing a blank menu.
-      if (!FONTS.includes(cap.fontFamily)) {
-        const o = document.createElement('option'); o.value = o.textContent = cap.fontFamily; fontSel.appendChild(o);
-      }
-      fontSel.value = cap.fontFamily;
-      fontSel.addEventListener('change', () => { cap.fontFamily = fontSel.value; rebuild(); });
-
       const del = document.createElement('button');
       del.className = 'delete-cap'; del.textContent = '✕';
       del.addEventListener('click', () => { caps.splice(i, 1); applyTheme(); syncWordFromCaps(); renderCapList(); rebuild(); });
 
-      line1.append(textInput, shapeSel, fontSel, del);
+      line1.append(textInput, shapeSel, del);
 
       const line2 = document.createElement('div');
       line2.className = 'line2';

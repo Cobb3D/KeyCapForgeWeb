@@ -7,6 +7,16 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/22/2026a
+
+- **One font for every letter.** The font menu on each cap is gone; a
+  single Font menu at the top of "Caps in this set" sets the font for
+  the whole set, and letters added later use it too. Bold, italic and
+  underline are still set per cap.
+- A design opened from an older code that had different fonts on
+  different letters opens unchanged (so Maker tools still rebuilds an
+  order exactly), and the menu shows "Mixed" until a font is picked.
+
 ## 11/21/2026b
 
 - **New font: Chewy** (by Sideshow), in the Rounded & fun group. One
