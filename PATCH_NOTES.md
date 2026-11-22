@@ -7,6 +7,11 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/22/2026b
+
+- **Chewy is the default font** (was Archivo Black). Design codes made
+  before this still open in the font they were made with.
+
 ## 11/22/2026a
 
 - **One font for every letter.** The font menu on each cap is gone; a

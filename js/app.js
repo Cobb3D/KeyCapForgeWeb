@@ -23,9 +23,9 @@ import { buildLogoClicker } from './logoBuilder.js';
 
 // The font menu, in groups. Every font is a Google Font loaded by the
 // <link> in index.html; one that only comes in a single weight also has to
-// go in SINGLE_WEIGHT_FONTS in textVoxel.js. The first font is the default
-// and the first seven are frozen in designCode.js (V1_FONTS), so keep them
-// first and in this order.
+// go in SINGLE_WEIGHT_FONTS in textVoxel.js. The first seven are frozen in
+// designCode.js (V1_FONTS), so keep them first and in this order. The
+// default font is capFont below.
 const FONT_GROUPS = [
   ['Bold & block', ['Archivo Black', 'Anton', 'Bebas Neue', 'Russo One', 'Oswald', 'Roboto', 'Fjalla One', 'Bowlby One', 'Alfa Slab One']],
   ['Rounded & fun', ['Fredoka', 'Lilita One', 'Titan One', 'Luckiest Guy', 'Bangers', 'Chewy']],
@@ -115,7 +115,10 @@ let shape = 'square';
 // top of "Caps in this set". Each cap still carries its own fontFamily (the
 // builders, exports and design codes read it there); they're just always
 // set together. New caps get this font.
-let capFont = FONTS[0];
+// The default is Chewy. (designCode.js's V1_CAP keeps Archivo Black as its
+// frozen default on purpose, so codes made before Chewy became the default
+// still open in the font they were made with.)
+let capFont = 'Chewy';
 
 let caps = ['C', 'o', 'b', 'b'].map((ch) => makeCap(ch));
 let explodedView = false;

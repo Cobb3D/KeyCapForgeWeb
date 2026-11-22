@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Chewy is the new default font',
   'One font for the whole set: pick it in the new Font menu at the top of "Caps in this set" and every letter changes together',
   'New font: Chewy, a soft cartoon font, in the Rounded & fun group',
   '14 new fonts, 21 in all, grouped in the font menu: heavy block and slab letters, rounded and comic ones, retro and tech ones (including a pixel font and a stencil), and a marker and a script',
