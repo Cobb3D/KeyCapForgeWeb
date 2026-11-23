@@ -585,7 +585,15 @@ async function main() {
       swatches.append(colorInput(cap.bodyColorHex, (v) => { cap.bodyColorHex = v; leaveTheme(); rebuild(); }), document.createTextNode(' '), colorInput(cap.legendColorHex, (v) => { cap.legendColorHex = v; leaveTheme(); rebuild(); }));
       if (sameCapColor.on) swatches.hidden = true;
 
-      line2.append(styleToggle, legendSel, swatches);
+      // In the simple (customer) menu only the colors show, so the row is
+      // labelled with its letter instead of the text box.
+      const letter = document.createElement('span');
+      letter.className = 'cap-letter';
+      letter.textContent = cap.text;
+      textInput.addEventListener('input', () => { letter.textContent = textInput.value; });
+      legendSel.classList.add('legend-select');
+
+      line2.append(letter, styleToggle, legendSel, swatches);
       row.append(line1, line2);
       capListEl.appendChild(row);
     });
@@ -1042,8 +1050,13 @@ async function main() {
     } catch (e) { on = q !== null && q !== 'off'; }
     const panel = document.getElementById('makerPanel');
     const showLink = document.getElementById('makerShow');
+    // Customers get the simple menu: colors, the word box with its symbols
+    // and emoji, the color themes and logo mode. Every other setting (font,
+    // shape, size, legend, keyring, fit) only shows with Maker tools on, in
+    // the browser that turned them on (style.css, body.simple).
     const setShown = (shown) => {
       panel.hidden = !shown;
+      document.body.classList.toggle('simple', !shown);
       showLink.textContent = shown ? 'Hide maker tools' : 'Maker tools';
     };
     setShown(on);

@@ -641,3 +641,18 @@ textarea.maker-code {
   padding: 6px 14px; font-size: 12px; max-width: calc(100% - 24px); text-align: center;
 }
 .maker-preview-bar a { color: var(--accent-text); margin-left: 6px; white-space: nowrap; }
+
+/* Simple menu for customers (app.js, Maker tools section): body.simple
+   is on unless Maker tools are turned on in this browser. Only panels
+   marked .simple-panel show, and in them only the title and the parts
+   marked .simple-keep (colors, the word box, symbols and emoji, themes,
+   logo import). Hidden settings keep their values. */
+body.simple .sidebar section.panel:not(.simple-panel) { display: none !important; }
+body.simple .sidebar section.panel > :not(.simple-keep):not(h2):not(.panel-header) { display: none !important; }
+body.simple .cap-row .line1,
+body.simple .cap-row .style-toggle,
+body.simple .cap-row .legend-select { display: none !important; }
+.cap-row .cap-letter { display: none; }
+body.simple .cap-row .cap-letter { display: inline-block; min-width: 28px; font-weight: 700; text-align: center; }
+/* With one color for every cap, the per-cap rows have nothing left to show. */
+body.simple section.panel:has(#sameCapColor:checked) #capList { display: none !important; }

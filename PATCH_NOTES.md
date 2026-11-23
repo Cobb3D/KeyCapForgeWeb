@@ -7,6 +7,19 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/23/2026a
+
+- **Simple menu for customers.** The side menu now shows only: Mode
+  (letter caps or logo clicker), the word box with its symbols and
+  emoji, the color Theme, the base color, and each cap's colors (or one
+  color for every cap). In logo mode: Import logo and the logo's colors.
+  Font, shape, size, legend, keyring, fit and emoji settings are hidden
+  and keep their defaults (Chewy for the font).
+- **All settings come back with Maker tools.** Turn on Maker tools (the
+  link at the bottom of the menu, or ?maker on the address) and every
+  setting shows again in that browser; "Hide maker tools" (or
+  ?maker=off) goes back to the simple menu.
+
 ## 11/22/2026b
 
 - **Chewy is the default font** (was Archivo Black). Design codes made
