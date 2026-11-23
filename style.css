@@ -656,3 +656,8 @@ body.simple .cap-row .legend-select { display: none !important; }
 body.simple .cap-row .cap-letter { display: inline-block; min-width: 28px; font-weight: 700; text-align: center; }
 /* With one color for every cap, the per-cap rows have nothing left to show. */
 body.simple section.panel:has(#sameCapColor:checked) #capList { display: none !important; }
+/* In the simple menu this panel only holds the base color, so it's called
+   "Base". Only the shown text changes: the panel's real title stays
+   "Base & Fit", which the saved menu order and folding are keyed by. */
+body.simple #baseFitPanel .panel-title { font-size: 0; }
+body.simple #baseFitPanel .panel-title::before { content: 'Base'; font-size: 12px; }

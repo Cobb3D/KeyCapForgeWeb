@@ -7,6 +7,11 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/23/2026b
+
+- In the simple menu, "Base & Fit" is called "Base", since it only holds
+  the base color there. With Maker tools on it's still "Base & Fit".
+
 ## 11/23/2026a
 
 - **Simple menu for customers.** The side menu now shows only: Mode
