@@ -50,7 +50,8 @@ function ensureFont(family, onLoaded) {
 const settings = {
   capWidthMM: 18, capTopWidthMM: 15.5, capHeightMM: 11.8, wallThicknessMM: 1.4,
   cornerRadiusMM: 1.6, topBevelMM: 0.8, bottomBevelMM: 0.8,
-  legendDepthMM: 0.6, legendSizeFraction: 0.62,
+  // 1.0mm so embossed letters (the default) visibly stand up from the cap.
+  legendDepthMM: 1.0, legendSizeFraction: 0.62,
   // Emoji in their cap's legend colour, with dark details cut out, instead
   // of up to 3 of their own colours (the '1-color emoji' checkbox).
   emojiOneColor: false,
@@ -143,14 +144,13 @@ const liveState = { viewport: null, getExportFormat: null };
 function makeCap(text, { colorfulEmoji = false } = {}) {
   return {
     text, shape, fontFamily: capFont, isBold: true, isItalic: false, isUnderline: false,
-    // 'engraved' (not 'embossed') is the default on purpose: its legend
-    // sits flush with the cap's flat top surface — same Z-plane, just a
-    // different color region for multi-material printing — rather than
-    // protruding above it. That's what lets the cap be printed face-down
-    // with zero supports: 'embossed' would put the raised letters as the
-    // lowest points touching the bed, leaving the flat background
-    // suspended above them needing support to bridge across.
-    legendStyle: 'engraved', bodyColorHex: '#3b5bdb', legendColorHex: '#ffffff',
+    // 'embossed' is the default: the letters stand up 1mm (legendDepthMM)
+    // from the cap's top. Embossed caps print face-up (printsFaceDown in
+    // keycapBuilder.js; face-down the raised letters would touch the bed
+    // and leave the top hanging). 'engraved' (flush with the top, prints
+    // face-down) was the default before 11/23/2026c; designCode.js keeps
+    // it as its frozen default so older codes still open as they were made.
+    legendStyle: 'embossed', bodyColorHex: '#3b5bdb', legendColorHex: '#ffffff',
     // When true, the legend is rendered in its own native colors (up to 3,
     // via color clustering — see rasterizeLegend in textVoxel.js) instead
     // of the single legendColorHex above. Only set for caps added via the

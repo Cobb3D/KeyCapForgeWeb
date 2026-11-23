@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Letters now stand up from the caps: raised (embossed) 1mm by default',
   'A simpler menu: type your word, add symbols or emoji, and pick your colors. Everything else is set for you',
   'Chewy is the new default font',
   'One font for the whole set: pick it in the new Font menu at the top of "Caps in this set" and every letter changes together',

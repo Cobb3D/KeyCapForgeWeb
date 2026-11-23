@@ -7,6 +7,14 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/23/2026c
+
+- **Raised letters by default.** New caps are embossed (was engraved,
+  flush with the top), and the legend depth default is 1.0 mm (was
+  0.6 mm), so the letters visibly stand up from the cap. Embossed caps
+  print face-up, in the normal export and on caps plates. Design codes
+  made before this still open with the letters they were made with.
+
 ## 11/23/2026b
 
 - In the simple menu, "Base & Fit" is called "Base", since it only holds
