@@ -13,6 +13,12 @@ const SINGLE_WEIGHT_FONTS = new Set([
   'Bungee', 'Righteous', 'Black Ops One', 'Press Start 2P', 'Permanent Marker', 'Pacifico',
 ]);
 const loggedCombos = new Set();
+// Grid cells across an emoji (letters use 160). At 160 an emoji's round
+// outline and small details showed stair-steps; 400 is smooth (about
+// 0.03mm cells) and builds in well under a second. Each cell is its own
+// little column, so the mesh grows with the square: about 6x the triangles
+// of 160 (roughly 230k for a 3D face emoji), fine for slicers and exports.
+const EMOJI_CELLS = 400;
 
 // Renders `text` to an offscreen canvas at high resolution using the
 // browser's own font rendering (any CSS font-family, including Google
@@ -104,6 +110,10 @@ export function glyphAspect(text, { fontFamily, bold, italic }) {
 }
 
 export function rasterizeLegend(text, { fontFamily, bold, italic, underline, targetWidth, targetHeight, maxWidth = null, depth, colorful = false, stencil = false, image = null, relief = null, cells = 0 }) {
+  // Emoji get a finer grid than letters (EMOJI_CELLS across instead of
+  // 160): their round outlines and small details (eyes, mouths) showed
+  // visible stair-steps at 160. A display piece asks for its own count.
+  if (!cells && !image && (colorful || stencil || relief)) cells = EMOJI_CELLS;
   if (!text && !image) return [];
 
   const RES = 12; // canvas px per mm — plenty for a legend a few mm tall

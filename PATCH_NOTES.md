@@ -7,6 +7,15 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/23/2026d
+
+- **Smoother emoji.** Emoji are built on a grid 400 cells across (was
+  160, the same as letters), about 0.03 mm cells, so round outlines and
+  small details (eyes, mouths, noses) no longer show stair-steps. An
+  emoji cap takes a little longer to build and has about 6 times the
+  triangles; letters are unchanged. Specks smaller than 1 mm are still
+  merged away, as before.
+
 ## 11/23/2026c
 
 - **Raised letters by default.** New caps are embossed (was engraved,

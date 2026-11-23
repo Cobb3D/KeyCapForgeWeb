@@ -9,6 +9,7 @@
 import { APP_VERSION } from './bugReport.js';
 
 export const WHATS_NEW = [
+  'Smoother emoji: built at a much finer resolution, so their outlines, eyes and mouths are no longer blocky',
   'Letters now stand up from the caps: raised (embossed) 1mm by default',
   'A simpler menu: type your word, add symbols or emoji, and pick your colors. Everything else is set for you',
   'Chewy is the new default font',
