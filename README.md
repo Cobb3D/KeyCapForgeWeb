@@ -1,6 +1,6 @@
 # KeyCapForge Beta — Web
 
-**Version 11/23/2026d**
+**Version 11/24/2026a**
 
 *by Cobb3D*
 
@@ -8,7 +8,7 @@
 > puts in bug reports (`APP_VERSION` in js/bugReport.js). When publishing an
 > update, change both together. Format: month/day/year, plus a letter for
 > each update that day (a, b, c...). The download is named the same way with
-> dashes, since file names can't contain slashes: KeyCapForge_11-23-2026d.zip.
+> dashes, since file names can't contain slashes: KeyCapForge_11-24-2026a.zip.
 >
 > Every update and what it changed, by version: [PATCH_NOTES.md](PATCH_NOTES.md).
 > Add an entry there with each new version.

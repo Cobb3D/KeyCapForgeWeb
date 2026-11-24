@@ -48,8 +48,12 @@ function ensureFont(family, onLoaded) {
 }
 
 const settings = {
-  capWidthMM: 18, capTopWidthMM: 15.5, capHeightMM: 11.8, wallThicknessMM: 1.4,
-  cornerRadiusMM: 1.6, topBevelMM: 0.8, bottomBevelMM: 0.8,
+  // Default key size since 11/24/2026a: straight sides (top as wide as the
+  // base), 6mm tall, well-rounded corners. Was top 15.5, height 11.8,
+  // corners 1.6. designCode.js keeps its own frozen defaults, so older
+  // codes still open at the size they were made.
+  capWidthMM: 18, capTopWidthMM: 18, capHeightMM: 6, wallThicknessMM: 1.4,
+  cornerRadiusMM: 6, topBevelMM: 0.8, bottomBevelMM: 0.8,
   // 1.0mm so embossed letters (the default) visibly stand up from the cap.
   legendDepthMM: 1.0, legendSizeFraction: 0.62,
   // Emoji in their cap's legend colour, with dark details cut out, instead

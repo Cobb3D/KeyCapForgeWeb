@@ -7,6 +7,14 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/24/2026a
+
+- **New default key size:** Top width **18.0 mm** (was 15.5, now the same
+  as the base, so the sides are straight), Height **6.0 mm** (was 11.8)
+  and Corner radius **6.0 mm** (was 1.6). Customers get this size; Maker
+  tools plates and display pieces start from it too. Design codes made
+  before this still open at the size they were made.
+
 ## 11/23/2026d
 
 - **Smoother emoji.** Emoji are built on a grid 400 cells across (was
