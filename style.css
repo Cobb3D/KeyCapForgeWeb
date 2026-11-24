@@ -661,3 +661,6 @@ body.simple section.panel:has(#sameCapColor:checked) #capList { display: none !i
    "Base & Fit", which the saved menu order and folding are keyed by. */
 body.simple #baseFitPanel .panel-title { font-size: 0; }
 body.simple #baseFitPanel .panel-title::before { content: 'Base'; font-size: 12px; }
+.key-versions { gap: 6px; }
+.key-versions label { flex: 1; }
+.key-versions .btn { padding: 4px 10px; }

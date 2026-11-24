@@ -7,6 +7,15 @@ e.g. 2026-10-08b; they're shown here in the current format.)
 
 ---
 
+## 11/24/2026b
+
+- **Version 1 / Version 2 buttons** (Shape & Size, full menu with Maker
+  tools on). Version 1 puts back the original defaults: Top width
+  15.5 mm, Height 11.8 mm, Corner radius 1.6 mm, flat (engraved) letters
+  0.6 mm deep, Archivo Black. Version 2 is the current defaults: Top
+  width 18 mm, Height 6 mm, Corner radius 6 mm, raised (embossed) letters
+  1.0 mm, Chewy. Text, colors, base and keyring stay as they are.
+
 ## 11/24/2026a
 
 - **New default key size:** Top width **18.0 mm** (was 15.5, now the same

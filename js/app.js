@@ -1534,6 +1534,35 @@ async function main() {
     rebuild();
     viewport.frameToModel(true);
   }
+  // ---------- Default versions ----------
+  // "Version 1" puts back the original defaults (before 11/22/2026b);
+  // "Version 2" the current ones (11/24/2026a). Only key size, letter
+  // style and font change; text, colors, base and keyring are kept.
+  // Version 2's values come from DEFAULT_SETTINGS and makeCap, so it
+  // follows the defaults if they change again.
+  const KEY_VERSIONS = {
+    1: { settings: { capWidthMM: 18, capTopWidthMM: 15.5, capHeightMM: 11.8, cornerRadiusMM: 1.6, legendDepthMM: 0.6 },
+         legendStyle: 'engraved', font: 'Archivo Black' },
+    2: { settings: Object.fromEntries(['capWidthMM', 'capTopWidthMM', 'capHeightMM', 'cornerRadiusMM', 'legendDepthMM'].map((k) => [k, DEFAULT_SETTINGS[k]])),
+         legendStyle: 'embossed', font: 'Chewy' },
+  };
+  function applyKeyVersion(n) {
+    const v = KEY_VERSIONS[n];
+    Object.assign(settings, v.settings);
+    for (const s of SLIDERS) {
+      if (!(s.key in v.settings)) continue;
+      s.input.value = settings[s.key];
+      s.output.textContent = `${settings[s.key].toFixed(s.decimals)}${s.unit}`;
+    }
+    capFont = v.font;
+    for (const c of caps) { c.legendStyle = v.legendStyle; c.fontFamily = v.font; }
+    renderCapList();
+    rebuild();
+    viewport.frameToModel(true);
+  }
+  document.getElementById('keyVersion1').addEventListener('click', () => applyKeyVersion(1));
+  document.getElementById('keyVersion2').addEventListener('click', () => applyKeyVersion(2));
+
   async function loadDesignCode(text) {
     applyDesign(await decodeDesign(text));
   }
